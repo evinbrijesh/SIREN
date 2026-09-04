@@ -153,12 +153,13 @@ Copy-paste each brief into Devin as a task. **Dispatch order: D4, D3, D5, D2, D1
 
 ## D7 — Frontend Scaffold (4 views, mocked data)
 
-**Spec:** PRD §12.
+**Spec:** PRD §12, **`docs/UI_DESIGN.md` (layout + design system — authoritative for visual structure)**.
 
 **Deliverables:**
 - `frontend/` — Vite + React + TypeScript app.
 - MapLibre GL JS map initialized with a basin polygon + raster overlay (mock).
-- Four views: `MapView`, `TimelineView`, `ReviewView`, `AuditView` — all render with mock JSON.
+- Four views: `MapView`, `TimelineView`, `ReviewView`, `AuditView` — all render with mock JSON, laid out per `docs/UI_DESIGN.md` §3–§6.
+- Dark ops-console design system per `docs/UI_DESIGN.md` §7 (slate-900 bg, status colors green/amber/red, monospace for telemetry).
 - Typed API client in `frontend/src/api/` generated from the D4 Pydantic models (field names/types must match).
 - Vite dev proxy: `/api` → `http://localhost:8000`.
 
@@ -166,6 +167,7 @@ Copy-paste each brief into Devin as a task. **Dispatch order: D4, D3, D5, D2, D1
 - `npm run dev` boots; all four views render with mock data.
 - Typed client compiles against the D4 contract.
 - No runtime network calls to external services (offline-safe).
+- The 5 demo-critical visual beats in `docs/UI_DESIGN.md` §9 render correctly (swipe, router badge, action sheet, payload box, decision bar).
 
 ---
 
