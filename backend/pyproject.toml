@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "siren"
 version = "0.1.0"
 description = "Satellite-Informed Risk & Emergency Network — early warning and disaster-response decision platform"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.13"
 dependencies = [
     "fastapi>=0.110",
     "uvicorn[standard]>=0.29",
