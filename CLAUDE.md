@@ -21,7 +21,7 @@ backend/
     ingest/       # CDSE STAC, Earthdata SRTM, IMERG, Overpass downloaders
     preprocess/   # clip, reproject, co-register, quality gate
     detect/       # NDWI diff, SAR backscatter ratio, weather-adaptive router, change stats
-    geo/          # D8 corridor, tolerance buffers, exposure intersections
+    geo/          # combined D8 + OSM river corridor, tolerance buffers, exposure intersections
     risk/         # hazard H, exposure E, disease D_risk scoring + reasons
     alerting/     # <250-byte payload codec, simulated dispatch
     audit/        # append-only log writer

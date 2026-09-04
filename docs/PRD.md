@@ -6,7 +6,7 @@
 
 | | |
 |---|---|
-| **Version** | 4.1 (Canonical — consolidates drafts v1.0–v3.0; v4.1 renames product SafeBasin → SIREN) |
+| **Version** | 4.2 (Canonical — consolidates drafts v1.0–v3.0; v4.1 renames SafeBasin → SIREN; v4.2 adds combined D8+OSM corridor, UI design spec, verified demo assets) |
 | **Target track** | Track 7 — *Living with Uncertainties, Building with Resilience* |
 | **Track areas** | Area ii: Communication Systems During Disasters for Effective Response · Area iii: Curbing Diseases That Arise During Disasters |
 | **Demo geography** | Dudh Koshi / Imja glacial basin, Nepal Himalaya (swap-ready to Chorabari/Kedarnath or South Lhonak if Indian terrain resonates better with judges; pipeline is basin-agnostic) |
@@ -121,7 +121,12 @@ The primary MVP user is an **authorized emergency coordinator**. The public aler
 - *Optical path (used when skies are clear):* NDWI plus a Siamese U-Net / ChangeFormer model — shared encoders over baseline and current imagery, decoded into a pixel-level change-probability map and category (water expansion, floodwater, debris, glacier change, uncertain).
 - A SegFormer head classifies changed pixels into functional classes: open water, inundation/debris, glacier/snow, moraine/bare rock, forest, built-up, cloud/shadow.
 
-**6.4 Temporal trend, hydrological corridor, and exposure mapping.** Two-to-four observations are compared chronologically; persistence across multiple passes is required before escalation (stable / slowly expanding / rapidly expanding / uncertain — never a precise collapse time). SRTM-derived D8 flow accumulation projects a downstream corridor from the change polygon, intersected against OSM-sourced settlements, roads, bridges, hospitals, shelters, water points, and food facilities using resolution-aware tolerance buffers (bridges ±75 m, roads ±50 m, settlements/wells ±100 m) to avoid false intersections at 10–30 m satellite resolution.
+**6.4 Temporal trend, hydrological corridor, and exposure mapping.** Two-to-four observations are compared chronologically; persistence across multiple passes is required before escalation (stable / slowly expanding / rapidly expanding / uncertain — never a precise collapse time). The downstream exposure corridor uses a **combined D8 + OSM river buffering** approach (ADR-005 / Roadmap Phase 3):
+
+1. **D8 reachability (physical validation):** SRTM-derived D8 flow accumulation traces the downstream flow path from the change polygon centroid, confirming the change source drains into the expected sub-basin (e.g., Imja lake → Imja Khola / Dudh Koshi) rather than an adjacent drainage divide.
+2. **OSM river selection:** waterway segments (`waterway=river/stream`) reachable by the D8 path are selected — these capture the real, surveyed riverbed through inhabited valleys, which a single-pixel D8 path at 30 m resolution can miss in steep terrain (drainage-trenching artifacts, lateral moraine walls).
+3. **Floodplain buffer:** the reachable river segments are buffered by a nominal flood-plain width (100–150 m).
+4. **Exposure intersection:** the buffered corridor is intersected against OSM-sourced settlements, roads, bridges, hospitals, shelters, water points, and food facilities using resolution-aware tolerance buffers (bridges ±75 m, roads ±50 m, settlements/wells ±100 m) to avoid false intersections at 10–30 m satellite resolution.
 
 **6.5 Risk fusion and disease-risk scoring.** Satellite change, temporal trend, rainfall, terrain, hydrology, and exposure combine into a hazard score, exposure priority, and a waterborne-disease risk index (§9.5). A policy engine classifies the result as informational, watch, elevated, or eligible for critical human review.
 
@@ -254,7 +259,12 @@ MVP: persistence rule + regression slope across 2–4 observations. Long-term: C
 
 ### 9.4 GIS exposure engine
 
-Deterministic spatial analysis (not learned) for MVP transparency and easy validation: intersects hazard polygon and downstream corridor with terrain and asset layers using the tolerance buffers in §6.4. A future graph neural network could rank connected-asset failure cascades, but the MVP stays deterministic by design.
+Deterministic spatial analysis (not learned) for MVP transparency and easy validation. The engine combines two evidence sources (see §6.4):
+
+- **D8 flow accumulation** validates the gravity gradient — that floodwater from the change source drains into the expected sub-basin.
+- **OSM river buffering** captures the real surveyed riverbed through inhabited valleys, which a raw D8 path can miss at 30 m resolution in steep Himalayan terrain.
+
+The engine intersects the buffered corridor with terrain and asset layers using the tolerance buffers in §6.4. A future graph neural network could rank connected-asset failure cascades, but the MVP stays deterministic by design.
 
 ### 9.5 Risk-fusion and disease scoring
 
@@ -379,18 +389,25 @@ The public-facing message avoids false certainty:
 | Sen1Floods11 | Public benchmark dataset | Pretraining/benchmarking SAR flood-water segmentation weights | GeoTIFF/COG |
 | ICIMOD inventories | Open data/reports | Glacial-lake baselines and regional GLOF context | GeoJSON/GeoPackage |
 
+**Prepared demo dataset (verified on disk, `data/`):**
+- Sentinel-1 GRD pair: 2026-07-23 (obs-001) + 2026-08-04 (obs-002), IW dual-pol VV/VH, full AOI coverage.
+- Sentinel-2 L2A: 2025-11-22, tile **T45RVL** (covers 100% of AOI — the clean post-monsoon optical baseline). Note: the AOI spans 4 S2 tiles; T45RVL is the correct one for this basin.
+- SRTM 30 m clip: 1188×1260, EPSG:4326, elevation 1930–8429 m, no nodata gaps.
+- OSM extract: 1100 features — 63 settlements, 92 bridges (incl. Hillary suspension bridges), 16 drinking-water points, 3 clinics, 1 hospital, Dudh Koshi/Imja rivers.
+- Weather context: `data/assets/weather_series.json` (prepared demo context; refresh with `backend/siren/ingest/openmeteo.py`).
+
 **Data hygiene rules.** Record OSM extraction date (completeness varies by region). Never randomly split adjacent image chips from the same event into train/test — split by event, basin, or geographic region to prevent leakage. Store label source, annotator, date, class schema, and confidence for any hand-labeled validation set.
 
 ---
 
 ## 12. User Interface Requirements
 
-Four primary views in the coordinator console:
+The coordinator console has four primary views. **The authoritative layout, component hierarchy, and design system are specified in `docs/UI_DESIGN.md`** (dark ops-console theme, status colors, wireframes for each view). Functional requirements:
 
 1. **Monitoring map.** Basin boundary, baseline vs. current observation, detected-change overlay, D8 exposure corridor, settlements, roads, bridges, shelters, hospitals, water points. Layer toggles; swipe-compare for before/after.
-2. **Observation timeline.** Image dates, weather values, water-area measurements, quality scores, trend classification. A **Run Monitoring** button processes the prepared observation sequence sequentially.
+2. **Observation timeline.** Image dates, weather values, water-area measurements, quality scores, trend classification. A **Run Monitoring** button processes the prepared observation sequence sequentially. A weather-adaptive router strip shows the optical→SAR switch.
 3. **Review panel.** Severity, hazard score, exposure priority, confidence, evidence list (minimum three factors on high-priority alerts), affected assets, disease action sheet, and Confirm / Reject / Postpone controls.
-4. **Audit & dispatch panel.** Decision timeline and simulated delivery log: target geofence, recipient groups, message content, payload size, timestamp, status.
+4. **Audit & dispatch panel.** Decision timeline and simulated delivery log: target geofence, recipient groups, message content, payload size (must show ≤250 bytes), timestamp, status.
 
 ---
 
@@ -437,7 +454,7 @@ All model outputs are advisory. The system displays uncertainty, data freshness,
 1. **Baseline view:** Dudh Koshi basin loaded — clear skies, normal glacial-lake boundary, intact access roads.
 2. **Observation 1 (T+2 days):** Sentinel-1 SAR pass; small supraglacial pond expansion (+8% area); rainfall normal → **Low/Advisory**.
 3. **Observation 2 (T+6 days):** Heavy monsoon front, optical 95% cloud-blocked; SAR penetrates cover and reveals moraine shift and rapid water expansion (+28% area); 24h rainfall exceeds 80 mm.
-4. **Trigger & review:** System raises an **Elevated/Critical** review card, highlighting the D8 downstream corridor, 2 flagged villages, 1 critical suspension bridge, and 3 primary drinking wells.
+4. **Trigger & review:** System raises an **Elevated/Critical** review card, highlighting the combined D8 + OSM downstream corridor, 2 flagged villages (**Benkar**, **Jorsale**), 1 critical suspension bridge (**Hillary Bridge**), and 3 primary drinking wells along the Dudh Koshi corridor.
 5. **Coordinator action:** Presenter inspects the evidence panel and the Disease Prevention Action Sheet, then clicks **Confirm SOS**.
 6. **Dispatch & response:** System shows the simulated geofenced compressed-payload dispatch (Track 7.ii) alongside the water/medical distribution manifest (Track 7.iii); the audit panel records reviewer, decision, and timestamp.
 

@@ -110,7 +110,7 @@ Everything that requires the real basin rasters on disk, threshold tuning agains
 |---|---|---|
 | 0 | Verify Devin-downloaded data opens; lock basin; smoke-test D8 on real DEM | Real files, visual check |
 | 2 | NDWI differencing + SAR backscatter ratio on real scenes; **tune thresholds by eye**; weather-adaptive router wiring | Threshold tuning is visual iteration on actual rasters |
-| 3 | D8 corridor from change polygon; tolerance-buffer intersections against real OSM extract; verify "2 villages, 1 bridge, 3 wells" emerges from geometry | Geospatial iteration on local data |
+| 3 | Combined D8 + OSM river buffering corridor (D8 reachability validation + OSM river floodplain buffer); tolerance-buffer intersections against real OSM extract; verify "2 villages, 1 bridge, 3 wells" emerges from geometry | Geospatial iteration on local data |
 | 3 | Risk fusion H + E + disease D_risk with real inputs; wire `reasons` arrays | Needs real feature values |
 | 4–5 | Integrate Devin modules (gate, codec, audit) into the live pipeline; Confirm/Reject/Postpone flow; simulated dispatch | Integration + debugging |
 | 4–5 | Wire real data into the 4 frontend views; swipe-compare; evidence panel | Visual, demo-critical |

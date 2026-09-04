@@ -8,7 +8,7 @@
 ## 0. Critical Path
 
 ```text
-Data on disk ──► Change mask ──► D8 corridor ──► Exposure list ──► Scores ──► Review UI ──► Dispatch ──► Audit ──► Demo script
+Data on disk ──► Change mask ──► Corridor (D8+OSM) ──► Exposure list ──► Scores ──► Review UI ──► Dispatch ──► Audit ──► Demo script
    (Phase 0)      (Phase 2)       (Phase 3)        (Phase 3)        (Phase 3)    (Phase 4)     (Phase 5)    (Phase 5)   (Phase 6)
 ```
 
@@ -67,13 +67,13 @@ Do this at home. Every hour saved here is an hour of judging-visible work later.
 
 | # | Task | Owner | Done when |
 |---|---|---|---|
-| 3.1 | D8 flow accumulation on DEM; extract downstream corridor from change polygon | A | Corridor polyline/polygon reaches downstream settlements |
+| 3.1 | Combined corridor: D8 flow accumulation (reachability validation) + OSM river floodplain buffer (100–150 m) | A | Corridor reaches downstream settlements via real riverbed |
 | 3.2 | Tolerance-buffer intersections: bridges ±75 m, roads ±50 m, settlements/wells ±100 m (PRD §6.4) | A | Asset list matches demo script: 2 villages, 1 bridge, 3 wells |
 | 3.3 | Hazard score H (5-factor weighted, PRD §9.5) + confidence | B | Score + per-factor reasons in DB and API |
 | 3.4 | Exposure priority E | B | Ranked asset list in API |
 | 3.5 | Map: corridor + buffered asset overlays with severity styling | C | Corridor and flagged assets visible on map |
 
-**Checkpoint (hour 16):** the demo's "2 villages, 1 bridge, 3 wells" appears from real geometry, not hardcoded. **Fallback:** if D8 corridor misbehaves (spurious flow paths — common in karst/steep terrain), buffer the river network from OSM instead and intersect that.
+**Checkpoint (hour 16):** the demo's "2 villages, 1 bridge, 3 wells" appears from real geometry, not hardcoded. **Primary method (validated):** combined D8 + OSM river buffering — D8 confirms the gravity gradient, OSM rivers capture the real surveyed riverbed through inhabited valleys (a raw D8 path can miss settlements in steep terrain). **Fallback:** if OSM rivers are absent, buffer the D8 path directly.
 
 ---
 
@@ -143,7 +143,7 @@ Do this at home. Every hour saved here is an hour of judging-visible work later.
 |---|---|---|
 | 4 | Does the map render the basin? | Hardcode basin GeoJSON; defer DB |
 | 10 | Are change masks plausible on both scenes? | Precompute masks manually; keep pipeline code for the story |
-| 16 | Does the corridor hit the demo assets? | Fall back to OSM river buffering |
+| 16 | Does the corridor hit the demo assets? | Buffer the D8 path directly (no OSM rivers) |
 | 22 | Does the review card render complete evidence? | Cut disease action sheet to a static template |
 | 28 | Does Confirm → dispatch → audit work? | **All hands on this. Drop everything else.** |
 | 32 | Is the full demo rehearsed once? | Cut the stretch goal; record backup video now |
