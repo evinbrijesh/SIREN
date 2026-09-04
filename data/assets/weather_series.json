@@ -1,7 +1,5 @@
 {
   "basin_id": "dudh-koshi-demo-01",
-  "source": "prepared-demo-context",
-  "provenance": "Prepared offline demo context (ADR-004). Refresh with real data via: python backend/siren/ingest/openmeteo.py",
   "series": [
     {
       "date": "2026-07-23",

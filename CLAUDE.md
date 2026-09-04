@@ -53,6 +53,9 @@ docs/
 ## Known Gotchas
 
 - **WhiteboxTools vs pysheds:** prefer pysheds (pure Python, no binary). If D8 flow accumulation misbehaves on steep/karst terrain, fall back to OSM river buffering (Roadmap Phase 3 fallback).
+- **pysheds 0.5 + numpy 2.x incompatibility (CRITICAL):** pysheds 0.5 calls `np.in1d`, which was removed in numpy 2.x. **Must monkeypatch `np.in1d = np.isin` before any pysheds call.** The `geo/` module does this at import. Do not "fix" by downgrading numpy — rasterio/geopandas need numpy 2.
+- **pysheds 0.5 API:** use `grid.read_raster(path)` which returns a `Raster` object (NOT `grid.dem` / `grid.view('dem')` — those don't exist in 0.5). Pass the returned Raster to `fill_depressions(dem=...)`.
+- **AOI is a rectangle, not a watershed:** D8 accumulation max is limited (~7k cells) because the river exits the box edges. Expected — the corridor is computed within the AOI. If you need the full river, extend the DEM downstream.
 - **Cloud routing:** optical cloud_fraction ≥ 0.20 flips the pipeline to SAR-primary. SAR is treated as all-weather (cloud_fraction = 0.0 on that path).
 - **Tolerance buffers:** bridges ±75 m, roads ±50 m, settlements/wells ±100 m. These exist to prevent false intersections at 10–30 m satellite resolution — do not "tighten" them.
 - **Offline demo:** zero network calls at runtime. All data loads from `data/`. Live ingestion is a bonus script, never a runtime dependency.
