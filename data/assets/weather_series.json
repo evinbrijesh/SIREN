@@ -1,0 +1,23 @@
+{
+  "basin_id": "dudh-koshi-demo-01",
+  "source": "prepared-demo-context",
+  "provenance": "Prepared offline demo context (ADR-004). Refresh with real data via: python backend/siren/ingest/openmeteo.py",
+  "series": [
+    {
+      "date": "2026-07-23",
+      "observation_id": "obs-001",
+      "rainfall_24h_mm": 18.2,
+      "rainfall_7d_mm": 64.0,
+      "temp_mean_c": 11.5,
+      "temp_index": 0.58
+    },
+    {
+      "date": "2026-08-04",
+      "observation_id": "obs-002",
+      "rainfall_24h_mm": 84.6,
+      "rainfall_7d_mm": 192.4,
+      "temp_mean_c": 14.2,
+      "temp_index": 0.71
+    }
+  ]
+}

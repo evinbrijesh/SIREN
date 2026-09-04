@@ -1,0 +1,115 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "place": "village",
+        "name": "Dingboche",
+        "population": 450
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          86.83,
+          27.89
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "place": "village",
+        "name": "Chhukung",
+        "population": 210
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          86.87,
+          27.9
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "highway": "bridge",
+        "name": "Imja Suspension Bridge"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          86.82,
+          27.88
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "amenity": "drinking_water",
+        "name": "Upper Well"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          86.84,
+          27.89
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "amenity": "drinking_water",
+        "name": "Lower Well"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          86.82,
+          27.87
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "man_made": "water_well",
+        "name": "Community Borehole"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          86.81,
+          27.86
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "highway": "path",
+        "name": "Main Trekking Trail"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            86.81,
+            27.85
+          ],
+          [
+            86.84,
+            27.89
+          ],
+          [
+            86.87,
+            27.91
+          ]
+        ]
+      }
+    }
+  ]
+}

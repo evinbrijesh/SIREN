@@ -1,6 +1,6 @@
 # Devin Dispatch Briefs — SIREN
 
-Copy-paste each brief into Devin as a task. **Dispatch order: D8, D4, D3, D5, D2, D1, D6, D7** (fixtures and API scaffold unblock everything else).
+Copy-paste each brief into Devin as a task. **Dispatch order: D4, D3, D5, D2, D1, D6, D7** (D8 is already satisfied — see below; API scaffold unblocks the rest).
 
 **Rules for every task:**
 - Work from `docs/PRD.md` (v4.1) and `backend/siren/db/schema.sql` — they are authoritative.
@@ -10,7 +10,19 @@ Copy-paste each brief into Devin as a task. **Dispatch order: D8, D4, D3, D5, D2
 
 ---
 
-## D8 — Test Fixtures (dispatch FIRST)
+## D8 — Test Fixtures ✅ ALREADY SATISFIED (do not dispatch)
+
+**Status:** Completed locally by OpenCode. Fixtures exist and are committed. **Do not dispatch this task to Devin** — it would duplicate work.
+
+**What exists:**
+- `backend/tests/fixtures/make_fixtures.py` — generator script (run once)
+- `backend/tests/fixtures/rasters/baseline.tif` — 100×100, 100 water px
+- `backend/tests/fixtures/rasters/expanded_water.tif` — 128 water px = **+28%** (verified)
+- `backend/tests/fixtures/rasters/cloudy_optical.tif` — **2-band** optical scene (GREEN, NIR), cloud_fraction **0.25** (computed from scene stats, not a pre-made mask)
+- `backend/tests/fixtures/osm/fake_assets.geojson` — 2 villages, 1 bridge, 3 wells, 1 road line
+- `backend/tests/fixtures/__init__.py` — `fixture_path()` helper
+
+**Note for downstream tasks:** `cloudy_optical.tif` is a 2-band scene; the quality gate (D3) must compute cloud_fraction from scene statistics (bright pixels in both bands), not read a pre-made mask.
 
 **Spec:** Roadmap Phase 0. Create synthetic fixtures used by all other tests.
 
