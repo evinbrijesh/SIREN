@@ -75,6 +75,15 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
   const [mapCenter, setMapCenter] = useState<[number, number]>([86.82, 27.88]);
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
+
+  // Theme-aware map colors — reads --map-style CSS variable
+  const mapStyle = typeof window !== "undefined"
+    ? getComputedStyle(document.documentElement).getPropertyValue("--map-style").trim() || "dark"
+    : "dark";
+  const isLightMap = mapStyle === "light";
+  const mapBg = isLightMap ? "#e5e7eb" : "#08090a";
+  const basinColor = isLightMap ? "#b45309" : "#ffb000";
+  const corridorColor = isLightMap ? "#dc2626" : "#ff1e27";
   const sim = useSimulation();
 
   const routedSar = Boolean((run?.change_stats_json?.routing as any)?.sar_primary);
@@ -129,7 +138,7 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
     if (!mapContainer.current || mapRef.current) return;
     const map = new maplibregl.Map({
       container: mapContainer.current,
-      style: { version: 8, sources: {}, layers: [{ id: "background", type: "background", paint: { "background-color": "#08090a" } }] },
+      style: { version: 8, sources: {}, layers: [{ id: "background", type: "background", paint: { "background-color": mapBg } }] },
       center: [86.82, 27.88],
       zoom: 11,
       attributionControl: { compact: true },
@@ -151,10 +160,10 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
         map.addLayer({ id: "sar", type: "raster", source: "sar", paint: { "raster-opacity": 0.72, "raster-fade-duration": 0 }, layout: { visibility: routedSar ? "visible" : "none" } });
       }
       map.addSource("basin", { type: "geojson", data: basinPolygon as any });
-      map.addLayer({ id: "basin-fill", type: "fill", source: "basin", paint: { "fill-color": "#ffb000", "fill-opacity": 0.03 } });
-      map.addLayer({ id: "basin-border", type: "line", source: "basin", paint: { "line-color": "#ffb000", "line-width": 1, "line-opacity": 0.5 } });
+      map.addLayer({ id: "basin-fill", type: "fill", source: "basin", paint: { "fill-color": basinColor, "fill-opacity": 0.03 } });
+      map.addLayer({ id: "basin-border", type: "line", source: "basin", paint: { "line-color": basinColor, "line-width": 1, "line-opacity": 0.5 } });
       map.addSource("corridor", { type: "geojson", data: toFeature(corridor) });
-      map.addLayer({ id: "corridor", type: "line", source: "corridor", paint: { "line-color": "#ff1e27", "line-width": 2, "line-dasharray": [5, 3] } });
+      map.addLayer({ id: "corridor", type: "line", source: "corridor", paint: { "line-color": corridorColor, "line-width": 2, "line-dasharray": [5, 3] } });
       updateAssetMarkers(map, exposures, markersRef, sim.selectAsset, layers.assets);
     });
     return () => {
