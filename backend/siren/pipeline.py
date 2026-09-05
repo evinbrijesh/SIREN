@@ -278,7 +278,7 @@ def _derive_synthetic_confidence(mask: np.ndarray) -> np.ndarray:
     This gives the heatmap a natural gradient that looks like ML output while
     being grounded in the real rule-based detection.
     """
-    from scipy import ndimage  # scipy is a transitive dep via pysheds
+    from scipy import ndimage  # scipy is an explicit dependency (pyproject.toml)
     h, w = mask.shape[:2]
     confidence = np.zeros((h, w), dtype=np.float32)
 

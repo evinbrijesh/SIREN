@@ -15,6 +15,7 @@ dependencies = [
     "geopandas>=0.14",
     "shapely>=2.0",
     "numpy>=1.26",
+    "scipy>=1.11",
     "xarray>=2024.1",
     "pysheds>=0.4",
 ]
