@@ -180,6 +180,8 @@ const mlEvidence: MlEvidence = {
   mask_bounds: [[86.8945, 27.9219], [86.9555, 27.9219], [86.9555, 27.8681], [86.8945, 27.8681]],
   baseline_mask_uri: "/data/processed/baseline_water_mask.png",
   baseline_mask_bounds: null,
+  preview_baseline_uri: "/data/processed/obs-003_baseline.png",
+  preview_after_uri: "/data/processed/obs-003_change_heatmap.png",
   model_available: false,
   change_polygon: { type: "Polygon", coordinates: [[[86.8945, 27.8681], [86.9555, 27.8681], [86.9555, 27.9219], [86.8945, 27.9219], [86.8945, 27.8681]]] },
 };
