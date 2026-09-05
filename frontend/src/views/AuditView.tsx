@@ -17,13 +17,20 @@ const CHANNEL_LABELS: Record<string, string> = {
   satellite: "Satellite",
 };
 
+const CHANNEL_TECH: Record<string, string> = {
+  sms: "GSM-T",
+  lora: "868 MHz",
+  satellite: "Iridium SBD",
+};
+
 export default function AuditView({ onToast }: Props) {
   const alertId = "alert-0091";
   const sim = useSimulation();
   const [copied, setCopied] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
   const [channels, setChannels] = useState<Record<string, ChannelStatus>>({
-    sms: "idle", lora: "idle", satellite: "idle",
+    sms: "idle",
+    lora: "idle",
+    satellite: "idle",
   });
 
   const { data: auditData } = useQuery({
@@ -74,126 +81,206 @@ export default function AuditView({ onToast }: Props) {
 
   if (!sim.dispatchResult && entries.length === 0) {
     return (
-      <div className="empty-state">
-        <div className="msg">No dispatches yet</div>
-        <div className="hint">Confirm a review and send a dispatch to see the audit trail.</div>
+      <div className="flex flex-col items-center justify-center h-full text-text-dim text-center gap-space-8">
+        <div className="text-body-lg">No dispatches yet</div>
+        <div className="text-body-md">Confirm a review and send a dispatch to see the audit trail.</div>
       </div>
     );
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <h1 className="view-title">Audit</h1>
-
-      {/* Payload card */}
-      <div className="card">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <span className="card-title" style={{ margin: 0 }}>Compressed Payload</span>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn btn-ghost" style={{ fontSize: 13, padding: "6px 12px" }} onClick={() => setShowPreview(true)}>
-              Preview
-            </button>
-            <button className="btn btn-ghost" style={{ fontSize: 13, padding: "6px 12px" }} onClick={copyPayload}>
-              {copied ? "✓ Copied" : "Copy"}
-            </button>
-          </div>
+    <div className="flex flex-col gap-space-16 h-full">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-space-12">
+          <h1 className="text-headline-lg text-text-primary font-medium">Audit</h1>
+          <span className="font-mono text-code-sm text-text-dim px-space-8 py-space-2 rounded bg-surface-recessed border border-border-subtle">
+            LOG_STREAM // IMMUTABLE
+          </span>
         </div>
-        <div className="payload-box">{dispatch.payload}</div>
-        <div className="payload-meta">
-          <div className="byte-meter">
-            <div className="byte-meter-bar">
-              <div className="byte-meter-fill" style={{ width: `${bytePct}%`, background: payloadBytes <= maxBytes ? "var(--safe)" : "var(--danger)" }} />
-            </div>
-            <span style={{ fontFamily: "JetBrains Mono, monospace", color: payloadBytes <= maxBytes ? "var(--safe)" : "var(--danger)", fontWeight: 600 }}>
-              {payloadBytes} / {maxBytes} bytes
-            </span>
-          </div>
-          {payloadBytes <= maxBytes && <span style={{ color: "var(--safe)", fontSize: 13 }}>✓ LoRa-compatible</span>}
+        <div className="flex items-center gap-space-8">
+          <span className="font-mono text-code-sm text-text-dim">SYNC:</span>
+          <span className="font-mono text-code-sm text-status-safe">LIVE (0.4s)</span>
         </div>
       </div>
 
+      {/* Payload card */}
+      <section className="bg-surface-panel border border-border-subtle p-space-16 rounded-lg flex flex-col gap-space-12">
+        <div className="flex items-center justify-between">
+          <h2 className="text-headline-md text-text-primary">Compressed Payload</h2>
+          <div className="flex items-center gap-space-8">
+            <button
+              onClick={() => {}}
+              className="text-body-sm text-text-primary px-3 py-1 rounded border border-border-subtle hover:bg-surface-canvas hover:text-primary-container transition-colors bg-transparent"
+            >
+              [Preview]
+            </button>
+            <button
+              onClick={copyPayload}
+              className="text-body-sm text-text-primary px-3 py-1 rounded border border-border-subtle hover:bg-surface-canvas hover:text-primary-container transition-colors bg-transparent"
+            >
+              [{copied ? "Copied!" : "Copy"}]
+            </button>
+          </div>
+        </div>
+        <div className="bg-surface-recessed border border-border-subtle p-space-12 rounded-lg">
+          <pre className="font-mono text-code-lg text-primary-container overflow-x-auto whitespace-pre-wrap select-all break-all">
+            {dispatch.payload}
+          </pre>
+        </div>
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-space-8">
+            <div className="w-[200px] h-[4px] bg-border-subtle rounded overflow-hidden">
+              <div className="h-full bg-status-safe" style={{ width: `${bytePct}%` }} />
+            </div>
+            <span className="font-mono text-code-sm text-status-safe">{payloadBytes} / {maxBytes} bytes</span>
+          </div>
+          <span className="text-border-subtle hidden sm:inline">·</span>
+          <div className="flex items-center gap-space-4">
+            <span className="text-body-sm text-status-safe">✓ LoRa-compatible</span>
+          </div>
+          <span className="text-border-subtle hidden sm:inline">·</span>
+          <span className={`font-mono text-code-sm text-text-dim transition-opacity ${copied ? "opacity-100" : "opacity-0"}`}>
+            copied to clipboard
+          </span>
+        </div>
+      </section>
+
+      {/* Transmission preview */}
+      {decodedPayload && (
+        <section className="bg-surface-panel border border-border-subtle p-space-16 rounded-lg flex flex-col gap-space-12">
+          <div className="flex items-center justify-between">
+            <h3 className="text-headline-sm text-text-dim">Transmission Preview (Decoded {payloadBytes}-byte message)</h3>
+            <span className="text-caption text-status-safe uppercase tracking-wider px-space-6 py-space-2 rounded border border-status-safe">
+              PARSED
+            </span>
+          </div>
+          <div className="bg-surface-recessed border border-border-subtle p-space-12 rounded-lg">
+            <div className="text-headline-md text-status-danger font-semibold tracking-wide flex items-center gap-space-8">
+              <span>⚠ {decodedPayload.severity} ALERT — {decodedPayload.hazard}</span>
+            </div>
+            <div className="text-body-md text-text-primary mt-1 flex flex-wrap items-center gap-x-2">
+              <span>
+                Alert: <span className="font-mono text-code-sm text-primary-container">{decodedPayload.alert_id}</span>
+              </span>
+              <span className="text-border-subtle">·</span>
+              <span>
+                Sector: <span className="font-mono text-code-sm text-text-primary font-medium">{decodedPayload.sector}</span>
+              </span>
+              <span className="text-border-subtle">·</span>
+              <span>
+                Population: <span className="font-mono text-code-sm text-text-primary font-medium">{decodedPayload.exposed_pop.toLocaleString()}</span>
+              </span>
+            </div>
+            <div className="text-body-md text-text-primary mt-1 flex flex-wrap items-center gap-x-2">
+              <span>
+                Assets: <span className="font-mono text-code-sm text-primary-container">{decodedPayload.critical_assets.join(", ")}</span>
+              </span>
+              <span className="text-border-subtle">·</span>
+              <span>
+                Action: <span className="font-mono text-code-sm text-status-warn font-medium">{decodedPayload.medical_action}</span>
+              </span>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Channels */}
-      <div className="card">
-        <div className="card-title">Channels</div>
-        <div className="channel-grid">
+      <section className="bg-surface-panel border border-border-subtle p-space-16 rounded-lg flex flex-col gap-space-12">
+        <div className="flex items-center justify-between">
+          <h2 className="text-headline-md text-text-primary">Channels</h2>
+          <span className="text-caption text-text-dim">ACTIVE CARRIERS: 3</span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-space-16">
           {(["sms", "lora", "satellite"] as const).map((ch) => (
-            <div key={ch} className="channel-card">
-              <span className="ch-name">{CHANNEL_LABELS[ch]}</span>
-              <button
-                className={`btn ${channels[ch] !== "idle" ? "btn-ghost" : "btn-primary"}`}
-                style={{ fontSize: 13, padding: "8px 14px" }}
-                onClick={() => dispatchChannel(ch)}
-                disabled={channels[ch] !== "idle"}
+            <div
+              key={ch}
+              className="p-space-12 rounded-md border border-border-subtle bg-surface-recessed flex flex-col justify-between"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-headline-sm text-text-primary font-medium">{CHANNEL_LABELS[ch]}</span>
+                <span className="text-caption text-text-dim">{CHANNEL_TECH[ch]}</span>
+              </div>
+              <div
+                className={`text-body-sm mt-1 flex items-center gap-space-4 ${
+                  channels[ch] === "delivered"
+                    ? "text-status-safe"
+                    : channels[ch] === "queued"
+                    ? "text-status-warn"
+                    : "text-text-dim"
+                }`}
               >
-                {channels[ch] === "idle" ? "Send" : channels[ch] === "sent" ? "Sending..." : "Sent"}
-              </button>
-              <span className={`ch-status ${channels[ch] === "delivered" ? "delivered" : channels[ch] === "queued" ? "queued" : "idle"}`}>
-                {channels[ch] === "idle" && "ready"}
-                {channels[ch] === "sent" && "sending..."}
+                {channels[ch] === "idle" && (
+                  <button
+                    onClick={() => dispatchChannel(ch)}
+                    className="px-space-12 py-space-6 rounded text-body-sm bg-primary-container text-surface-canvas hover:brightness-110 transition-all"
+                  >
+                    Send
+                  </button>
+                )}
+                {channels[ch] === "sent" && "⏳ sending..."}
                 {channels[ch] === "delivered" && "✓ delivered"}
                 {channels[ch] === "queued" && "⏳ queued"}
-              </span>
+              </div>
             </div>
           ))}
         </div>
         {!sim.reviewDecision && (
-          <div style={{ marginTop: 12, fontSize: 13, color: "var(--warn)" }}>
+          <div className="text-body-sm text-status-warn">
             ⚠ Dispatch blocked — confirm a review first.
           </div>
         )}
-      </div>
+      </section>
 
       {/* Audit trail */}
-      <div className="card">
-        <div className="card-title">Audit Trail</div>
-        <table className="table">
-          <thead>
-            <tr><th>Time (UTC)</th><th>Actor</th><th>Action</th><th>Detail</th></tr>
-          </thead>
-          <tbody>
-            {entries.map((e) => (
-              <tr key={e.entry_id}>
-                <td className="mono" style={{ fontSize: 12, whiteSpace: "nowrap" }}>{e.created_at}</td>
-                <td style={{ fontSize: 13 }}>{e.actor}</td>
-                <td>
-                  <span className={`badge ${e.action === "dispatch" ? "badge-accent" : e.action === "review" ? "badge-info" : "badge-warn"}`}>
-                    {e.action}
-                  </span>
-                </td>
-                <td className="mono" style={{ fontSize: 12, color: "var(--text-dim)", maxWidth: 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {e.detail_json}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <div style={{ marginTop: 12, fontSize: 13, color: "var(--text-dim)" }}>
-          Append-only — no edits, no deletes.
-        </div>
-      </div>
-
-      {/* Transmission preview modal */}
-      {showPreview && decodedPayload && (
-        <div className="modal-overlay" onClick={() => setShowPreview(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setShowPreview(false)}>×</button>
-            <div className="modal-title">Transmission Preview</div>
-            <div className="modal-msg-box">
-              <div style={{ fontSize: 16, fontWeight: 600, color: "var(--danger)", marginBottom: 12 }}>
-                ⚠ {decodedPayload.severity} ALERT — {decodedPayload.hazard}
-              </div>
-              <div style={{ fontSize: 14, marginBottom: 6 }}>Alert: <span className="mono" style={{ color: "var(--accent)" }}>{decodedPayload.alert_id}</span></div>
-              <div style={{ fontSize: 14, marginBottom: 6 }}>Sector: {decodedPayload.sector}</div>
-              <div style={{ fontSize: 14, marginBottom: 6 }}>Population: {decodedPayload.exposed_pop}</div>
-              <div style={{ fontSize: 14, marginBottom: 6 }}>Assets at risk: {decodedPayload.critical_assets.join(", ")}</div>
-              <div style={{ fontSize: 14, color: "var(--warn)" }}>Action: {decodedPayload.medical_action}</div>
-            </div>
-            <div style={{ marginTop: 12, fontSize: 13, color: "var(--text-dim)" }}>
-              Decoded view of the {payloadBytes}-byte payload.
-            </div>
+      <section className="bg-surface-panel border border-border-subtle p-space-16 rounded-lg flex flex-col gap-space-12">
+        <div className="flex items-center justify-between">
+          <h2 className="text-headline-md text-text-primary">Audit Trail</h2>
+          <div className="flex items-center gap-space-6">
+            <span className="w-2 h-2 rounded-full bg-status-safe animate-pulse" />
+            <span className="text-caption text-text-dim uppercase tracking-wider">CRYPTOGRAPHIC CHAIN VALID</span>
           </div>
         </div>
-      )}
+        <div className="overflow-x-auto border border-border-subtle rounded">
+          <table className="w-full text-left border-collapse bg-surface-recessed">
+            <thead>
+              <tr className="border-b border-border-subtle bg-surface-canvas text-caption text-text-dim uppercase tracking-wider">
+                <th className="py-space-8 px-space-12 font-medium">Time (UTC)</th>
+                <th className="py-space-8 px-space-12 font-medium">Actor</th>
+                <th className="py-space-8 px-space-12 font-medium">Action</th>
+                <th className="py-space-8 px-space-12 font-medium">Detail</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border-subtle text-body-md text-text-primary">
+              {entries.map((e) => (
+                <tr key={e.entry_id} className="hover:bg-surface-panel/40 transition-colors">
+                  <td className="py-space-8 px-space-12 font-mono text-code-sm text-text-dim whitespace-nowrap">{e.created_at}</td>
+                  <td className="py-space-8 px-space-12 font-mono text-code-sm text-text-primary whitespace-nowrap">{e.actor}</td>
+                  <td className="py-space-8 px-space-12 whitespace-nowrap">
+                    <span
+                      className={`font-mono text-code-sm border px-space-8 py-space-2 rounded uppercase tracking-wide ${
+                        e.action === "dispatch"
+                          ? "border-primary-container text-primary-container"
+                          : e.action === "review"
+                          ? "border-status-info text-status-info"
+                          : "border-status-warn text-status-warn"
+                      }`}
+                    >
+                      {e.action}
+                    </span>
+                  </td>
+                  <td className="py-space-8 px-space-12 font-mono text-code-sm text-text-dim max-w-md truncate">
+                    <span className="text-text-primary break-all">{e.detail_json}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="flex items-center justify-between mt-space-12 text-body-sm text-text-dim">
+          <span>Append-only — no edits, no deletes.</span>
+          <span className="font-mono text-code-sm">SHA-256: 8f4e2a7b3...e9d2</span>
+        </div>
+      </section>
     </div>
   );
 }

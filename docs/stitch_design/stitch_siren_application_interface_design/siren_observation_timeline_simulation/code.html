@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "outline": "#869397", "surface-container-lowest": "#060e20", "tertiary-container": "#ff853c", "on-primary-fixed": "#001f26", "on-secondary-fixed-variant": "#004395", "primary-fixed": "#acedff", "on-primary-container": "#00424f", "outline-variant": "#3d494c", "primary-fixed-dim": "#4cd7f6", "error": "#ffb4ab", "on-secondary-fixed": "#001a42", "tertiary": "#ffb690", "on-secondary-container": "#e6ecff", "on-error": "#690005", "on-background": "#dae2fd", "primary-container": "#06b6d4", "on-tertiary": "#552100", "surface-variant": "#2d3449", "on-secondary": "#002e6a", "surface-tint": "#4cd7f6", "surface-container-low": "#131b2e", "primary": "#4cd7f6", "on-surface": "#dae2fd", "tertiary-fixed": "#ffdbca", "tertiary-fixed-dim": "#ffb690", "secondary-container": "#0566d9", "on-primary-fixed-variant": "#004e5c", "on-primary": "#003640", "background": "#0b1326", "on-surface-variant": "#bcc9cd", "inverse-surface": "#dae2fd", "secondary-fixed-dim": "#adc6ff", "surface": "#0b1326", "surface-container": "#171f33", "surface-dim": "#0b1326", "on-tertiary-container": "#672a00", "secondary-fixed": "#d8e2ff", "on-error-container": "#ffdad6", "secondary": "#adc6ff", "inverse-primary": "#00687a", "error-container": "#93000a", "surface-container-high": "#222a3d", "surface-container-highest": "#2d3449", "on-tertiary-fixed": "#341100", "surface-bright": "#31394d", "on-tertiary-fixed-variant": "#783200", "inverse-on-surface": "#283044" }, "borderRadius": { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" }, "spacing": { "space-sm": "8px", "space-xl": "24px", "space-2xs": "2px", "gutter-console": "8px", "space-lg": "16px", "space-md": "12px", "space-2xl": "32px", "space-xs": "4px", "panel-padding-standard": "16px", "panel-padding-compact": "12px", "grid-unit": "8px" }, "fontFamily": { "code-sm": ["JetBrains Mono"], "body-lg": ["Inter"], "headline-sm": ["Inter"], "label-caps": ["JetBrains Mono"], "code-md": ["JetBrains Mono"], "headline-xl": ["Inter"], "body-sm": ["Inter"], "code-lg": ["JetBrains Mono"], "headline-md": ["Inter"], "headline-lg": ["Inter"], "body-md": ["Inter"] }, "fontSize": { "code-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.02em", "fontWeight": "400" }], "body-lg": ["14px", { "lineHeight": "20px", "letterSpacing": "0em", "fontWeight": "400" }], "headline-sm": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" }], "label-caps": ["10px", { "lineHeight": "12px", "letterSpacing": "0.08em", "fontWeight": "600" }], "code-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0em", "fontWeight": "400" }], "headline-xl": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }], "body-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0em", "fontWeight": "400" }], "code-lg": ["14px", { "lineHeight": "20px", "letterSpacing": "0em", "fontWeight": "500" }], "headline-md": ["18px", { "lineHeight": "24px", "letterSpacing": "0em", "fontWeight": "600" }], "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }], "body-md": ["13px", { "lineHeight": "18px", "letterSpacing": "0em", "fontWeight": "400" }] } } } };</script></head><body class="bg-background font-body-md text-body-md text-on-surface min-h-screen selection:bg-primary selection:text-on-primary"><header class="fixed top-0 left-0 right-0 z-50 flex flex-col bg-surface border-b border-outline-variant"><div class="h-12 w-full px-space-lg flex items-center justify-between border-b border-outline-variant/60 bg-surface-container-lowest"><div class="flex items-center gap-space-md"><img alt="SIREN Radar Logo" class="h-7 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1V8FFz453mRmXcApMVAMBqDQUrYILL12n6z0tdboDrD3jm7FlEIZg60nchXCO6QFiLNUbCVnkF6JvT8DEk8_JrLtmfe7B-M_LLio3CfCwflcRaw9YS6C1vN1VZIhyoW6utwcYGcqJcGnkQvZkf3JBuBQ1NJYQVppKDdFpwo-PWvV5R_yMXoUgriWGpqI8TBKGVb62CkZ_efC6_yhz4xmCWJaAEjjdwMnZgXJ8HYfI_lwetFQ6YsNHAnDvM"/><div class="flex items-baseline gap-space-xs"><span class="font-headline-md text-headline-md font-bold tracking-tight text-primary-container">SIREN</span><span class="font-label-caps text-label-caps uppercase tracking-widest text-outline">RADAR</span></div><div class="h-4 w-[1px] bg-outline-variant mx-space-xs"></div><button class="flex items-center gap-space-xs px-space-sm py-1 bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-on-surface border border-outline-variant rounded font-body-sm text-body-sm transition-colors cursor-pointer" type="button"><span>Dudh Koshi/Imja</span><span class="text-[10px] text-outline">▼</span></button><div class="flex items-center gap-space-xs px-space-sm py-0.5 bg-surface-container-low border border-outline-variant rounded-full"><span class="inline-block w-2 h-2 rounded-full bg-[#22C55E] animate-pulse shadow-[0_0_8px_#22C55E]"></span><span class="font-code-sm text-code-sm uppercase tracking-wider font-semibold text-[#22C55E]">LIVE</span></div></div><nav class="flex items-center h-full gap-space-xs" data-active-classes="bg-surface-container-high text-primary border-b-2 border-primary-container font-semibold"><a class="flex items-center h-12 px-space-md text-on-surface-variant hover:text-on-surface font-body-md text-body-md transition-all border-b-2 border-transparent" data-path="map-view" href="#"><span>Map</span><span class="ml-1.5 font-code-sm text-code-sm text-outline">1</span></a><a aria-current="page" class="flex items-center h-12 px-space-md transition-all bg-surface-container-high text-primary border-b-2 border-primary-container font-semibold" data-path="timeline-view" href="#"><span>Timeline</span><span class="ml-1.5 font-code-sm text-code-sm text-outline">2</span></a><a class="flex items-center h-12 px-space-md text-on-surface-variant hover:text-on-surface font-body-md text-body-md transition-all border-b-2 border-transparent relative" data-path="review-view" href="#"><span>Review</span><span class="ml-1.5 font-code-sm text-code-sm text-outline">3</span><span class="ml-1.5 w-1.5 h-1.5 rounded-full bg-tertiary-container"></span></a><a class="flex items-center h-12 px-space-md text-on-surface-variant hover:text-on-surface font-body-md text-body-md transition-all border-b-2 border-transparent" data-path="audit-view" href="#"><span>Audit</span><span class="ml-1.5 font-code-sm text-code-sm text-outline">4</span></a></nav><div class="flex items-center gap-space-md"><div class="flex items-center gap-space-xs px-2.5 py-0.5 bg-surface-container-low border border-tertiary-container/60 rounded-full"><span class="w-1.5 h-1.5 rounded-full bg-tertiary-container"></span><span class="font-code-sm text-code-sm text-tertiary uppercase font-medium">OFFLINE — ALL SYSTEMS LOCAL</span></div><button class="flex items-center gap-space-xs px-space-sm py-1 bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-on-surface font-code-sm text-code-sm border border-outline-variant rounded transition-colors cursor-pointer" type="button">RESET ⟲</button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div><div class="h-10 w-full px-space-lg flex items-center justify-between border-l-4 border-tertiary-container bg-surface-container-low/90 backdrop-blur-sm"><div class="flex items-center gap-space-md"><div class="flex items-center gap-space-xs px-2 py-0.5 rounded bg-tertiary-container/20 border border-tertiary-container"><span class="material-symbols-outlined text-[15px] text-tertiary">warning</span><span class="font-label-caps text-label-caps tracking-wider uppercase font-bold text-tertiary">ELEVATED HAZARD</span></div><span class="font-body-md text-body-md text-on-surface">+14.3% water expansion detected in Imja Proglacial Sector A-2</span></div><a class="flex items-center gap-space-xs font-code-sm text-code-sm text-primary hover:text-primary-fixed underline transition-colors" data-path="review-view" href="#">Immediate Review Required →</a></div></header><main class="w-full pt-[88px] pb-7 bg-background min-h-screen"><div class="flex flex-col w-full">
+<div class="w-full px-space-lg py-space-md flex flex-col gap-space-md">
+<!-- 1. VIEW HEADER -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-space-sm pb-space-xs border-b border-outline-variant/40">
+<div class="flex flex-col gap-0.5">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-primary-container text-[22px]">history_toggle_off</span>
+<h1 class="font-headline-md text-headline-md font-bold text-on-surface tracking-tight">Timeline — Observation Sequence &amp; Simulation Engine</h1>
+<span class="font-label-caps text-label-caps px-2 py-0.5 rounded bg-surface-container-high text-primary font-bold uppercase tracking-wider">ORBITAL SYNCH</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant font-medium">Multi-temporal satellite radar &amp; optical pass telemetry for Dudh Koshi basin</p>
+</div>
+<div class="flex items-center gap-space-sm">
+<span class="font-code-sm text-code-sm text-outline flex items-center gap-1.5">
+<span class="inline-block w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+          PASS_INTERVAL: 12d
+        </span>
+<div class="h-3 w-[1px] bg-outline-variant"></div>
+<span class="font-code-sm text-code-sm text-on-surface-variant bg-surface-container-low px-2 py-1 rounded">
+          NODE: 27.902°N, 86.924°E
+        </span>
+</div>
+</div>
+<!-- 2. SIMULATION CONTROLLER CARD -->
+<div class="bg-surface-container border border-outline-variant p-5 rounded-lg flex flex-col gap-3 shadow-lg relative overflow-hidden">
+<div class="flex flex-wrap items-center justify-between gap-4">
+<div class="flex items-center gap-4 flex-wrap">
+<!-- Primary Action Button -->
+<button class="bg-primary-container hover:bg-[#0891b2] text-surface-container-lowest font-body-lg font-bold px-4 py-2 rounded transition-colors flex items-center gap-2 shadow-md cursor-pointer" id="sim-run-btn" type="button">
+<span class="material-symbols-outlined text-[18px]" id="sim-play-icon">play_arrow</span>
+<span id="sim-btn-text">Run Simulation</span>
+</button>
+<!-- Status Tracker -->
+<div class="flex items-center gap-2">
+<span class="font-code-md text-code-md text-on-surface-variant">status:</span>
+<span class="font-code-md text-code-md font-medium text-on-surface">before → disaster · step 2 of 3 active</span>
+</div>
+<!-- Animated Progress Track -->
+<div class="flex items-center gap-3">
+<div class="w-[220px] h-2 bg-surface-variant rounded-full overflow-hidden relative">
+<div class="h-full bg-primary transition-all duration-700 ease-out rounded-full" id="sim-progress-bar" style="width: 66%;"></div>
+</div>
+<span class="font-code-sm text-code-sm text-tertiary bg-tertiary-container/10 border border-tertiary-container/40 px-2 py-0.5 rounded font-bold" id="sim-step-badge">2/3 ESCALATING</span>
+</div>
+</div>
+<!-- Reset / Scrub Controls -->
+<div class="flex items-center gap-3">
+<button class="font-code-sm text-code-sm text-outline hover:text-on-surface transition-colors flex items-center gap-1.5 cursor-pointer bg-surface-container-low hover:bg-surface-container-high px-2.5 py-1.5 rounded border border-outline-variant/50" id="sim-replay-btn" type="button">
+<span>⟲</span>
+<span>Replay Baseline</span>
+</button>
+<button class="font-code-sm text-code-sm text-outline hover:text-on-surface transition-colors flex items-center gap-1 cursor-pointer p-1.5 bg-surface-container-low rounded border border-outline-variant/50" title="Scrub Step Previous" type="button">
+<span class="material-symbols-outlined text-[16px]">skip_previous</span>
+</button>
+<button class="font-code-sm text-code-sm text-outline hover:text-on-surface transition-colors flex items-center gap-1 cursor-pointer p-1.5 bg-surface-container-low rounded border border-outline-variant/50" title="Scrub Step Next" type="button">
+<span class="material-symbols-outlined text-[16px]">skip_next</span>
+</button>
+</div>
+</div>
+<!-- Telemetry Tick Marks Under Controller -->
+<div class="flex items-center justify-between border-t border-outline-variant/40 pt-2 text-outline font-code-sm text-code-sm">
+<span class="flex items-center gap-1">T-0: 2025-11-22 <span class="text-[10px] text-primary">●</span></span>
+<span class="flex items-center gap-1">T+243d: 2026-07-23 <span class="text-[10px] text-tertiary">●</span></span>
+<span class="flex items-center gap-1 font-bold text-on-surface">T+255d: 2026-08-04 [ACTIVE TRIGGER] <span class="text-[10px] text-error">●</span></span>
+<span class="flex items-center gap-1">T+287d: 2026-09-05 <span class="text-[10px] text-tertiary-container">●</span></span>
+</div>
+</div>
+<!-- 3. PREVENTION CALLOUT CARD -->
+<div class="border-l-4 border-[#22C55E] bg-[#22C55E]/10 border-y border-r border-[#22C55E]/30 p-4 rounded-lg flex items-center justify-between gap-4 shadow-sm">
+<div class="flex items-start md:items-center gap-3">
+<div class="flex items-center gap-1 text-[#22C55E] shrink-0">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">stars</span>
+<span class="font-label-caps text-label-caps font-bold tracking-wider">PREVENTION GAIN</span>
+</div>
+<div class="h-4 w-[1px] bg-[#22C55E]/40 hidden md:block"></div>
+<p class="font-body-lg text-body-lg text-on-surface">
+          Obs 1 flagged <span class="font-code-md text-code-md text-tertiary font-bold">+8.0%</span> expansion on 2026-07-23 — <strong class="text-[#22C55E] font-bold">12 days of advance warning</strong> before the +28% surge. Lead time SIREN bought for downstream evacuation.
+        </p>
+</div>
+<div class="hidden lg:flex items-center gap-2 shrink-0 bg-surface-container-lowest/80 border border-[#22C55E]/40 px-3 py-1.5 rounded">
+<span class="material-symbols-outlined text-[#22C55E] text-[18px]">verified_user</span>
+<div class="flex flex-col text-right">
+<span class="font-label-caps text-label-caps text-outline uppercase">EVACUATION CORRIDOR</span>
+<span class="font-code-sm text-code-sm text-[#22C55E] font-semibold">TENGBACHE → PHAKDING CLEAR</span>
+</div>
+</div>
+</div>
+<!-- 4. WEATHER-ADAPTIVE ROUTER STRIP -->
+<div class="bg-surface-container border border-outline-variant px-5 py-3 rounded-lg flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-md">
+<!-- Left side: Router sequence -->
+<div class="flex items-center gap-3 flex-wrap">
+<span class="font-code-md text-code-md text-on-surface-variant font-medium">Obs 2 Telemetry:</span>
+<div class="flex items-center gap-1.5 px-2 py-0.5 bg-surface-container-low rounded border border-outline-variant/60">
+<span class="material-symbols-outlined text-[15px] text-outline">cloud</span>
+<span class="font-body-sm text-body-sm font-semibold text-on-surface">Optical Cloud Cover 95%</span>
+</div>
+<span class="text-primary font-bold text-base">→</span>
+<div class="flex items-center gap-1.5 bg-primary-container/20 border border-primary text-primary font-code-sm text-code-sm font-bold px-2.5 py-1 rounded shadow-[0_0_8px_rgba(6,182,212,0.35)]">
+<span class="material-symbols-outlined text-[15px] animate-pulse">bolt</span>
+<span>SWITCHED TO SAR PATH</span>
+</div>
+</div>
+<!-- Right side: Capability proof -->
+<div class="flex items-center gap-2 font-code-sm text-code-sm text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px] text-primary">radar</span>
+<span>Weather-adaptive routing: Sentinel-1 C-band SAR is all-weather; effective cloud penetration 100.0% (0.0% cloud blockage)</span>
+</div>
+</div>
+<!-- 5. OBSERVATION CARDS (4-column horizontal tactical layout) -->
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-space-md">
+<!-- Card 1: Baseline (2025-11-22) -->
+<div class="bg-surface-container border border-outline-variant rounded-lg p-space-md flex flex-col justify-between gap-4 transition-all hover:bg-surface-container-high/60 shadow-md">
+<div class="flex flex-col gap-3">
+<!-- Card Header & Badge -->
+<div class="flex items-start justify-between gap-2 border-b border-outline-variant/50 pb-2.5">
+<div>
+<span class="font-label-caps text-label-caps text-outline uppercase block">ORBITAL T-0</span>
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-semibold">Baseline — 2025-11-22</h3>
+</div>
+<span class="font-code-sm text-code-sm text-secondary bg-secondary-container/20 border border-secondary/50 px-2 py-0.5 rounded font-medium shrink-0">
+              S2 Optical
+            </span>
+</div>
+<!-- Metric Grid -->
+<div class="flex flex-col gap-2 font-code-sm text-code-sm bg-surface-container-low/70 p-2.5 rounded border border-outline-variant/30">
+<div class="flex items-center justify-between text-on-surface-variant border-b border-outline-variant/20 pb-1">
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[13px] text-outline">filter_drama</span>
+                cloud:
+              </span>
+<span class="text-on-surface font-mono">5%</span>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant border-b border-outline-variant/20 pb-1">
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[13px] text-outline">water_drop</span>
+                rain 24h:
+              </span>
+<span class="text-on-surface font-mono">0 mm</span>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant border-b border-outline-variant/20 pb-1">
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[13px] text-outline">grain</span>
+                rain 7d:
+              </span>
+<span class="text-on-surface font-mono">0 mm</span>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant border-b border-outline-variant/20 pb-1">
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[13px] text-outline">square_foot</span>
+                area:
+              </span>
+<span class="text-on-surface font-mono font-semibold">3.0 km²</span>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant pt-0.5">
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[13px] text-outline">trending_flat</span>
+                change:
+              </span>
+<span class="text-outline font-mono font-bold">→ +0.0%</span>
+</div>
+</div>
+</div>
+<!-- Severity Badge -->
+<div class="pt-2 border-t border-outline-variant/40 flex items-center justify-between">
+<span class="font-code-sm text-code-sm text-secondary bg-secondary-container/10 border border-secondary/40 px-2.5 py-1 rounded font-bold uppercase tracking-wider">
+            INFORMATIONAL
+          </span>
+<span class="font-code-sm text-code-sm text-outline">PASS #104</span>
+</div>
+</div>
+<!-- Card 2: Obs 1 (2026-07-23) -->
+<div class="bg-surface-container border border-outline-variant rounded-lg p-space-md flex flex-col justify-between gap-4 transition-all hover:bg-surface-container-high/60 shadow-md">
+<div class="flex flex-col gap-3">
+<!-- Card Header & Badge -->
+<div class="flex items-start justify-between gap-2 border-b border-outline-variant/50 pb-2.5">
+<div>
+<span class="font-label-caps text-label-caps text-outline uppercase block">ORBITAL T+243d</span>
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-semibold">Obs 1 — 2026-07-23</h3>
+</div>
+<span class="font-code-sm text-code-sm text-primary bg-primary-container/20 border border-primary/60 px-2 py-0.5 rounded font-medium shrink-0">
+              S1 SAR
+            </span>
+</div>
+<!-- Metric Grid -->
+<div class="flex flex-col gap-2 font-code-sm text-code-sm bg-surface-container-low/70 p-2.5 rounded border border-outline-variant/30">
+<div class="flex items-center justify-between text-on-surface-variant border-b border-outline-variant/20 pb-1">
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[13px] text-outline">filter_drama</span>
+                cloud:
+              </span>
+<span class="text-on-surface font-mono">0% (SAR)</span>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant border-b border-outline-variant/20 pb-1">
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[13px] text-outline">water_drop</span>
+                rain 24h:
+              </span>
+<span class="text-on-surface font-mono">18 mm</span>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant border-b border-outline-variant/20 pb-1">
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[13px] text-outline">grain</span>
+                rain 7d:
+              </span>
+<span class="text-on-surface font-mono">64 mm</span>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant border-b border-outline-variant/20 pb-1">
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[13px] text-outline">square_foot</span>
+                area:
+              </span>
+<span class="text-on-surface font-mono font-semibold">3.2 km²</span>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant pt-0.5">
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[13px] text-tertiary">arrow_upward</span>
+                change:
+              </span>
+<span class="text-tertiary font-mono font-bold">▲ +8.0%</span>
+</div>
+</div>
+</div>
+<!-- Severity Badge -->
+<div class="pt-2 border-t border-outline-variant/40 flex items-center justify-between">
+<span class="font-code-sm text-code-sm text-tertiary bg-tertiary-container/10 border border-tertiary/50 px-2.5 py-1 rounded font-bold uppercase tracking-wider">
+            WATCH
+          </span>
+<span class="font-code-sm text-code-sm text-outline">PASS #116</span>
+</div>
+</div>
+<!-- Card 3: Obs 2 (2026-08-04) — [ACTIVE CARD] -->
+<div class="bg-surface-container border-2 border-primary rounded-lg p-space-md flex flex-col justify-between gap-4 shadow-[0_0_20px_rgba(6,182,212,0.35)] relative overflow-hidden ring-1 ring-primary/50">
+<!-- Accent Banner -->
+<div class="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-primary via-primary-container to-error"></div>
+<div class="flex flex-col gap-3">
+<!-- Card Header & Badge -->
+<div class="flex items-start justify-between gap-2 border-b border-outline-variant/50 pb-2.5">
+<div>
+<span class="font-label-caps text-label-caps text-primary uppercase font-bold tracking-widest flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-ping"></span>
+                ACTIVE MONITOR
+              </span>
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-bold text-primary-fixed drop-shadow">Obs 2 — 2026-08-04</h3>
+</div>
+<span class="font-code-sm text-code-sm text-surface-container-lowest bg-primary px-2 py-0.5 rounded font-bold shrink-0 flex items-center gap-1 shadow-sm">
+<span>S1 SAR</span>
+<span>⚡</span>
+</span>
+</div>
+<!-- Metric Grid -->
+<div class="flex flex-col gap-2 font-code-sm text-code-sm bg-surface-container-lowest/80 p-2.5 rounded border border-primary/30">
+<div class="flex items-center justify-between text-on-surface-variant border-b border-outline-variant/20 pb-1">
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[13px] text-tertiary">cloud_off</span>
+                cloud:
+              </span>
+<span class="text-tertiary font-mono font-medium">95% (optical obstructed)</span>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant border-b border-outline-variant/20 pb-1">
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[13px] text-error">thunderstorm</span>
+                rain 24h:
+              </span>
+<span class="text-error font-mono font-bold">85 mm (monsoon)</span>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant border-b border-outline-variant/20 pb-1">
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[13px] text-outline">grain</span>
+                rain 7d:
+              </span>
+<span class="text-on-surface font-mono font-bold">192 mm</span>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant border-b border-outline-variant/20 pb-1">
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[13px] text-outline">square_foot</span>
+                area:
+              </span>
+<span class="text-on-surface font-mono font-bold text-base">4.1 km²</span>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant pt-0.5">
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[13px] text-error">emergency_share</span>
+                change:
+              </span>
+<span class="text-error font-mono font-extrabold text-sm animate-pulse">▲ +28.0%</span>
+</div>
+</div>
+</div>
+<!-- Severity Badge -->
+<div class="pt-2 border-t border-outline-variant/40 flex items-center justify-between">
+<span class="font-code-sm text-code-sm text-on-error bg-error-container border border-error px-2.5 py-1 rounded font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-[0_0_12px_rgba(239,68,68,0.45)]">
+<span class="w-2 h-2 rounded-full bg-error animate-ping"></span>
+            CRITICAL
+          </span>
+<span class="font-code-sm text-code-sm text-primary font-bold">PASS #128 · ESCALATED</span>
+</div>
+</div>
+<!-- Card 4: Obs 3 (2026-09-05) — [Upcoming / Review Trigger] -->
+<div class="bg-surface-container border border-outline-variant rounded-lg p-space-md flex flex-col justify-between gap-4 transition-all hover:bg-surface-container-high/60 shadow-md">
+<div class="flex flex-col gap-3">
+<!-- Card Header & Badge -->
+<div class="flex items-start justify-between gap-2 border-b border-outline-variant/50 pb-2.5">
+<div>
+<span class="font-label-caps text-label-caps text-outline uppercase block">ORBITAL T+287d</span>
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-semibold">Obs 3 — 2026-09-05</h3>
+</div>
+<span class="font-code-sm text-code-sm text-secondary bg-secondary-container/20 border border-secondary/50 px-2 py-0.5 rounded font-medium shrink-0">
+              S2 Optical
+            </span>
+</div>
+<!-- Metric Grid -->
+<div class="flex flex-col gap-2 font-code-sm text-code-sm bg-surface-container-low/70 p-2.5 rounded border border-outline-variant/30">
+<div class="flex items-center justify-between text-on-surface-variant border-b border-outline-variant/20 pb-1">
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[13px] text-outline">filter_drama</span>
+                cloud:
+              </span>
+<span class="text-on-surface font-mono">10%</span>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant border-b border-outline-variant/20 pb-1">
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[13px] text-outline">water_drop</span>
+                rain 24h:
+              </span>
+<span class="text-on-surface font-mono">0 mm</span>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant border-b border-outline-variant/20 pb-1">
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[13px] text-outline">grain</span>
+                rain 7d:
+              </span>
+<span class="text-on-surface font-mono">22 mm</span>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant border-b border-outline-variant/20 pb-1">
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[13px] text-outline">square_foot</span>
+                area:
+              </span>
+<span class="text-on-surface font-mono font-semibold">3.4 km²</span>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant pt-0.5">
+<span class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[13px] text-tertiary-container">arrow_upward</span>
+                change:
+              </span>
+<span class="text-tertiary font-mono font-bold">▲ +14.3%</span>
+</div>
+</div>
+</div>
+<!-- Severity Badge -->
+<div class="pt-2 border-t border-outline-variant/40 flex items-center justify-between">
+<span class="font-code-sm text-code-sm text-tertiary-container bg-tertiary-container/15 border border-tertiary-container px-2.5 py-1 rounded font-bold uppercase tracking-wider">
+            ELEVATED
+          </span>
+<span class="font-code-sm text-code-sm text-outline">PASS #134</span>
+</div>
+</div>
+</div>
+<!-- Telemetry Correlation Chart (Bento Pod) -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-space-md mt-space-xs">
+<!-- Area & Precipitation Expansion Curve -->
+<div class="lg:col-span-2 bg-surface-container border border-outline-variant p-4 rounded-lg flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[18px]">stacked_line_chart</span>
+<span class="font-headline-sm text-headline-sm text-on-surface font-semibold">Basin Hydrostatic Growth vs. Precipitation Surge</span>
+</div>
+<div class="flex items-center gap-3 font-code-sm text-code-sm">
+<span class="flex items-center gap-1 text-primary">
+<span class="w-2 h-0.5 bg-primary"></span> Lake Area (km²)
+            </span>
+<span class="flex items-center gap-1 text-outline">
+<span class="w-2 h-0.5 bg-outline"></span> 7d Cumulative Rain (mm)
+            </span>
+</div>
+</div>
+<!-- SVG Timeline Curve -->
+<div class="w-full h-36 bg-surface-container-lowest rounded p-2 border border-outline-variant/30 relative flex items-end">
+<svg class="w-full h-full overflow-visible" preserveaspectratio="none" viewbox="0 0 700 120">
+<!-- Grid Lines -->
+<line stroke="#334155" stroke-dasharray="3 3" stroke-width="1" x1="0" x2="700" y1="30" y2="30"></line>
+<line stroke="#334155" stroke-dasharray="3 3" stroke-width="1" x1="0" x2="700" y1="60" y2="60"></line>
+<line stroke="#334155" stroke-dasharray="3 3" stroke-width="1" x1="0" x2="700" y1="90" y2="90"></line>
+<!-- Rainfall Bar Fill In Background -->
+<rect fill="#334155" height="5" opacity="0.6" rx="2" width="28" x="40" y="115"></rect>
+<rect fill="#334155" height="40" opacity="0.6" rx="2" width="28" x="230" y="80"></rect>
+<rect fill="#ff853c" height="110" opacity="0.35" rx="2" width="28" x="430" y="10"></rect>
+<rect fill="#334155" height="20" opacity="0.6" rx="2" width="28" x="620" y="100"></rect>
+<!-- Gradient Area under curve -->
+<defs>
+<lineargradient id="areaGrad" x1="0" x2="0" y1="0" y2="1">
+<stop offset="0%" stop-color="#4cd7f6" stop-opacity="0.3"></stop>
+<stop offset="100%" stop-color="#4cd7f6" stop-opacity="0"></stop>
+</lineargradient>
+</defs>
+<path d="M 54 85 L 244 72 L 444 18 L 634 62 L 634 120 L 54 120 Z" fill="url(#areaGrad)"></path>
+<!-- Lake Area Line -->
+<polyline fill="none" points="54,85 244,72 444,18 634,62" stroke="#4cd7f6" stroke-width="2.5"></polyline>
+<!-- Observation Nodes -->
+<circle cx="54" cy="85" fill="#0b1326" r="4.5" stroke="#4cd7f6" stroke-width="2"></circle>
+<circle cx="244" cy="72" fill="#0b1326" r="4.5" stroke="#4cd7f6" stroke-width="2"></circle>
+<circle class="animate-pulse" cx="444" cy="18" fill="#ffb4ab" r="6" stroke="#ffb4ab" stroke-width="2"></circle>
+<circle cx="634" cy="62" fill="#0b1326" r="4.5" stroke="#4cd7f6" stroke-width="2"></circle>
+</svg>
+</div>
+<div class="flex items-center justify-between font-code-sm text-code-sm text-outline px-1">
+<span>2025-11-22 (3.0 km²)</span>
+<span>2026-07-23 (3.2 km²)</span>
+<span class="text-error font-bold">2026-08-04 (4.1 km² PEAK)</span>
+<span>2026-09-05 (3.4 km²)</span>
+</div>
+</div>
+<!-- Orbital Coverage & Sensors Pod -->
+<div class="bg-surface-container border border-outline-variant p-4 rounded-lg flex flex-col justify-between gap-3">
+<div class="flex items-center justify-between border-b border-outline-variant/40 pb-2">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[18px]">satellite_alt</span>
+<span class="font-headline-sm text-headline-sm text-on-surface font-semibold">Active Sensor Fleet</span>
+</div>
+<span class="font-label-caps text-label-caps text-[#22C55E] font-bold">2/2 ONLINE</span>
+</div>
+<div class="flex flex-col gap-2.5 font-code-sm text-code-sm">
+<div class="bg-surface-container-low p-2.5 rounded border border-outline-variant/30 flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+<span class="text-on-surface font-bold">Sentinel-1 (SAR C-Band)</span>
+</div>
+<span class="text-primary font-mono font-medium">100% Penetration</span>
+</div>
+<div class="bg-surface-container-low p-2.5 rounded border border-outline-variant/30 flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="text-on-surface font-bold">Sentinel-2 (MSI Optical)</span>
+</div>
+<span class="text-outline font-mono font-medium">Obstructed (95%)</span>
+</div>
+<div class="bg-surface-container-lowest p-2 rounded text-outline text-[10px] leading-tight">
+            AUTONOMOUS POLICY: Routing engine automatically switches baseline lake polygon extraction to Interferometric SAR when optical cloud threshold exceeds 35.0%.
+          </div>
+</div>
+<div class="flex items-center justify-between pt-2 border-t border-outline-variant/40">
+<span class="font-code-sm text-code-sm text-outline">NEXT SCHEDULED PASS:</span>
+<span class="font-code-sm text-code-sm text-primary font-bold">T+18h (S1A DESCENDING)</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<script>
+  (function initTimelineControls() {
+    const runBtn = document.getElementById('sim-run-btn');
+    const replayBtn = document.getElementById('sim-replay-btn');
+    const progressBar = document.getElementById('sim-progress-bar');
+    const stepBadge = document.getElementById('sim-step-badge');
+    const btnText = document.getElementById('sim-btn-text');
+    const playIcon = document.getElementById('sim-play-icon');
+
+    let currentStep = 2;
+    let isPlaying = false;
+    let timer = null;
+
+    const stepStates = [
+      { step: 1, progress: '33%', label: '1/3 BASELINE WATCH', class: 'text-secondary bg-secondary-container/10 border-secondary/40' },
+      { step: 2, progress: '66%', label: '2/3 ESCALATING', class: 'text-tertiary bg-tertiary-container/10 border-tertiary-container/40' },
+      { step: 3, progress: '100%', label: '3/3 CRITICAL FLOOD', class: 'text-error bg-error-container/20 border-error' }
+    ];
+
+    function applyStep(index) {
+      const state = stepStates[index];
+      if (!state) return;
+      progressBar.style.width = state.progress;
+      stepBadge.textContent = state.label;
+      stepBadge.className = 'font-code-sm text-code-sm px-2 py-0.5 rounded font-bold border ' + state.class;
+    }
+
+    if (runBtn) {
+      runBtn.addEventListener('click', function () {
+        if (!isPlaying) {
+          isPlaying = true;
+          btnText.textContent = 'Pause Simulation';
+          playIcon.textContent = 'pause';
+          timer = setInterval(function () {
+            currentStep = (currentStep + 1) % 3;
+            applyStep(currentStep);
+          }, 2400);
+        } else {
+          isPlaying = false;
+          clearInterval(timer);
+          btnText.textContent = 'Run Simulation';
+          playIcon.textContent = 'play_arrow';
+        }
+      });
+    }
+
+    if (replayBtn) {
+      replayBtn.addEventListener('click', function () {
+        if (isPlaying) {
+          clearInterval(timer);
+          isPlaying = false;
+          btnText.textContent = 'Run Simulation';
+          playIcon.textContent = 'play_arrow';
+        }
+        currentStep = 0;
+        applyStep(0);
+      });
+    }
+  })();
+</script></main><footer class="fixed bottom-0 left-0 right-0 h-7 bg-surface-container-lowest border-t border-outline-variant/60 flex items-center justify-between px-space-lg z-40 text-outline"><div class="flex items-center gap-space-xs"><span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span><span class="font-code-sm text-code-sm text-on-surface-variant">GLOF EARLY WARNING NODE 04 [OPERATIONAL]</span></div><div class="font-code-sm text-code-sm text-outline">Sentinel-2 · Sentinel-1 · SRTM · Open-Meteo · © OSM · pipeline v0.1.0</div><div class="flex items-center gap-space-md font-code-sm text-code-sm text-outline"><span>UTC 10:42:19</span><span>SYS_LATENCY: 12ms</span></div></footer></body></html>

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;background-color:#0F172A;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{"colors":{"on-secondary":"#002e6a","on-tertiary-container":"#672a00","status-warn":"#F59E0B","surface-container-low":"#131b2e","on-tertiary":"#552100","surface-tint":"#4cd7f6","primary-container":"#06b6d4","tertiary-fixed":"#ffdbca","on-background":"#dae2fd","outline":"#869397","surface-variant":"#2d3449","on-tertiary-fixed-variant":"#783200","secondary-container":"#0566d9","primary":"#4cd7f6","secondary-fixed-dim":"#adc6ff","on-primary-container":"#00424f","background":"#0b1326","status-elevated":"#F97316","tertiary-fixed-dim":"#ffb690","inverse-on-surface":"#283044","surface-container-lowest":"#060e20","surface-canvas":"#0F172A","on-surface":"#dae2fd","on-secondary-fixed":"#001a42","text-dim":"#94A3B8","on-secondary-container":"#e6ecff","outline-variant":"#3d494c","error-container":"#93000a","on-error":"#690005","surface-container-high":"#222a3d","on-secondary-fixed-variant":"#004395","on-primary-fixed":"#001f26","secondary-fixed":"#d8e2ff","status-safe":"#22C55E","on-primary-fixed-variant":"#004e5c","border-subtle":"#334155","primary-fixed":"#acedff","surface-bright":"#31394d","secondary":"#adc6ff","overlay-backdrop":"rgba(0, 0, 0, 0.5)","surface-dim":"#0b1326","tertiary-container":"#ff853c","surface-panel":"#1E293B","error":"#ffb4ab","status-danger":"#EF4444","on-error-container":"#ffdad6","text-primary":"#E2E8F0","on-primary":"#003640","surface-container-highest":"#2d3449","on-surface-variant":"#bcc9cd","surface-container":"#171f33","inverse-surface":"#dae2fd","on-tertiary-fixed":"#341100","surface-recessed":"#0A0F1E","tertiary":"#ffb690","inverse-primary":"#00687a","surface":"#0b1326","status-info":"#3B82F6","primary-fixed-dim":"#4cd7f6"},"borderRadius":{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},"spacing":{"space-8":"8px","dock-right-width":"240px","decision-bar-height":"52px","space-6":"6px","space-16":"16px","space-24":"24px","space-4":"4px","space-12":"12px","dock-left-width":"200px","space-2":"2px","footer-height":"28px","nav-height":"56px","banner-height":"44px"},"fontFamily":{"code-lg":["JetBrains Mono"],"caption":["Inter"],"metric-display":["JetBrains Mono"],"body-lg":["Inter"],"body-sm":["Inter"],"headline-md":["Inter"],"body-md":["Inter"],"headline-lg":["Inter"],"headline-sm":["Inter"],"code-sm":["JetBrains Mono"]},"fontSize":{"code-lg":["14px",{"lineHeight":"20px","fontWeight":"400"}],"caption":["11px",{"lineHeight":"14px","fontWeight":"400"}],"metric-display":["24px",{"lineHeight":"28px","fontWeight":"400"}],"body-lg":["14px",{"lineHeight":"20px","fontWeight":"400"}],"body-sm":["12px",{"lineHeight":"16px","fontWeight":"400"}],"headline-md":["16px",{"lineHeight":"24px","fontWeight":"500"}],"body-md":["13px",{"lineHeight":"18px","fontWeight":"400"}],"headline-lg":["20px",{"lineHeight":"28px","fontWeight":"500"}],"headline-sm":["14px",{"lineHeight":"20px","fontWeight":"500"}],"code-sm":["12px",{"lineHeight":"16px","fontWeight":"400"}]}}}}</script></head><body class="bg-surface-canvas font-body-md text-body-md text-text-primary min-h-screen flex flex-col"><header class="fixed top-0 left-0 right-0 z-50 flex flex-col"><div class="h-nav-height bg-surface-canvas border-b border-border-subtle px-space-16 flex items-center justify-between"><div class="flex items-center gap-space-12"><span class="font-headline-md text-headline-md text-primary-container tracking-wide">◉ SIREN</span><span class="text-border-subtle">/</span><span class="font-headline-sm text-headline-sm text-text-dim">Dudh Koshi / Imja</span></div><nav class="flex items-center h-full gap-space-4" data-active-classes="text-primary-container border-b-2 border-primary-container"><a class="h-full flex items-center px-space-12 font-headline-sm text-headline-sm text-text-dim hover:text-text-primary transition-colors border-b-2 border-transparent" data-path="map" href="#">Map</a><a aria-current="page" class="h-full flex items-center px-space-12 font-headline-sm transition-colors text-primary-container border-b-2 border-primary-container" data-path="timeline" href="#">Timeline</a><a class="h-full flex items-center px-space-12 font-headline-sm text-headline-sm text-text-dim hover:text-text-primary transition-colors border-b-2 border-transparent" data-path="review" href="#">Review</a><a class="h-full flex items-center px-space-12 font-headline-sm text-headline-sm text-text-dim hover:text-text-primary transition-colors border-b-2 border-transparent" data-path="audit" href="#">Audit</a></nav></div><div class="h-banner-height bg-surface-panel border-l-[3px] border-l-status-elevated border-b border-border-subtle px-space-16 flex items-center justify-between"><div class="flex items-center gap-space-8"><span class="text-status-elevated font-body-lg text-body-lg">⚠</span><span class="font-body-md text-body-md text-text-primary font-medium tracking-wide">ELEVATED</span><span class="text-text-dim">·</span><span class="font-body-md text-body-md text-text-dim">+14.3% water expansion detected</span><span class="text-text-dim">·</span><a class="font-body-md text-body-md text-primary-container hover:underline" data-path="review" href="#">Review →</a></div></div></header><main class="w-full flex-1 pt-[100px] pb-footer-height bg-surface-canvas"><div class="flex flex-col w-full p-space-16 gap-space-16">
+<!-- View Title -->
+<div class="flex items-center justify-between">
+<h1 class="font-headline-lg text-headline-lg text-text-primary font-medium tracking-tight">Timeline</h1>
+<div class="flex items-center gap-space-8">
+<span class="font-caption text-caption text-text-dim uppercase tracking-wider">Telemetry Sequence</span>
+<span class="font-code-sm text-code-sm text-primary-container">BASIN-DK-IMJA-04</span>
+</div>
+</div>
+<!-- Simulation Controller -->
+<div class="bg-surface-panel border border-border-subtle p-space-16 rounded-xl flex items-center gap-space-16">
+<button class="bg-primary-container text-surface-canvas font-headline-sm text-headline-sm font-semibold rounded-lg px-space-16 py-space-8 hover:brightness-110 active:scale-[0.98] transition-all flex items-center gap-space-6 whitespace-nowrap select-none cursor-pointer" id="sim-toggle-btn">
+<span id="sim-icon">▶</span>
+<span id="sim-text">Run Simulation</span>
+</button>
+<span class="font-code-lg text-code-lg text-text-dim tracking-tight select-none" id="sim-counter">0/3</span>
+<div class="flex-1 h-[4px] bg-border-subtle rounded-full overflow-hidden relative">
+<div class="h-full bg-primary-container transition-all duration-300 rounded-full" id="sim-progress" style="width: 33.333%;"></div>
+</div>
+</div>
+<!-- Prevention Callout -->
+<div class="bg-surface-panel border-l-[3px] border-l-status-safe border-t border-r border-b border-border-subtle p-space-16 rounded-xl flex items-center justify-between">
+<div class="flex items-center gap-space-8 font-body-lg text-body-lg">
+<span class="text-status-safe font-semibold leading-none select-none">★</span>
+<span class="text-text-primary font-normal">
+<span class="text-status-safe font-medium">12 days</span> of early warning between Obs 1 (<span class="text-status-safe font-medium">+8%</span>) and Obs 2 (<span class="text-status-safe font-medium">+28%</span>)
+      </span>
+</div>
+<span class="font-code-sm text-code-sm text-text-dim hidden md:inline-block">DELTA: ΔT+288H</span>
+</div>
+<!-- Router Strip -->
+<div class="bg-surface-panel border border-border-subtle p-space-12 rounded-xl flex items-center gap-space-8 select-none">
+<span class="font-body-lg text-body-lg text-text-dim font-medium">Obs 2:</span>
+<span class="font-body-lg text-body-lg text-text-primary">95% cloud</span>
+<span class="font-body-lg text-body-lg text-primary-container font-semibold">→</span>
+<span class="font-body-lg text-body-lg text-text-primary">SAR path</span>
+<span class="text-border-subtle mx-space-4">|</span>
+<span class="font-code-sm text-code-sm text-text-dim">C-Band Synthetic Aperture Radar fallback engaged</span>
+</div>
+<!-- Observation Cards Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-space-12 w-full">
+<!-- Card 1: Baseline -->
+<div class="bg-surface-panel border border-border-subtle rounded-xl p-space-16 flex flex-col justify-between gap-space-16 transition-colors hover:border-text-dim/40">
+<div class="flex flex-col gap-space-8">
+<div class="flex items-center justify-between">
+<span class="font-headline-sm text-headline-sm text-text-primary font-medium">Baseline</span>
+<span class="border border-status-safe text-status-safe font-caption text-caption px-space-8 py-space-2 rounded-lg uppercase tracking-wider bg-transparent">
+            SAFE
+          </span>
+</div>
+<div class="flex items-center justify-between text-caption">
+<span class="font-code-sm text-code-sm text-text-dim">2025-11-22</span>
+<span class="font-code-sm text-code-sm text-status-info">S2 Optical</span>
+</div>
+</div>
+<div class="bg-surface-recessed border border-border-subtle rounded-lg p-space-12 flex flex-col gap-space-8 font-code-sm text-code-sm">
+<div class="flex items-center justify-between">
+<span class="text-text-dim">Cloud</span>
+<span class="text-text-primary">5%</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-text-dim">Rain 24h</span>
+<span class="text-text-primary">0mm</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-text-dim">Area</span>
+<span class="text-text-primary font-medium">3.0 km²</span>
+</div>
+<div class="flex items-center justify-between border-t border-border-subtle/50 pt-space-6 mt-space-2">
+<span class="text-text-dim">Change</span>
+<span class="text-text-primary">+0%</span>
+</div>
+</div>
+</div>
+<!-- Card 2: Obs 1 -->
+<div class="bg-surface-panel border border-border-subtle rounded-xl p-space-16 flex flex-col justify-between gap-space-16 transition-colors hover:border-text-dim/40">
+<div class="flex flex-col gap-space-8">
+<div class="flex items-center justify-between">
+<span class="font-headline-sm text-headline-sm text-text-primary font-medium">Obs 1</span>
+<span class="border border-status-warn text-status-warn font-caption text-caption px-space-8 py-space-2 rounded-lg uppercase tracking-wider bg-transparent">
+            WATCH
+          </span>
+</div>
+<div class="flex items-center justify-between text-caption">
+<span class="font-code-sm text-code-sm text-text-dim">2026-07-23</span>
+<span class="font-code-sm text-code-sm text-status-info">S2 Optical</span>
+</div>
+</div>
+<div class="bg-surface-recessed border border-border-subtle rounded-lg p-space-12 flex flex-col gap-space-8 font-code-sm text-code-sm">
+<div class="flex items-center justify-between">
+<span class="text-text-dim">Cloud</span>
+<span class="text-text-primary">0%</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-text-dim">Rain 24h</span>
+<span class="text-text-primary">18mm</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-text-dim">Area</span>
+<span class="text-text-primary font-medium">3.2 km²</span>
+</div>
+<div class="flex items-center justify-between border-t border-border-subtle/50 pt-space-6 mt-space-2">
+<span class="text-text-dim">Change</span>
+<span class="text-status-warn font-medium">▲ +8%</span>
+</div>
+</div>
+</div>
+<!-- Card 3: Obs 2 (ACTIVE) -->
+<div class="bg-surface-panel border-2 border-primary-container rounded-xl p-space-16 flex flex-col justify-between gap-space-16 relative">
+<div class="flex flex-col gap-space-8">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-6">
+<span class="font-headline-sm text-headline-sm text-text-primary font-medium">Obs 2</span>
+<span class="w-2 h-2 rounded-full bg-primary-container animate-pulse"></span>
+</div>
+<span class="border border-status-elevated text-status-elevated font-caption text-caption px-space-8 py-space-2 rounded-lg uppercase tracking-wider bg-transparent">
+            ELEVATED
+          </span>
+</div>
+<div class="flex items-center justify-between text-caption">
+<span class="font-code-sm text-code-sm text-text-dim">2026-08-04</span>
+<span class="font-code-sm text-code-sm text-primary-container font-medium">S1 SAR</span>
+</div>
+</div>
+<div class="bg-surface-recessed border border-border-subtle rounded-lg p-space-12 flex flex-col gap-space-8 font-code-sm text-code-sm">
+<div class="flex items-center justify-between">
+<span class="text-text-dim">Cloud</span>
+<span class="text-text-primary font-medium">95%</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-text-dim">Rain 24h</span>
+<span class="text-text-primary font-medium">85mm</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-text-dim">Area</span>
+<span class="text-text-primary font-semibold text-primary-container">4.1 km²</span>
+</div>
+<div class="flex items-center justify-between border-t border-border-subtle/50 pt-space-6 mt-space-2">
+<span class="text-text-dim">Change</span>
+<span class="text-status-elevated font-medium">▲ +28%</span>
+</div>
+</div>
+</div>
+<!-- Card 4: Obs 3 (FUTURE) -->
+<div class="bg-surface-panel border border-border-subtle rounded-xl p-space-16 flex flex-col justify-between gap-space-16 opacity-40">
+<div class="flex flex-col gap-space-8">
+<div class="flex items-center justify-between">
+<span class="font-headline-sm text-headline-sm text-text-primary font-medium">Obs 3</span>
+<span class="border border-status-danger text-status-danger font-caption text-caption px-space-8 py-space-2 rounded-lg uppercase tracking-wider bg-transparent">
+            CRITICAL
+          </span>
+</div>
+<div class="flex items-center justify-between text-caption">
+<span class="font-code-sm text-code-sm text-text-dim">2026-08-16</span>
+<span class="font-code-sm text-code-sm text-text-dim">S1 SAR</span>
+</div>
+</div>
+<div class="bg-surface-recessed border border-border-subtle rounded-lg p-space-12 flex flex-col items-center justify-center min-h-[110px] text-center font-code-sm text-code-sm text-text-dim">
+<span class="tracking-wide">Projected observation</span>
+<span class="text-caption font-caption text-status-danger mt-space-4">Est. &gt;4.8 km² (+60%)</span>
+</div>
+</div>
+</div>
+</div>
+<script>
+  (function() {
+    const btn = document.getElementById('sim-toggle-btn');
+    const icon = document.getElementById('sim-icon');
+    const text = document.getElementById('sim-text');
+    const counter = document.getElementById('sim-counter');
+    const progress = document.getElementById('sim-progress');
+    
+    let step = 1; // 1 out of 3 representing ~33%
+    let interval = null;
+
+    function renderStep() {
+      counter.textContent = `${step}/3`;
+      progress.style.width = `${(step / 3) * 100}%`;
+    }
+
+    btn.addEventListener('click', function() {
+      if (interval) {
+        clearInterval(interval);
+        interval = null;
+        icon.textContent = '▶';
+        text.textContent = 'Run Simulation';
+      } else {
+        icon.textContent = '⏸';
+        text.textContent = 'Pause Simulation';
+        interval = setInterval(function() {
+          step = (step + 1) > 3 ? 0 : step + 1;
+          renderStep();
+        }, 1200);
+      }
+    });
+  })();
+</script></main><footer class="fixed bottom-0 left-0 right-0 h-footer-height bg-surface-canvas border-t border-border-subtle flex items-center justify-center px-space-16 z-40"><div class="font-caption text-caption text-text-dim tracking-normal">Sentinel-2 · Sentinel-1 · SRTM · Open-Meteo · © OSM · pipeline v0.1.0</div></footer></body></html>

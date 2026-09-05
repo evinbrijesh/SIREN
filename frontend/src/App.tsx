@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api, apiOrMock } from "./api/client";
 import { mockData } from "./api/mockData";
-import { useSimulation, STEPS, type SimStep } from "./simulation/SimulationContext";
+import { useSimulation } from "./simulation/SimulationContext";
 import type { BasinConfig, RunList } from "./api/types";
 import MapView from "./views/MapView";
 import TimelineView from "./views/TimelineView";
@@ -10,13 +10,12 @@ import ReviewView from "./views/ReviewView";
 import AuditView from "./views/AuditView";
 
 type ViewName = "map" | "timeline" | "review" | "audit";
-const TAB_KEYS: ViewName[] = ["map", "timeline", "review", "audit"];
-const TAB_LABELS: Record<ViewName, string> = {
-  map: "Map",
-  timeline: "Timeline",
-  review: "Review",
-  audit: "Audit",
-};
+const TABS: { key: ViewName; label: string }[] = [
+  { key: "map", label: "Map" },
+  { key: "timeline", label: "Timeline" },
+  { key: "review", label: "Review" },
+  { key: "audit", label: "Audit" },
+];
 
 export default function App() {
   const [view, setView] = useState<ViewName>("map");
@@ -36,7 +35,11 @@ export default function App() {
 
   const currentRunId = sim.step !== "before" ? sim.runIds[sim.step] : null;
   const runs = runsData?.runs ?? mockData.runs.runs;
-  const latestRun = (currentRunId ? runs.find((r) => r.run_id === currentRunId) : undefined) ?? runs[0] ?? mockData.runs.runs[0];
+  const latestRun =
+    (currentRunId ? runs.find((r) => r.run_id === currentRunId) : undefined) ??
+    runs[0] ??
+    mockData.runs.runs[0];
+
   const severity = latestRun?.score?.severity;
   const showBanner = (severity === "elevated" || severity === "critical") && !sim.reviewDecision;
   const expansionPct = (latestRun?.change_stats_json?.expansion_percent as number) ?? 0;
@@ -44,7 +47,7 @@ export default function App() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key >= "1" && e.key <= "4") {
-        setView(TAB_KEYS[parseInt(e.key) - 1]);
+        setView(TABS[parseInt(e.key, 10) - 1].key);
       } else if (e.key.toLowerCase() === "r" && view === "timeline") {
         sim.advance();
       } else if (e.key === "Escape") {
@@ -53,13 +56,12 @@ export default function App() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [view]);
+  }, [view, sim]);
 
   useEffect(() => {
-    if (toast) {
-      const t = setTimeout(() => setToast(null), 4000);
-      return () => clearTimeout(t);
-    }
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(t);
   }, [toast]);
 
   const handleReset = useCallback(() => {
@@ -71,58 +73,95 @@ export default function App() {
   const basinName = basin?.name ?? "Dudh Koshi / Imja";
 
   return (
-    <div className="app-shell">
-      <nav className="nav-bar">
-        <span className="nav-brand">SIREN</span>
-        <span className="nav-basin">{basinName}</span>
-        <div className="nav-tabs">
-          {TAB_KEYS.map((v) => (
+    <div className="flex flex-col h-screen overflow-hidden bg-surface-canvas text-text-primary font-sans">
+      {/* Navigation bar */}
+      <nav className="h-nav-height flex-none flex items-center gap-space-16 px-space-16 bg-surface-panel border-b border-border-subtle">
+        <div className="flex items-center gap-space-8">
+          <span className="text-headline-sm font-medium text-primary flex items-center gap-space-8">
+            <span className="w-2.5 h-2.5 rounded-full bg-primary" />
+            SIREN
+          </span>
+          <span className="text-body-md text-text-dim">{basinName}</span>
+        </div>
+
+        <div className="ml-auto flex items-center h-full">
+          {TABS.map((tab) => (
             <button
-              key={v}
-              className={`nav-tab ${view === v ? "active" : ""}`}
-              onClick={() => setView(v)}
+              key={tab.key}
+              onClick={() => setView(tab.key)}
+              className={`h-full px-space-16 text-body-md transition-colors border-b-2 ${
+                view === tab.key
+                  ? "text-primary border-primary"
+                  : "text-text-dim border-transparent hover:text-text-primary"
+              }`}
             >
-              {TAB_LABELS[v]}
+              {tab.label}
             </button>
           ))}
         </div>
-        <button className="btn btn-ghost" onClick={handleReset} style={{ padding: "6px 12px", fontSize: 13 }}>
+
+        <button
+          onClick={handleReset}
+          className="px-space-12 py-space-6 text-body-sm text-text-dim border border-border-subtle rounded hover:text-text-primary hover:border-text-dim transition-colors bg-transparent"
+        >
           Reset
         </button>
       </nav>
 
+      {/* Alert banner */}
       {showBanner && (
         <div
-          className={`alert-banner ${severity === "critical" ? "critical" : ""}`}
           onClick={() => setView("review")}
+          className={`h-banner-height flex-none flex items-center gap-space-12 px-space-16 bg-surface-panel border-b border-border-subtle border-l-[3px] cursor-pointer ${
+            severity === "critical" ? "border-l-status-danger" : "border-l-status-elevated"
+          }`}
         >
-          <span className={`sev-text ${severity === "critical" ? "critical" : "elevated"}`}>
-            {severity === "elevated" ? "Elevated" : "Critical"}
+          <span
+            className={`text-body-md font-medium ${
+              severity === "critical" ? "text-status-danger" : "text-status-elevated"
+            }`}
+          >
+            ⚠ {severity === "critical" ? "Critical" : "Elevated"}
           </span>
-          <span>— water expansion +{expansionPct.toFixed(1)}% detected</span>
-          <span className="review-link">Review →</span>
+          <span className="text-body-md text-text-primary">
+            water expansion +{expansionPct.toFixed(1)}% detected
+          </span>
+          <span className="ml-auto text-body-md text-primary">Review →</span>
         </div>
       )}
 
-      <div className="view-container">
-        {view === "map" && <MapView />}
+      {/* View container */}
+      <main className="flex-1 min-h-0 overflow-auto p-space-16">
+        {view === "map" && <MapView onJumpToReview={() => setView("review")} />}
         {view === "timeline" && <TimelineView />}
-        {view === "review" && <ReviewView run={latestRun} onToast={setToast} onJumpToMap={() => setView("map")} />}
+        {view === "review" && (
+          <ReviewView run={latestRun} onToast={setToast} onJumpToMap={() => setView("map")} />
+        )}
         {view === "audit" && <AuditView onToast={setToast} />}
-      </div>
+      </main>
 
-      <footer className="app-footer">
-        <span>Sentinel-2</span><span className="sep">·</span>
-        <span>Sentinel-1</span><span className="sep">·</span>
-        <span>SRTM</span><span className="sep">·</span>
-        <span>Open-Meteo</span><span className="sep">·</span>
-        <span>© OSM</span><span className="sep">·</span>
-        <span>v0.1.0</span>
+      {/* Footer */}
+      <footer className="h-footer-height flex-none flex items-center justify-center bg-surface-canvas border-t border-border-subtle">
+        <div className="text-caption text-text-dim tracking-normal">
+          Sentinel-2 · Sentinel-1 · SRTM · Open-Meteo · © OSM · pipeline v0.1.0
+        </div>
       </footer>
 
+      {/* Toast */}
       {toast && (
-        <div className={`toast ${toast.type}`} onClick={() => setToast(null)}>
-          {toast.type === "error" && "⚠ "}{toast.type === "success" && "✓ "}{toast.msg}
+        <div
+          onClick={() => setToast(null)}
+          className={`fixed bottom-footer-height left-1/2 -translate-x-1/2 mb-space-16 px-space-20 py-space-12 rounded border bg-surface-panel z-50 text-body-md ${
+            toast.type === "error"
+              ? "border-status-danger"
+              : toast.type === "success"
+              ? "border-status-safe"
+              : "border-border-subtle"
+          }`}
+        >
+          {toast.type === "error" && "⚠ "}
+          {toast.type === "success" && "✓ "}
+          {toast.msg}
         </div>
       )}
     </div>

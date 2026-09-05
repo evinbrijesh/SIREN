@@ -26,7 +26,8 @@ COPY backend/pyproject.toml .
 COPY backend/siren/ siren/
 COPY backend/tests/ tests/
 
-RUN pip install --no-cache-dir -e ".[dev]"
+RUN pip install --no-cache-dir -e ".[dev]" && \
+    pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch torchvision
 
 # DB will be at /app/data/siren.db (mounted volume)
 # Project root is /app so pipeline finds data at /app/data/

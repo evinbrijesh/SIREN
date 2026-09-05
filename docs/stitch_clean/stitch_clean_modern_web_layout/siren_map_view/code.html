@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;background-color:#0F172A;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{"colors":{"on-secondary":"#002e6a","on-tertiary-container":"#672a00","status-warn":"#F59E0B","surface-container-low":"#131b2e","on-tertiary":"#552100","surface-tint":"#4cd7f6","primary-container":"#06b6d4","tertiary-fixed":"#ffdbca","on-background":"#dae2fd","outline":"#869397","surface-variant":"#2d3449","on-tertiary-fixed-variant":"#783200","secondary-container":"#0566d9","primary":"#4cd7f6","secondary-fixed-dim":"#adc6ff","on-primary-container":"#00424f","background":"#0b1326","status-elevated":"#F97316","tertiary-fixed-dim":"#ffb690","inverse-on-surface":"#283044","surface-container-lowest":"#060e20","surface-canvas":"#0F172A","on-surface":"#dae2fd","on-secondary-fixed":"#001a42","text-dim":"#94A3B8","on-secondary-container":"#e6ecff","outline-variant":"#3d494c","error-container":"#93000a","on-error":"#690005","surface-container-high":"#222a3d","on-secondary-fixed-variant":"#004395","on-primary-fixed":"#001f26","secondary-fixed":"#d8e2ff","status-safe":"#22C55E","on-primary-fixed-variant":"#004e5c","border-subtle":"#334155","primary-fixed":"#acedff","surface-bright":"#31394d","secondary":"#adc6ff","overlay-backdrop":"rgba(0, 0, 0, 0.5)","surface-dim":"#0b1326","tertiary-container":"#ff853c","surface-panel":"#1E293B","error":"#ffb4ab","status-danger":"#EF4444","on-error-container":"#ffdad6","text-primary":"#E2E8F0","on-primary":"#003640","surface-container-highest":"#2d3449","on-surface-variant":"#bcc9cd","surface-container":"#171f33","inverse-surface":"#dae2fd","on-tertiary-fixed":"#341100","surface-recessed":"#0A0F1E","tertiary":"#ffb690","inverse-primary":"#00687a","surface":"#0b1326","status-info":"#3B82F6","primary-fixed-dim":"#4cd7f6"},"borderRadius":{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},"spacing":{"space-8":"8px","dock-right-width":"240px","decision-bar-height":"52px","space-6":"6px","space-16":"16px","space-24":"24px","space-4":"4px","space-12":"12px","dock-left-width":"200px","space-2":"2px","footer-height":"28px","nav-height":"56px","banner-height":"44px"},"fontFamily":{"code-lg":["JetBrains Mono"],"caption":["Inter"],"metric-display":["JetBrains Mono"],"body-lg":["Inter"],"body-sm":["Inter"],"headline-md":["Inter"],"body-md":["Inter"],"headline-lg":["Inter"],"headline-sm":["Inter"],"code-sm":["JetBrains Mono"]},"fontSize":{"code-lg":["14px",{"lineHeight":"20px","fontWeight":"400"}],"caption":["11px",{"lineHeight":"14px","fontWeight":"400"}],"metric-display":["24px",{"lineHeight":"28px","fontWeight":"400"}],"body-lg":["14px",{"lineHeight":"20px","fontWeight":"400"}],"body-sm":["12px",{"lineHeight":"16px","fontWeight":"400"}],"headline-md":["16px",{"lineHeight":"24px","fontWeight":"500"}],"body-md":["13px",{"lineHeight":"18px","fontWeight":"400"}],"headline-lg":["20px",{"lineHeight":"28px","fontWeight":"500"}],"headline-sm":["14px",{"lineHeight":"20px","fontWeight":"500"}],"code-sm":["12px",{"lineHeight":"16px","fontWeight":"400"}]}}}}</script></head><body class="bg-surface-canvas font-body-md text-body-md text-text-primary min-h-screen flex flex-col"><header class="fixed top-0 left-0 right-0 z-50 flex flex-col"><div class="h-nav-height bg-surface-canvas border-b border-border-subtle px-space-16 flex items-center justify-between"><div class="flex items-center gap-space-12"><span class="font-headline-md text-headline-md text-primary-container tracking-wide">◉ SIREN</span><span class="text-border-subtle">/</span><span class="font-headline-sm text-headline-sm text-text-dim">Dudh Koshi / Imja</span></div><nav class="flex items-center h-full gap-space-4" data-active-classes="text-primary-container border-b-2 border-primary-container"><a aria-current="page" class="h-full flex items-center px-space-12 font-headline-sm transition-colors text-primary-container border-b-2 border-primary-container" data-path="map" href="#">Map</a><a class="h-full flex items-center px-space-12 font-headline-sm text-headline-sm text-text-dim hover:text-text-primary transition-colors border-b-2 border-transparent" data-path="timeline" href="#">Timeline</a><a class="h-full flex items-center px-space-12 font-headline-sm text-headline-sm text-text-dim hover:text-text-primary transition-colors border-b-2 border-transparent" data-path="review" href="#">Review</a><a class="h-full flex items-center px-space-12 font-headline-sm text-headline-sm text-text-dim hover:text-text-primary transition-colors border-b-2 border-transparent" data-path="audit" href="#">Audit</a></nav></div><div class="h-banner-height bg-surface-panel border-l-[3px] border-l-status-elevated border-b border-border-subtle px-space-16 flex items-center justify-between"><div class="flex items-center gap-space-8"><span class="text-status-elevated font-body-lg text-body-lg">⚠</span><span class="font-body-md text-body-md text-text-primary font-medium tracking-wide">ELEVATED</span><span class="text-text-dim">·</span><span class="font-body-md text-body-md text-text-dim">+14.3% water expansion detected</span><span class="text-text-dim">·</span><a class="font-body-md text-body-md text-primary-container hover:underline" data-path="review" href="#">Review →</a></div></div></header><main class="w-full flex-1 pt-[100px] pb-footer-height bg-surface-canvas"><div class="flex flex-col w-full p-space-12 space-y-space-12">
+<div class="flex flex-row gap-space-12 w-full items-stretch">
+<!-- 1. LEFT DOCK: Layers & Controls -->
+<aside class="w-dock-left-width shrink-0 bg-surface-panel rounded-xl p-space-16 flex flex-col justify-between" style="border: 1px solid #334155;">
+<div class="space-y-space-16">
+<h2 class="font-headline-md text-headline-md text-text-primary tracking-tight">Layers</h2>
+<div class="flex flex-col space-y-space-8 text-body-md font-body-md">
+<!-- 1. Basin AOI -->
+<label class="flex items-center gap-space-8 cursor-pointer text-text-primary select-none hover:text-primary transition-colors">
+<input checked="" class="w-4 h-4 rounded bg-surface-recessed text-primary-container focus:ring-0 focus:ring-offset-0 cursor-pointer" id="layer-basin" style="border: 1px solid #334155;" type="checkbox"/>
+<span>Basin AOI</span>
+</label>
+<!-- 2. Optical baseline -->
+<label class="flex items-center gap-space-8 cursor-pointer text-text-primary select-none hover:text-primary transition-colors">
+<input checked="" class="w-4 h-4 rounded bg-surface-recessed text-primary-container focus:ring-0 focus:ring-offset-0 cursor-pointer" id="layer-optical" style="border: 1px solid #334155;" type="checkbox"/>
+<span>Optical baseline</span>
+</label>
+<!-- 3. SAR backscatter (locked) -->
+<label class="flex items-center gap-space-8 text-text-dim cursor-not-allowed select-none opacity-60">
+<input class="w-4 h-4 rounded bg-surface-recessed opacity-40 cursor-not-allowed" disabled="" style="border: 1px solid #334155;" type="checkbox"/>
+<span class="flex items-center gap-space-4">
+              SAR backscatter
+              <span class="font-caption text-caption text-text-dim">(locked)</span>
+</span>
+</label>
+<!-- 4. Water expansion -->
+<label class="flex items-center gap-space-8 cursor-pointer text-text-primary select-none hover:text-primary transition-colors">
+<input checked="" class="w-4 h-4 rounded bg-surface-recessed text-primary-container focus:ring-0 focus:ring-offset-0 cursor-pointer" id="layer-water" style="border: 1px solid #334155;" type="checkbox"/>
+<span>Water expansion</span>
+</label>
+<!-- 5. D8 corridor -->
+<label class="flex items-center gap-space-8 cursor-pointer text-text-primary select-none hover:text-primary transition-colors">
+<input checked="" class="w-4 h-4 rounded bg-surface-recessed text-primary-container focus:ring-0 focus:ring-offset-0 cursor-pointer" id="layer-corridor" style="border: 1px solid #334155;" type="checkbox"/>
+<span>D8 corridor</span>
+</label>
+<!-- 6. OSM assets -->
+<label class="flex items-center gap-space-8 cursor-pointer text-text-primary select-none hover:text-primary transition-colors">
+<input checked="" class="w-4 h-4 rounded bg-surface-recessed text-primary-container focus:ring-0 focus:ring-offset-0 cursor-pointer" id="layer-assets" style="border: 1px solid #334155;" type="checkbox"/>
+<span>OSM assets</span>
+</label>
+</div>
+<div class="pt-space-16" style="border-top: 1px solid #334155;">
+<div class="flex justify-between items-center mb-space-8">
+<label class="font-body-sm text-body-sm text-text-dim uppercase tracking-wider" for="layer-opacity">Opacity</label>
+<span class="font-code-sm text-code-sm text-primary-container" id="opacity-val">100%</span>
+</div>
+<input class="w-full h-1 rounded bg-surface-recessed appearance-none cursor-pointer accent-primary-container" id="layer-opacity" max="100" min="0" oninput="document.getElementById('opacity-val').textContent = this.value + '%'; document.getElementById('map-layers-group').style.opacity = this.value / 100;" type="range" value="100"/>
+</div>
+</div>
+</aside>
+<!-- 2. CENTER WORKSPACE: Map Canvas -->
+<div class="flex-1 flex flex-col gap-space-12 min-w-0">
+<div class="relative w-full h-[520px] bg-surface-recessed rounded-xl overflow-hidden flex items-center justify-center select-none" style="border: 1px solid #334155;">
+<!-- Step label badge -->
+<div class="absolute top-space-16 left-space-16 z-20 px-space-12 py-space-6 bg-surface-panel rounded font-body-sm text-body-sm text-text-primary" style="border: 1px solid #334155;">
+          Obs 2 — 2026-08-04
+        </div>
+<!-- Glacial Basin Cartographic Projection -->
+<svg class="w-full h-full object-cover" fill="none" id="map-svg" viewbox="0 0 800 520" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<!-- Elevation Pattern / Topo Contours -->
+<pattern height="40" id="grid" patternunits="userSpaceOnUse" width="40">
+<path d="M 40 0 L 0 0 0 40" fill="none" stroke="#171f33" stroke-width="0.75"></path>
+</pattern>
+</defs>
+<!-- Topographic Grid Backdrop -->
+<rect fill="url(#grid)" height="100%" width="100%"></rect>
+<!-- Mountain Topography Contour Lines -->
+<g fill="none" opacity="0.8" stroke="#1e293b" stroke-width="1.2">
+<path d="M -40 180 C 120 160, 240 220, 360 140 C 480 60, 620 120, 840 80"></path>
+<path d="M -40 240 C 140 220, 260 290, 420 210 C 560 130, 690 190, 840 150"></path>
+<path d="M -40 320 C 160 300, 280 370, 460 290 C 620 210, 710 270, 840 230"></path>
+<path d="M -40 400 C 190 380, 310 440, 520 370 C 670 290, 760 360, 840 320"></path>
+<path d="M 120 -20 C 180 80, 240 160, 300 240 C 380 340, 440 420, 520 540" opacity="0.4"></path>
+<path d="M 320 -20 C 370 80, 410 160, 480 230 C 540 300, 610 390, 680 540" opacity="0.4"></path>
+</g>
+<!-- Dynamic Layer Container controlled by Left Dock -->
+<g id="map-layers-group">
+<!-- 1. Basin AOI (Accent Outline 2px, 8% fill) -->
+<g id="layer-svg-basin">
+<polygon fill="#06B6D4" fill-opacity="0.08" points="180,60 480,40 680,120 740,280 620,440 320,480 140,360 110,180" stroke="#06B6D4" stroke-dasharray="6 4" stroke-width="2"></polygon>
+</g>
+<!-- 2. Optical Baseline Lake Geometry (Pre-expansion) -->
+<g id="layer-svg-optical">
+<!-- Moraine dam structure -->
+<path d="M 450 165 C 470 190, 485 220, 490 250" stroke="#869397" stroke-linecap="round" stroke-width="2.5"></path>
+<!-- Historical Lake Body -->
+<path d="M 430 140 C 490 130, 550 150, 570 180 C 585 200, 560 240, 520 260 C 475 280, 420 265, 395 240 C 375 215, 385 155, 430 140 Z" fill="#00424f" stroke="#06B6D4" stroke-width="1.5"></path>
+</g>
+<!-- 4. Water Expansion Zone (Blue fill #3B82F6 at 40% opacity) -->
+<g id="layer-svg-water">
+<!-- Expanded perimeter showing active surge -->
+<path d="M 370 215 C 360 170, 390 130, 435 125 C 500 115, 575 135, 600 175 C 620 205, 595 260, 545 285 C 490 310, 425 290, 390 260 C 370 245, 360 230, 370 215 Z" fill="#3B82F6" fill-opacity="0.4" stroke="#3B82F6" stroke-width="1.5"></path>
+</g>
+<!-- 5. D8 Drainage / Outflow Corridor (Amber #F59E0B dashed line 2px) -->
+<g id="layer-svg-corridor">
+<!-- Centerline track -->
+<path d="M 420 265 C 390 310, 350 330, 310 360 C 270 390, 260 430, 220 460 C 190 480, 160 500, 120 530" fill="none" id="corridor-flow" stroke="#F59E0B" stroke-dasharray="6 4" stroke-width="2"></path>
+<!-- Buffered runout boundary projection -->
+<path d="M 438 275 C 405 320, 365 340, 325 372 C 285 402, 275 442, 235 472 C 205 492, 175 512, 135 542" fill="none" stroke="#F59E0B" stroke-opacity="0.25" stroke-width="1"></path>
+<path d="M 402 255 C 375 300, 335 320, 295 348 C 255 378, 245 418, 205 448 C 175 468, 145 488, 105 518" fill="none" stroke="#F59E0B" stroke-opacity="0.25" stroke-width="1"></path>
+</g>
+<!-- 6. OSM Asset Markers (12px circular dots with 2px dark border: green safe, amber buffered, red inundated) -->
+<g id="layer-svg-assets">
+<!-- Safe Asset (Upstream Ridge Station - Green #22C55E) -->
+<circle class="cursor-pointer" cx="560" cy="110" fill="#22C55E" r="6" stroke="#0A0F1E" stroke-width="2"></circle>
+<text class="font-caption text-[10px]" fill="#94A3B8" font-family="Inter" x="572" y="114">AWS Dingboche</text>
+<!-- Safe Asset (Upper Valley Shelter - Green #22C55E) -->
+<circle class="cursor-pointer" cx="270" cy="220" fill="#22C55E" r="6" stroke="#0A0F1E" stroke-width="2"></circle>
+<text class="font-caption text-[10px]" fill="#94A3B8" font-family="Inter" x="210" y="214">Chukhung Post</text>
+<!-- Inundated Asset (Direct Outflow Footbridge - Red #EF4444) -->
+<circle class="cursor-pointer" cx="410" cy="285" fill="#EF4444" r="6" stroke="#0A0F1E" stroke-width="2"></circle>
+<text class="font-caption text-[10px] font-medium" fill="#EF4444" font-family="Inter" x="424" y="289">Glacial Weir 01</text>
+<!-- Buffered Asset: Selected (Hillary Bridge - Amber #F59E0B) -->
+<!-- Outer selection halo ring -->
+<circle cx="310" cy="360" fill="none" r="12" stroke="#06B6D4" stroke-dasharray="2 2" stroke-width="1.5"></circle>
+<circle class="cursor-pointer" cx="310" cy="360" fill="#F59E0B" r="6" stroke="#0A0F1E" stroke-width="2"></circle>
+<text class="font-caption text-[11px] font-medium" fill="#E2E8F0" font-family="Inter" x="324" y="364">Hillary Bridge</text>
+<!-- Buffered Settlement Asset (Amber #F59E0B) -->
+<circle class="cursor-pointer" cx="218" cy="460" fill="#F59E0B" r="6" stroke="#0A0F1E" stroke-width="2"></circle>
+<text class="font-caption text-[10px]" fill="#94A3B8" font-family="Inter" x="140" y="464">Phakding Access</text>
+</g>
+</g>
+</svg>
+</div>
+<!-- Bottom Swipe Compare Component -->
+<section class="bg-surface-panel rounded-xl p-space-16 flex flex-col gap-space-12" style="border: 1px solid #334155;">
+<div class="flex justify-between items-center">
+<h3 class="font-headline-md text-headline-md text-text-primary tracking-tight">Before / After</h3>
+<div class="font-caption text-caption text-text-dim">Drag vertical divider to compare expansion limits</div>
+</div>
+<!-- Interactive Swipe Container -->
+<div class="relative w-full h-[100px] rounded bg-surface-recessed overflow-hidden select-none cursor-ew-resize" id="swipe-stage" style="border: 1px solid #334155;">
+<!-- RIGHT LAYER: After State (Blue-tinted background, +14.3%) -->
+<div class="absolute inset-0 bg-[#00424f]/40 flex items-center justify-end px-space-24">
+<span class="font-body-sm text-body-sm text-primary-container tracking-wide font-medium">
+              After — 4.1 km² (+14.3%)
+            </span>
+</div>
+<!-- LEFT LAYER: Before State (Dark background, clipped) -->
+<div class="absolute inset-y-0 left-0 bg-surface-recessed flex items-center px-space-24 overflow-hidden border-r-0" id="swipe-clip-panel" style="width: 50%;">
+<span class="font-body-sm text-body-sm text-text-dim tracking-wide shrink-0">
+              Before — 3.0 km²
+            </span>
+</div>
+<!-- DRAG DIVIDER / GRABBER -->
+<div class="absolute top-0 bottom-0 z-30 pointer-events-none flex items-center justify-center -ml-[1px]" id="swipe-handle" style="left: 50%;">
+<div class="w-[2px] h-full bg-primary-container"></div>
+<div class="absolute w-5 h-5 rounded-full bg-surface-panel flex items-center justify-center shadow-md" style="border: 1.5px solid #06B6D4;">
+<span class="text-[10px] text-primary-container font-bold leading-none select-none">‹›</span>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- 3. RIGHT DOCK: Legend & Asset Details -->
+<aside class="w-dock-right-width shrink-0 bg-surface-panel rounded-xl p-space-16 flex flex-col justify-between" style="border: 1px solid #334155;">
+<div class="space-y-space-24">
+<!-- Legend Section -->
+<div class="space-y-space-12">
+<h2 class="font-headline-md text-headline-md text-text-primary tracking-tight">Legend</h2>
+<div class="flex flex-col space-y-space-8 text-body-md font-body-md">
+<div class="flex items-center gap-space-8">
+<span class="w-3 h-3 rounded-full bg-status-safe inline-block shrink-0" style="border: 2px solid #0A0F1E;"></span>
+<span class="text-text-primary">Safe</span>
+</div>
+<div class="flex items-center gap-space-8">
+<span class="w-3 h-3 rounded-full bg-status-warn inline-block shrink-0" style="border: 2px solid #0A0F1E;"></span>
+<span class="text-text-primary">Buffered</span>
+</div>
+<div class="flex items-center gap-space-8">
+<span class="w-3 h-3 rounded-full bg-status-danger inline-block shrink-0" style="border: 2px solid #0A0F1E;"></span>
+<span class="text-text-primary">Inundated</span>
+</div>
+</div>
+</div>
+<!-- Selected Asset Card -->
+<div class="pt-space-16 space-y-space-12" style="border-top: 1px solid #334155;">
+<div class="space-y-space-4">
+<span class="font-caption text-caption text-text-dim uppercase tracking-wider">Target Inspection</span>
+<h3 class="font-headline-md text-headline-md text-text-primary font-medium">Hillary Bridge</h3>
+</div>
+<div class="space-y-space-4 font-body-md text-body-md text-text-dim">
+<p>Type: bridge</p>
+<p>Distance: 60m from corridor</p>
+</div>
+<!-- Status badge (Hollow, 1px amber border, 12px uppercase) -->
+<div class="pt-space-4">
+<span class="inline-block px-space-8 py-space-2 rounded font-body-sm text-body-sm tracking-wider uppercase text-status-warn" style="border: 1px solid #F59E0B; background-color: transparent;">
+              BUFFERED
+            </span>
+</div>
+<!-- Actions -->
+<div class="pt-space-12 flex items-center justify-between">
+<button class="px-space-12 py-space-6 rounded font-body-sm text-body-sm text-text-dim hover:text-text-primary transition-colors bg-transparent cursor-pointer" style="border: 1px solid #334155;" type="button">
+              Fly to
+            </button>
+<a class="font-body-sm text-body-sm text-primary-container hover:underline transition-all flex items-center gap-space-4" data-path="review" href="#">
+              Review →
+            </a>
+</div>
+</div>
+</div>
+<!-- Station Telemetry Stamp -->
+<div class="pt-space-12 font-code-sm text-code-sm text-text-dim" style="border-top: 1px solid #334155;">
+<span>EPSG:32645 · S2A-L2A</span>
+</div>
+</aside>
+</div>
+</div>
+<script>
+  // Layer Toggle Handlers
+  document.getElementById('layer-basin').addEventListener('change', function(e) {
+    document.getElementById('layer-svg-basin').style.display = e.target.checked ? 'inline' : 'none';
+  });
+  document.getElementById('layer-optical').addEventListener('change', function(e) {
+    document.getElementById('layer-svg-optical').style.display = e.target.checked ? 'inline' : 'none';
+  });
+  document.getElementById('layer-water').addEventListener('change', function(e) {
+    document.getElementById('layer-svg-water').style.display = e.target.checked ? 'inline' : 'none';
+  });
+  document.getElementById('layer-corridor').addEventListener('change', function(e) {
+    document.getElementById('layer-svg-corridor').style.display = e.target.checked ? 'inline' : 'none';
+  });
+  document.getElementById('layer-assets').addEventListener('change', function(e) {
+    document.getElementById('layer-svg-assets').style.display = e.target.checked ? 'inline' : 'none';
+  });
+
+  // Interactive Swipe Slider logic
+  (function() {
+    const stage = document.getElementById('swipe-stage');
+    const clipPanel = document.getElementById('swipe-clip-panel');
+    const handle = document.getElementById('swipe-handle');
+    let isDragging = false;
+
+    function updateSwipe(clientX) {
+      const rect = stage.getBoundingClientRect();
+      let offsetX = clientX - rect.left;
+      if (offsetX < 0) offsetX = 0;
+      if (offsetX > rect.width) offsetX = rect.width;
+      const pct = (offsetX / rect.width) * 100;
+      clipPanel.style.width = pct + '%';
+      handle.style.left = pct + '%';
+    }
+
+    stage.addEventListener('mousedown', function(e) {
+      isDragging = true;
+      updateSwipe(e.clientX);
+    });
+
+    window.addEventListener('mousemove', function(e) {
+      if (!isDragging) return;
+      updateSwipe(e.clientX);
+    });
+
+    window.addEventListener('mouseup', function() {
+      isDragging = false;
+    });
+
+    stage.addEventListener('touchstart', function(e) {
+      isDragging = true;
+      if (e.touches.length > 0) updateSwipe(e.touches[0].clientX);
+    }, { passive: true });
+
+    window.addEventListener('touchmove', function(e) {
+      if (!isDragging) return;
+      if (e.touches.length > 0) updateSwipe(e.touches[0].clientX);
+    }, { passive: true });
+
+    window.addEventListener('touchend', function() {
+      isDragging = false;
+    });
+  })();
+</script></main><footer class="fixed bottom-0 left-0 right-0 h-footer-height bg-surface-canvas border-t border-border-subtle flex items-center justify-center px-space-16 z-40"><div class="font-caption text-caption text-text-dim tracking-normal">Sentinel-2 · Sentinel-1 · SRTM · Open-Meteo · © OSM · pipeline v0.1.0</div></footer></body></html>
