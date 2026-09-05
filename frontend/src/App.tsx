@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api, apiOrMock } from "./api/client";
 import { mockData } from "./api/mockData";
 import { useSimulation } from "./simulation/SimulationContext";
-import type { BasinConfig, RunList } from "./api/types";
+import type { BasinConfig, RunList, Run } from "./api/types";
 import MapView from "./views/MapView";
 import TimelineView from "./views/TimelineView";
 import ReviewView from "./views/ReviewView";
@@ -132,7 +132,7 @@ export default function App() {
 
       {/* View container */}
       <main className="flex-1 min-h-0 overflow-auto p-space-16">
-        {view === "map" && <MapView onJumpToReview={() => setView("review")} />}
+        {view === "map" && <MapView basin={basin ?? undefined} run={latestRun ?? undefined} onJumpToReview={() => setView("review")} />}
         {view === "timeline" && <TimelineView />}
         {view === "review" && (
           <ReviewView run={latestRun} onToast={setToast} onJumpToMap={() => setView("map")} />

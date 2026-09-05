@@ -1,5 +1,7 @@
 // SIREN API types — match backend/siren/api/models.py and docs/API_CONTRACT.md exactly.
 
+export type GeoJSONFeature = Record<string, any>;
+
 export interface QualityVerdict {
   quality_score: number;
   cloud_fraction: number;
@@ -54,7 +56,7 @@ export interface Alert {
 export interface BasinConfig {
   basin_id: string;
   name: string;
-  boundary_geojson: Record<string, unknown>;
+  boundary_geojson: GeoJSONFeature;
   crs: string;
 }
 
@@ -63,8 +65,8 @@ export interface Run {
   observation_id: string;
   processing_version: string;
   change_mask_uri: string | null;
-  corridor_geojson: Record<string, unknown> | null;
-  change_stats_json: Record<string, unknown> | null;
+  corridor_geojson: GeoJSONFeature | null;
+  change_stats_json: GeoJSONFeature | null;
   score: Score | null;
 }
 
@@ -137,9 +139,13 @@ export interface MlEvidence {
   ml_confidence_mean: number;
   ml_consensus_pixels: number;
   heatmap_uri: string;
+  heatmap_bounds: number[][] | null;
   mask_uri: string;
+  mask_bounds: number[][] | null;
   baseline_mask_uri: string;
+  baseline_mask_bounds: number[][] | null;
   model_available: boolean;
+  change_polygon: GeoJSONFeature | null;
 }
 
 export interface ApiError {
