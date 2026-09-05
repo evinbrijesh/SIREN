@@ -24,7 +24,6 @@ const CHANNEL_TECH: Record<string, string> = {
 };
 
 export default function AuditView({ onToast }: Props) {
-  const alertId = "alert-0091";
   const sim = useSimulation();
   const [copied, setCopied] = useState(false);
   const [channels, setChannels] = useState<Record<string, ChannelStatus>>({
@@ -33,13 +32,33 @@ export default function AuditView({ onToast }: Props) {
     satellite: "idle",
   });
 
+  // Use the real alert_id from the dispatch result; fall back to mock for
+  // offline/demo mode before any dispatch has been sent.
+  const dispatch = (sim.dispatchResult ?? mockData.dispatch) as DispatchResponse;
+  const alertId = dispatch.alert_id;
+  const hasRealDispatch = !!sim.dispatchResult;
+  // The run_id for the current dispatched run (from the simulation cursor).
+  const currentRunId = sim.step !== "before" ? sim.runIds[sim.step] : null;
+
+  // Query the full lineage by run_id when we have a real dispatch (the run/score/
+  // review audit entries carry run_id in detail_json, not alert_id). Fall back
+  // to alert_id query for the mock/demo path.
   const { data: auditData } = useQuery({
-    queryKey: ["audit", alertId],
-    queryFn: () => apiOrMock(() => api.listAudit(alertId), "audit") as Promise<AuditList>,
+    queryKey: ["audit", hasRealDispatch && currentRunId ? `run:${currentRunId}` : `alert:${alertId}`],
+    queryFn: () =>
+      hasRealDispatch && currentRunId
+        ? apiOrMock(() => api.listAuditByRun(currentRunId), "audit") as Promise<AuditList>
+        : apiOrMock(() => api.listAudit(alertId), "audit") as Promise<AuditList>,
   });
 
-  const entries = auditData?.entries ?? mockData.audit.entries;
-  const dispatch = (sim.dispatchResult ?? mockData.dispatch) as DispatchResponse;
+  // Before a real dispatch, the backend returns empty entries for the mock
+  // alert_id. Fall back to mock data so the demo shows a populated trail.
+  const entries =
+    auditData && auditData.entries.length > 0
+      ? auditData.entries
+      : hasRealDispatch
+        ? (auditData?.entries ?? [])
+        : mockData.audit.entries;
   const payloadBytes = dispatch.payload_bytes;
   const maxBytes = 250;
   const bytePct = (payloadBytes / maxBytes) * 100;

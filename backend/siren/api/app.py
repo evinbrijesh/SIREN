@@ -199,10 +199,11 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
                 detail={"error": "human_gate", "detail": str(exc)},
             )
 
-    # GET /audit?alert_id={alert_id}
+    # GET /audit?alert_id={alert_id}&run_id={run_id}
+    # Either parameter is optional; both are AND-ed when provided.
     @app.get("/audit", response_model=models.AuditList)
-    def list_audit(alert_id: str) -> Any:
-        return {"entries": repo.list_audit(alert_id)}
+    def list_audit(alert_id: str | None = None, run_id: str | None = None) -> Any:
+        return {"entries": repo.list_audit(alert_id=alert_id, run_id=run_id)}
 
     # POST /runs/process-all — run the full demo simulation (all observations)
     @app.post("/runs/process-all")

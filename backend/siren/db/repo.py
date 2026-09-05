@@ -625,9 +625,25 @@ class Repository:
             (alert_id, actor, action, json.dumps(detail)),
         )
 
-    def list_audit(self, alert_id: str) -> list[dict[str, Any]]:
+    def list_audit(self, alert_id: str | None = None, run_id: str | None = None) -> list[dict[str, Any]]:
+        """Query audit log by alert_id and/or run_id.
+
+        When run_id is provided, matches entries whose detail_json contains the
+        run_id (the run/score/review entries carry run_id in detail_json, not in
+        the alert_id column). When alert_id is provided, matches the alert_id
+        column directly. Both filters are AND-ed when both are given.
+        """
+        clauses: list[str] = []
+        params: list[Any] = []
+        if alert_id is not None:
+            clauses.append("alert_id=?")
+            params.append(alert_id)
+        if run_id is not None:
+            clauses.append("detail_json LIKE ?")
+            params.append(f'%"{run_id}"%')
+        where = " WHERE " + " AND ".join(clauses) if clauses else ""
         rows = self._conn.execute(
-            "SELECT * FROM audit_log WHERE alert_id=? ORDER BY entry_id", (alert_id,)
+            f"SELECT * FROM audit_log{where} ORDER BY entry_id", params
         ).fetchall()
         return [
             {

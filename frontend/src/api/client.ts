@@ -57,6 +57,7 @@ export const api = {
       body: JSON.stringify({ channel, recipient_group: recipientGroup }),
     }),
   listAudit: (alertId: string) => fetchJson<AuditList>(`/audit?alert_id=${alertId}`),
+  listAuditByRun: (runId: string) => fetchJson<AuditList>(`/audit?run_id=${runId}`),
   processAll: () =>
     fetchJson<{ runs: Run[]; count: number }>("/runs/process-all", { method: "POST" }),
 };
