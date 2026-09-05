@@ -11,8 +11,10 @@
 - **Tolerance-buffer intersections.** Bridges ±75 m, roads ±50 m, settlements/wells ±100 m — computed against the real OSM extract (1100 features) using shapely.
 - **Risk fusion.** H, E, D_risk, and confidence scores use the fixed PRD §9.5 weights (0.30/0.25/0.20/0.15/0.10). Same inputs → identical outputs. No unseeded randomness.
 - **Payload codec.** The ≤250-byte compressed JSON is a real encoder/decoder with round-trip tests. 118 bytes actual.
-- **Audit log.** Append-only, enforced by SQLite triggers (no UPDATE/DELETE paths exist). Lineage is queryable by alert_id.
+- **Audit log.** Append-only, enforced by SQLite triggers (no UPDATE/DELETE paths exist). Lineage is queryable by alert_id or run_id. SHA-256 hash chain (`prev_hash` + `event_hash`) makes the log tamper-evident.
 - **Human gate.** No code path dispatches without a recorded `confirm` review. Enforced at the DB layer.
+- **SAR priority ranking.** `risk/sar_priority.py` computes a priority score for exposed assets (PRD §15). Real code on real OSM exposure data — 9 tests.
+- **ML evidence layer (optional).** `ml/` provides a change-detection evidence layer with a deterministic fallback when torch is not installed. When torch is available, a Siamese U-Net / ChangeFormer path can be activated. The deterministic path is the default and always works (ADR-002 addendum).
 
 ## What's Simulated (Not Real at Runtime)
 
@@ -46,4 +48,4 @@
 
 ---
 
-**Bottom line for judges:** The detection, corridor, exposure, scoring, and audit chain is real code on real data. The dispatch channels and live ingestion are simulated — SIREN is a decision-support and resilience layer, not a replacement for emergency infrastructure.
+**Bottom line for judges:** The detection, corridor, exposure, scoring, and audit chain is real code on real data. The dispatch channels and live ingestion are simulated — SIREN is a decision-support and resilience layer, not a replacement for emergency infrastructure. The system deploys via Docker Compose (`./start.sh`) for a one-command demo.

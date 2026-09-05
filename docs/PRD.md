@@ -6,12 +6,12 @@
 
 | | |
 |---|---|
-| **Version** | 4.3 (Canonical — consolidates drafts v1.0–v3.0; v4.1 renames SafeBasin → SIREN; v4.2 adds combined D8+OSM corridor, UI design spec, verified demo assets; v4.3 reflects implemented state with pipeline orchestrator, 80 passing tests, verified DoD chain) |
+| **Version** | 4.3 (Canonical — consolidates drafts v1.0–v3.0; v4.1 renames SafeBasin → SIREN; v4.2 adds combined D8+OSM corridor, UI design spec, verified demo assets; v4.3 reflects implemented state with pipeline orchestrator, 104 passing tests, verified DoD chain, ML evidence layer, SAR priority, SHA-256 audit hash chain) |
 | **Target track** | Track 7 — *Living with Uncertainties, Building with Resilience* |
 | **Track areas** | Area ii: Communication Systems During Disasters for Effective Response · Area iii: Curbing Diseases That Arise During Disasters |
 | **Demo geography** | Dudh Koshi / Imja glacial basin, Nepal Himalaya (swap-ready to Chorabari/Kedarnath or South Lhonak if Indian terrain resonates better with judges; pipeline is basin-agnostic) |
 | **Event** | >.hack();'26, 7th Edition — 36-hour execution window |
-| **Status** | Implemented — DoD chain verified end-to-end (80/80 tests passing) |
+| **Status** | Implemented — DoD chain verified end-to-end (104/104 tests passing) |
 
 ---
 
@@ -330,18 +330,23 @@ Deterministic templates generate evidence summaries for safety-critical output. 
 {
   "observation_id": "obs-003",
   "basin_id": "dudh-koshi-demo-01",
-  "acquired_at": "2026-09-04T12:00:00Z",
+  "acquired_at": "2026-08-12T12:00:00Z",
   "source": "sentinel-1-grd-nrt",
   "raster_uri": "data/processed/obs-003.tif",
   "crs": "EPSG:4326",
   "quality_score": 0.88,
-  "cloud_fraction": 0.11,
-  "water_area_km2": 3.2,
-  "water_area_change_percent": 14.3,
-  "rainfall_24h_mm": 72.4,
-  "rainfall_7d_mm": 188.0,
+  "cloud_fraction": 0.0,
+  "optical_cloud_fraction": 0.90,
+  "alignment_ok": true,
+  "usable": true,
+  "confidence_adjustment": 0.95,
+  "water_area_km2": 4.3,
+  "water_area_change_percent": 43.0,
+  "rainfall_24h_mm": 60.0,
+  "rainfall_7d_mm": 160.0,
   "mean_slope_degrees": 31.0,
-  "processing_version": "0.1.0"
+  "processing_version": "0.1.0",
+  "status": "processed"
 }
 ```
 
@@ -390,7 +395,7 @@ The public-facing message avoids false certainty:
 | ICIMOD inventories | Open data/reports | Glacial-lake baselines and regional GLOF context | GeoJSON/GeoPackage |
 
 **Prepared demo dataset (verified on disk, `data/`):**
-- Sentinel-1 GRD pair: 2026-07-23 (obs-001) + 2026-08-04 (obs-002), IW dual-pol VV/VH, full AOI coverage.
+- Sentinel-1 GRD triplet: 2026-07-23 (obs-001) + 2026-08-04 (obs-002) + 2026-08-12 (obs-003), IW dual-pol VV/VH, full AOI coverage.
 - Sentinel-2 L2A: 2025-11-22, tile **T45RVL** (covers 100% of AOI — the clean post-monsoon optical baseline). Note: the AOI spans 4 S2 tiles; T45RVL is the correct one for this basin.
 - SRTM 30 m clip: 1188×1260, EPSG:4326, elevation 1930–8429 m, no nodata gaps.
 - OSM extract: 1100 features — 63 settlements, 92 bridges (incl. Hillary suspension bridges), 16 drinking-water points, 3 clinics, 1 hospital, Dudh Koshi/Imja rivers.
@@ -455,16 +460,17 @@ The demo is framed as a **retrospective reconstruction**: "what would SIREN have
 
 1. **Before state (baseline):** Dudh Koshi basin loaded in its normal state — clear post-monsoon optical baseline (2025-11-22), normal glacial-lake boundary, intact access roads, all assets green (safe).
 2. **Click "Simulation":** The console advances to the disaster window. The optical scene is 95% cloud-blocked (monsoon); the **Weather-Adaptive Router** switches to the Sentinel-1 SAR path, which penetrates the clouds.
-3. **Observation 1 (2026-07-23):** SAR pass reveals small supraglacial pond expansion (+8% area); rainfall normal → **Low/Advisory**. SIREN logs a watch.
-4. **Observation 2 (2026-08-04):** SAR reveals moraine shift and rapid water expansion (+28% area); 24h rainfall exceeds 80 mm → **Elevated/Critical**. *This is the disaster-day trigger.*
-5. **The prevention story:** The console shows that the +8% expansion on 07-23 was the early warning — had SIREN been monitoring in real time, the watch would have escalated to an elevated alert 12 days before the peak, buying lead time to evacuate.
-6. **Trigger & review:** System raises an **Elevated/Critical** review card, highlighting the combined D8 + OSM downstream corridor, 2 flagged villages (**Benkar**, **Jorsale**), 1 critical suspension bridge (**Hillary Bridge**), and 3 primary drinking wells along the Dudh Koshi corridor.
-7. **Coordinator action:** Presenter inspects the evidence panel and the Disease Prevention Action Sheet, then clicks **Confirm SOS**.
-8. **Dispatch & response:** System shows the simulated geofenced compressed-payload dispatch (Track 7.ii) alongside the water/medical distribution manifest (Track 7.iii); the audit panel records reviewer, decision, and timestamp.
+3. **Observation 1 (2026-07-23):** SAR pass reveals small supraglacial pond expansion (+8% area); rainfall 18.2 mm → **Watch**. SIREN logs a watch.
+4. **Observation 2 (2026-08-04):** SAR reveals moraine shift and rapid water expansion (+28% area); 24h rainfall 84.6 mm → **Critical**. *This is the disaster-day trigger.*
+5. **Observation 3 (2026-08-12):** SAR reveals continued peak expansion (+43% area); 24h rainfall 60.0 mm → **Critical**. *This is the peak.*
+6. **The prevention story:** The console shows that the +8% expansion on 07-23 was the early warning — had SIREN been monitoring in real time, the watch would have escalated to a critical alert 20 days before the peak (08-12), buying lead time to evacuate.
+7. **Trigger & review:** System raises an **Elevated/Critical** review card, highlighting the combined D8 + OSM downstream corridor, 2 flagged villages (**Benkar**, **Jorsale**), 1 critical suspension bridge (**Hillary Bridge**), and 3 primary drinking wells along the Dudh Koshi corridor.
+8. **Coordinator action:** Presenter inspects the evidence panel and the Disease Prevention Action Sheet, then clicks **Confirm SOS**.
+9. **Dispatch & response:** System shows the simulated geofenced compressed-payload dispatch (Track 7.ii) alongside the water/medical distribution manifest (Track 7.iii); the audit panel records reviewer, decision, and timestamp.
 
 **Closing line for judges:**
 
-> "SIREN doesn't replace emergency authorities — it buys them the lead time to identify who to rescue, how to reach them when networks are down, and how to stop the outbreak that follows the flood. This demo shows the 12 days of warning we could have had."
+> "SIREN doesn't replace emergency authorities — it buys them the lead time to identify who to rescue, how to reach them when networks are down, and how to stop the outbreak that follows the flood. This demo shows the 20 days of warning we could have had."
 
 ---
 

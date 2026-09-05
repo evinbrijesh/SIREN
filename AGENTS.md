@@ -4,29 +4,31 @@
 
 **Read before writing code:** `docs/PRD.md` (v4.3 — product spec, data contracts, scoring formulas) and `docs/BUILD_ROADMAP.md` (phase order, checkpoints, fallbacks). This file tells you *how to work*; those tell you *what to build*.
 
-> **Build status:** Phases 0–6 complete. 80/80 tests passing. DoD chain verified end-to-end. See `README.md` for the quick-start guide.
+> **Build status:** Phases 0–6 complete. 104/104 tests passing (101 active + 3 torch-gated). DoD chain verified end-to-end. See `README.md` for the quick-start guide.
 
 ---
 
 ## Stack
 
-- **Backend:** Python 3.11+, FastAPI, rasterio, geopandas, shapely, numpy, xarray, pysheds (fallback: whitebox), SQLite (JSON columns)
-- **Frontend:** React + Vite + TypeScript, MapLibre GL JS, TanStack Query
-- **Storage:** SQLite + GeoJSON files + GeoTIFF/COG on disk. No PostGIS. No Redis. No Docker.
+- **Backend:** Python 3.11+, FastAPI, rasterio, geopandas, shapely, numpy, xarray, pysheds (fallback: whitebox), SQLite (JSON columns). Optional ML extra: torch/torchvision (evidence layer only, deterministic fallback).
+- **Frontend:** React + Vite + TypeScript, MapLibre GL JS, TanStack Query, Tailwind CSS
+- **Storage:** SQLite + GeoJSON files + GeoTIFF/COG on disk. No PostGIS. No Redis.
+- **Deployment:** Docker Compose (backend + frontend, one-command via `./start.sh`)
 
 ## Repo Structure
 
 ```text
 backend/
   siren/
-    api/          # FastAPI routes + Pydantic models
+    api/          # FastAPI routes + Pydantic models + map_assets.py
     ingest/       # CDSE STAC, Earthdata SRTM, IMERG, Overpass downloaders
     preprocess/   # clip, reproject, co-register, quality gate
     detect/       # NDWI diff, SAR backscatter ratio, weather-adaptive router, scenario masks
     geo/          # D8 corridor, tolerance buffers, exposure intersections
-    risk/         # hazard H, exposure E, disease D_risk scoring + reasons
+    risk/         # hazard H, exposure E, disease D_risk, SAR priority + reasons
+    ml/           # optional ML evidence layer (deterministic fallback, torch-gated)
     alerting/     # <250-byte payload codec, simulated dispatch
-    audit/        # append-only log writer
+    audit/        # append-only log writer + SHA-256 hash chain
     db/           # SQLite schema + repositories
     pipeline.py   # orchestrator: detect→geo→risk→DB→audit
   tests/
@@ -36,11 +38,12 @@ frontend/
     views/        # MapView, TimelineView, ReviewView, AuditView
     api/          # typed client + offline mock fallback
     simulation/   # SimulationContext (shared demo state)
-    styles/       # design tokens (CSS custom properties)
+    components/   # OfflineBadge (online/offline event listener)
+    theme/        # ThemeProvider + ThemeToggle (Ops Dark / Light / Satellite)
 data/
   raw/            # downloaded scenes — gitignored, never hand-edited
   processed/      # aligned rasters, masks — gitignored, written only by pipeline
-  assets/         # basin GeoJSON, OSM extracts — small, committed
+  assets/         # basin GeoJSON, OSM extracts, weather series — small, committed
 docs/
 ```
 
@@ -50,7 +53,7 @@ docs/
 # backend
 cd backend && pip install -e ".[dev]"
 uvicorn siren.api:app --reload --port 8010
-pytest                             # 80 tests
+pytest                             # 104 tests
 
 # frontend
 cd frontend && npm install && npm run dev   # port 5175, proxies /api → 8010
@@ -67,7 +70,7 @@ cd frontend && npm install && npm run dev   # port 5175, proxies /api → 8010
 5. **Explainability.** Every score object carries a `reasons` array (≥3 entries on elevated+). Never return a bare number.
 6. **Reproducibility.** Same inputs + processing version → identical outputs. No unseeded randomness anywhere.
 7. **Data hygiene.** Only `ingest/` scripts write to `data/raw`; only the pipeline writes `data/processed`. Never commit rasters. Never hand-edit data files.
-8. **Dependency whitelist.** rasterio, geopandas, shapely, numpy, xarray, pysheds, fastapi, pydantic, pytest. Anything else: stop and ask.
+8. **Dependency whitelist.** rasterio, geopandas, shapely, numpy, xarray, pysheds, fastapi, pydantic, pytest. **Exception:** torch/torchvision are allowed as an optional `[ml]` extra for the evidence layer only (ADR-002 addendum); the deterministic fallback runs without them. Anything else: stop and ask.
 9. **Scope discipline.** If a feature isn't in the PRD or Roadmap, don't build it. Out of scope list: PRD §14.
 
 ## Data Contracts
@@ -90,6 +93,8 @@ Authoritative schemas live in the PRD — implement exactly these, field names a
 > **If the task needs the actual rasters, visual tuning, or live debugging → OpenCode.**
 
 ### Devin Tasks (dispatch all at hour 0, in this priority order)
+
+> **Archive note:** D1–D8 are the original dispatch briefs from the 36-hour build. They are completed and merged. New work on `ml/`, `risk/sar_priority.py`, `audit/hash_chain.py`, `api/map_assets.py`, and the Tailwind console redesign is **OpenCode-only** (requires local rasters and visual iteration). See `docs/DEVIN_BRIEFS.md` for the original briefs.
 
 Devin works from PRD sections alone — every task below has a complete spec in the docs. Each must land as a PR with passing tests against `tests/fixtures/`, never against real basin data.
 
@@ -138,4 +143,4 @@ Everything that requires the real basin rasters on disk, threshold tuning agains
 
 ## Definition of Done
 
-Offline, in one click-chain: baseline loads → 4 observations process through the pipeline → elevated review card appears with ≥3 evidence reasons → Confirm produces a ≤250-byte simulated dispatch → audit log reconstructs the full lineage. If your change breaks this chain, fix it before anything else.
+Offline, in one click-chain: baseline loads → 3 observations process through the pipeline → elevated/critical review card appears with ≥3 evidence reasons → Confirm produces a ≤250-byte simulated dispatch → audit log reconstructs the full lineage with SHA-256 hash chain. If your change breaks this chain, fix it before anything else.
