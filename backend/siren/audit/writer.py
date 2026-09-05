@@ -20,6 +20,8 @@ import json
 import sqlite3
 from datetime import datetime, timezone
 
+from siren.audit.hash_chain import GENESIS_HASH, event_hash
+
 __all__ = ["AuditLog", "utc_now_iso"]
 
 
@@ -67,20 +69,27 @@ class AuditLog:
         if not isinstance(detail, dict):
             raise ValueError("detail must be a dict (event snapshot)")
 
-        detail_json = json.dumps(detail, sort_keys=True, default=str)
+        detail_json = json.dumps(detail, sort_keys=True, separators=(",", ":"), default=str)
+        created_at = utc_now_iso()
+        previous_row = self.conn.execute(
+            "SELECT event_hash FROM audit_log ORDER BY entry_id DESC LIMIT 1"
+        ).fetchone()
+        previous_hash = previous_row[0] if previous_row and previous_row[0] else GENESIS_HASH
+        digest = event_hash(previous_hash, created_at, detail_json)
         cur = self.conn.execute(
             """
-            INSERT INTO audit_log (alert_id, actor, action, detail_json)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO audit_log
+            (alert_id, actor, action, detail_json, created_at, prev_hash, event_hash)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (alert_id, actor, action, detail_json),
+            (alert_id, actor, action, detail_json, created_at, previous_hash, digest),
         )
         self.conn.commit()
         return int(cur.lastrowid)
 
     def _row_to_entry(self, row: tuple) -> dict:
         """Convert a raw DB row into an entry dict with parsed detail_json."""
-        entry_id, alert_id, actor, action, detail_json, created_at = row
+        entry_id, alert_id, actor, action, detail_json, created_at, prev_hash, digest = row
         try:
             detail = json.loads(detail_json) if detail_json is not None else None
         except (json.JSONDecodeError, TypeError):
@@ -92,6 +101,8 @@ class AuditLog:
             "action": action,
             "detail_json": detail,
             "created_at": created_at,
+            "prev_hash": prev_hash,
+            "event_hash": digest,
         }
 
     def query_by_alert(self, alert_id: str) -> list[dict]:
@@ -104,7 +115,7 @@ class AuditLog:
         """
         cur = self.conn.execute(
             """
-            SELECT entry_id, alert_id, actor, action, detail_json, created_at
+            SELECT entry_id, alert_id, actor, action, detail_json, created_at, prev_hash, event_hash
             FROM audit_log
             WHERE alert_id = ?
             ORDER BY entry_id ASC
@@ -125,7 +136,7 @@ class AuditLog:
         """
         cur = self.conn.execute(
             """
-            SELECT entry_id, alert_id, actor, action, detail_json, created_at
+            SELECT entry_id, alert_id, actor, action, detail_json, created_at, prev_hash, event_hash
             FROM audit_log
             WHERE action = ?
             ORDER BY entry_id DESC
@@ -146,7 +157,7 @@ class AuditLog:
         """
         cur = self.conn.execute(
             """
-            SELECT entry_id, alert_id, actor, action, detail_json, created_at
+            SELECT entry_id, alert_id, actor, action, detail_json, created_at, prev_hash, event_hash
             FROM audit_log
             ORDER BY entry_id DESC
             LIMIT ?
