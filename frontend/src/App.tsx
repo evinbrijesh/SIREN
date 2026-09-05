@@ -46,7 +46,7 @@ export default function App() {
   });
   const activeRun = sim.step === "before"
     ? null
-    : activeRunData ?? (currentRunId ? runs.find((run) => run.run_id === currentRunId) : undefined) ?? null;
+    : sim.runData[sim.step] ?? activeRunData ?? (currentRunId ? runs.find((run) => run.run_id === currentRunId) : undefined) ?? null;
   const severity = activeRun?.score?.severity;
   const decision = activeRun?.decision ?? sim.reviewDecision;
   const showBanner = sim.step !== "before" && activeRun !== null &&

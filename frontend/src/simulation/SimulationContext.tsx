@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from "react";
 import { api } from "../api/client";
+import type { Run, DispatchResponse } from "../api/types";
 
 export type SimStep = "before" | "obs-1" | "obs-2" | "obs-3";
 export type SimStatus = "idle" | "running" | "complete";
@@ -23,8 +24,9 @@ export interface SimulationState {
   progress: number;
   selectedAssetId: string | null;
   runIds: Record<ObservationStep, string | null>;
+  runData: Record<ObservationStep, Run | null>;
   reviewDecision: "confirm" | "reject" | "postpone" | null;
-  dispatchResult: import("../api/types").DispatchResponse | null;
+  dispatchResult: DispatchResponse | null;
 }
 
 interface SimulationContextValue extends SimulationState {
@@ -45,17 +47,18 @@ const initialState: SimulationState = {
   progress: 0,
   selectedAssetId: null,
   runIds: { "obs-1": null, "obs-2": null, "obs-3": null },
+  runData: { "obs-1": null, "obs-2": null, "obs-3": null },
   reviewDecision: null,
   dispatchResult: null,
 };
 
 const SimulationContext = createContext<SimulationContextValue | null>(null);
 
-async function waitForProcessed(runId: string): Promise<void> {
+async function waitForProcessed(runId: string): Promise<Run> {
   const deadline = Date.now() + 10_000;
   while (Date.now() <= deadline) {
     const run = await api.getRun(runId);
-    if (run.status === "processed") return;
+    if (run.status === "processed") return run;
     if (run.status === "failed") throw new Error(`Pipeline run ${runId} failed`);
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
@@ -77,12 +80,13 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
       selectedAssetId: null,
     }));
     const result = await api.createRun(observationId);
-    await waitForProcessed(result.run_id);
+    const run = await waitForProcessed(result.run_id);
     setState((prev) => ({
       ...prev,
       step,
       progress: index,
       runIds: { ...prev.runIds, [step]: result.run_id },
+      runData: { ...prev.runData, [step]: run },
     }));
   }, []);
 
