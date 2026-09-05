@@ -54,7 +54,7 @@ const runs: RunList = {
   runs: [{
     run_id: "run-mock-obs-002", observation_id: "obs-002", processing_version: "0.1.0",
     change_mask_uri: "data/processed/obs-002_expansion_mask.tif",
-    corridor_geojson: { type: "LineString", coordinates: [[86.93, 27.90], [86.86, 27.84]] },
+    corridor_geojson: { type: "LineString", coordinates: [[86.93, 27.90], [86.90, 27.895], [86.88, 27.89], [86.86, 27.90]] },
     change_stats_json: {
       water_area_km2: 4.1, expansion_percent: 28.0, rainfall_24h_mm: 84.6,
       source: "sentinel-1-grd-nrt",

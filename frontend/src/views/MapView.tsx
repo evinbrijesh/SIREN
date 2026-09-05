@@ -72,7 +72,7 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
   const [overlayOpacity, setOverlayOpacity] = useState(75);
   const [sarSweepActive, setSarSweepActive] = useState(false);
   const prevRoutedSarRef = useRef(false);
-  const [mapCenter, setMapCenter] = useState<[number, number]>([86.82, 27.88]);
+  const [mapCenter, setMapCenter] = useState<[number, number]>([86.825, 27.815]);
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
 
@@ -139,7 +139,7 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
     const map = new maplibregl.Map({
       container: mapContainer.current,
       style: { version: 8, sources: {}, layers: [{ id: "background", type: "background", paint: { "background-color": mapBg } }] },
-      center: [86.82, 27.88],
+      center: [86.825, 27.815],
       zoom: 11,
       attributionControl: { compact: true },
     });
@@ -158,6 +158,13 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
         map.addLayer({ id: "hillshade", type: "raster", source: "hillshade", paint: { "raster-opacity": 0.35, "raster-fade-duration": 0 }, layout: { visibility: "none" } });
         map.addSource("sar", { type: "image", url: "/data/map-assets/sar-backscatter.png", coordinates });
         map.addLayer({ id: "sar", type: "raster", source: "sar", paint: { "raster-opacity": 0.72, "raster-fade-duration": 0 }, layout: { visibility: routedSar ? "visible" : "none" } });
+        // Fit map to basemap bounds — eliminates letterboxing
+        const lngs = coordinates.map((c) => c[0]);
+        const lats = coordinates.map((c) => c[1]);
+        map.fitBounds([
+          [Math.min(...lngs), Math.min(...lats)],
+          [Math.max(...lngs), Math.max(...lats)],
+        ], { padding: 20, duration: 0 });
       }
       map.addSource("basin", { type: "geojson", data: basinPolygon as any });
       map.addLayer({ id: "basin-fill", type: "fill", source: "basin", paint: { "fill-color": basinColor, "fill-opacity": 0.03 } });
@@ -292,7 +299,10 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
             <span className="text-body-sm">Before</span><span className="text-border-subtle">|</span><span className="text-body-sm">After</span>
             <label className="ml-auto flex items-center gap-space-6 text-caption text-text-dim">Opacity<input aria-label="Compare opacity" type="range" min="0" max="100" value={compareOpacity} onChange={(event) => setCompareOpacity(Number(event.target.value))} /></label>
           </div>
-          <div className="absolute top-9 bottom-0 w-[2px] bg-primary-container pointer-events-none" style={{ left: `${comparePct}%` }} />
+          <div className="absolute top-9 bottom-0 w-[3px] bg-primary pointer-events-none z-30" style={{ left: `${comparePct}%`, boxShadow: "0 0 8px 1px var(--color-primary)" }} />
+          <div className="absolute top-1/2 z-30 pointer-events-none" style={{ left: `calc(${comparePct}% - 10px)`, transform: "translateY(-50%)" }}>
+            <div className="w-5 h-10 bg-primary flex items-center justify-center text-text-inverse text-caption font-bold">↔</div>
+          </div>
           <div className="absolute bottom-space-8 left-space-8 bg-surface-panel border border-border-subtle px-space-6 py-space-2 data-val text-caption">{beforeArea.toFixed(2)} km²</div>
           <div className="absolute bottom-space-8 right-space-8 bg-surface-panel border border-border-subtle px-space-6 py-space-2 data-val text-caption">{afterArea.toFixed(2)} km² (+{expansionPct.toFixed(1)}%)</div>
         </div>}
