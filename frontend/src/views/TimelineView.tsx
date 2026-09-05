@@ -86,13 +86,11 @@ function Sparkline({ timeline, progress }: { timeline: Observation[]; progress: 
       {/* X-axis labels */}
       {visible.map((o, i) => {
         const date = new Date(o.acquired_at).toISOString().slice(5, 10);
-        return <text key={`x-${i}`} x={x(i)} y={height - 6} textAnchor="middle" fontSize="11" fill="var(--color-text-dim)" fontFamily="monospace">{date}</text>;
+        return <text key={`x-${i}`} x={x(i)} y={height - 6} textAnchor="middle" fontSize="12" fill="var(--color-text-dim)" fontFamily="monospace">{date}</text>;
       })}
       {/* Y-axis labels */}
-      <text x={padding.left - 4} y={padding.top + 4} textAnchor="end" fontSize="10" fill="var(--color-primary)" fontFamily="monospace">{maxArea.toFixed(1)}</text>
-      <text x={padding.left - 4} y={padding.top + plotH} textAnchor="end" fontSize="10" fill="var(--color-primary)" fontFamily="monospace">{minArea.toFixed(1)}</text>
-      <text x={width - padding.right} y={padding.top + 10} textAnchor="end" fontSize="8" fill="var(--color-info)" fontFamily="monospace">rain mm</text>
-      <text x={width - padding.right} y={padding.top + 22} textAnchor="end" fontSize="8" fill="var(--color-primary)" fontFamily="monospace">area km²</text>
+      <text x={padding.left - 4} y={padding.top + 4} textAnchor="end" fontSize="11" fill="var(--color-primary)" fontFamily="monospace">{maxArea.toFixed(1)}</text>
+      <text x={padding.left - 4} y={padding.top + plotH} textAnchor="end" fontSize="11" fill="var(--color-primary)" fontFamily="monospace">{minArea.toFixed(1)}</text>
     </svg>
   );
 }
@@ -214,7 +212,7 @@ export default function TimelineView() {
                 {/* Thumbnail — 80x60px shows actual raster content */}
                 {thumbUri && (
                   <div className="w-full h-[80px] bg-surface-canvas border-b border-border-subtle overflow-hidden flex items-center justify-center">
-                    <img src={thumbUri} alt={`${obs.observation_id} water mask`} className="h-full w-full object-contain opacity-80" />
+                    <img src={thumbUri} alt={`${obs.observation_id} water mask`} className="h-full w-full object-cover opacity-80" />
                   </div>
                 )}
                 <div className="w-full px-space-12 py-space-8 flex flex-col gap-space-2 data-val text-body-sm">

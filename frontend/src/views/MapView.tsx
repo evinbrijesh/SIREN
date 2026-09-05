@@ -158,22 +158,15 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
         map.addLayer({ id: "hillshade", type: "raster", source: "hillshade", paint: { "raster-opacity": 0.35, "raster-fade-duration": 0 }, layout: { visibility: "none" } });
         map.addSource("sar", { type: "image", url: "/data/map-assets/sar-backscatter.png", coordinates });
         map.addLayer({ id: "sar", type: "raster", source: "sar", paint: { "raster-opacity": 0.72, "raster-fade-duration": 0 }, layout: { visibility: routedSar ? "visible" : "none" } });
-        // Width-fill fit — trim empty southern mountains, zero horizontal padding
-        // so the raster fills edge-to-edge between the left/right docks
-        const lngs = coordinates.map((c) => c[0]);
-        map.fitBounds([
-          [Math.min(...lngs), 27.760],
-          [Math.max(...lngs), 27.970],
-        ], {
-          padding: { top: 10, bottom: 24, left: 0, right: 0 },
-          duration: 0,
-        });
+        // Preserve initial camera — jumpTo keeps the centered view on Imja Lake
+        // instead of fitBounds which jumps to show the wide basin extent
+        map.jumpTo({ center: [86.807, 27.866], zoom: 11.6 });
       }
       map.addSource("basin", { type: "geojson", data: basinPolygon as any });
       map.addLayer({ id: "basin-fill", type: "fill", source: "basin", paint: { "fill-color": basinColor, "fill-opacity": 0.03 } });
       map.addLayer({ id: "basin-border", type: "line", source: "basin", paint: { "line-color": basinColor, "line-width": 1, "line-opacity": 0.5 } });
       map.addSource("corridor", { type: "geojson", data: toFeature(corridor) });
-      map.addLayer({ id: "corridor", type: "line", source: "corridor", paint: { "line-color": corridorColor, "line-width": 2, "line-dasharray": [5, 3] } });
+      map.addLayer({ id: "corridor", type: "line", source: "corridor", paint: { "line-color": corridorColor, "line-width": 3 } });
       updateAssetMarkers(map, exposures, markersRef, sim.selectAsset, layers.assets);
     });
     return () => {
@@ -296,7 +289,7 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
         {compareOpen && beforeImage && afterImage && <div ref={compareRef} className="absolute inset-space-16 top-12 z-20 bg-surface-canvas border border-border-strong overflow-hidden select-none cursor-ew-resize" onMouseDown={(event) => { setIsDragging(true); updateCompare(event.clientX); }} onTouchStart={(event) => { setIsDragging(true); updateCompare(event.touches[0].clientX); }}>
           <img src={afterImage} alt="Current observation change mask" className="absolute inset-0 w-full h-full object-cover" style={{ opacity: compareOpacity / 100 }} />
           <div className="absolute inset-y-0 left-0 overflow-hidden" style={{ width: `${comparePct}%` }}>
-            <img src={beforeImage} alt="Pre-event optical baseline" className="h-full max-w-none object-cover" style={{ width: `${10000 / Math.max(comparePct, 1)}%` }} />
+            <img src={beforeImage} alt="Pre-event optical baseline" className="absolute inset-0 h-full object-cover" style={{ width: compareRef.current?.clientWidth ?? '100%', maxWidth: 'none' }} />
           </div>
           <div className="absolute top-0 left-0 right-0 h-9 bg-surface-panel border-b border-border-subtle flex items-center px-space-8 gap-space-12 cursor-default" onMouseDown={(event) => event.stopPropagation()}>
             <span className="text-body-sm">Before</span><span className="text-border-subtle">|</span><span className="text-body-sm">After</span>
@@ -328,7 +321,7 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
         {rightOpen ? <>
           <div className="p-space-12 border-b border-border-subtle">
             <div className="flex justify-between mb-space-8"><h2 className="label-caps">Legend</h2><button onClick={() => setRightOpen(false)} className="text-text-dim hover:text-text-primary">Close</button></div>
-            {(Object.keys(STATUS_COLOR) as (keyof typeof STATUS_COLOR)[]).map((status) => <div key={status} className="flex items-center gap-space-8 py-space-2"><span className="w-2.5 h-2.5" style={{ background: STATUS_COLOR[status] }} /><span className="text-body-sm">{status}</span></div>)}
+            {(Object.keys(STATUS_COLOR) as (keyof typeof STATUS_COLOR)[]).map((status) => <div key={status} className="flex items-center gap-space-8 py-space-2"><span className="w-2.5 h-2.5 rounded-full" style={{ background: STATUS_COLOR[status] }} /><span className="text-body-sm">{status}</span></div>)}
           </div>
           {selectedAsset && <AssetDetailCard asset={selectedAsset} onFlyTo={() => flyToAsset(selectedAsset)} onReview={onJumpToReview} />}
         </> : <button onClick={() => setRightOpen(true)} className="py-space-8 text-text-dim hover:text-text-primary text-body-sm">Assets</button>}
@@ -349,7 +342,7 @@ function updateAssetMarkers(map: maplibregl.Map, exposures: Exposure[], markersR
     element.type = "button";
     element.setAttribute("aria-label", `${asset.name ?? asset.asset_id}: ${status}`);
     element.title = asset.name ?? asset.asset_id;
-    element.style.cssText = `width:12px;height:12px;background:${STATUS_COLOR[status]};border:1px solid #0b0f17;cursor:pointer;`;
+    element.style.cssText = `width:12px;height:12px;background:${STATUS_COLOR[status]};border:1px solid #0b0f17;border-radius:50%;cursor:pointer;`;
     element.onclick = () => selectAsset(asset.asset_id);
     markersRef.current.push(new maplibregl.Marker({ element }).setLngLat(coordinates).addTo(map));
   });
