@@ -83,11 +83,12 @@ const exposures: ExposureList = {
   ],
 };
 
-// Deterministic SHA-256-like hex strings (not sequential — look like real hashes)
+// Real SHA-256 hashes computed from the hash chain formula:
+// SHA256(prev_hash + timestamp + detail_json)
 const HASH_0 = "0000000000000000000000000000000000000000000000000000000000000000";
-const HASH_1 = "a4f3c8e9d2b1076f5a3e8c4d1b9f0e2a7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a";
-const HASH_2 = "f7e2d1c0b3a4965f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e9d8c7b6a5f4e";
-const HASH_3 = "3b8d7f6e5a4c3b2a1f0e9d8c7b6a5f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c9b8a7f6";
+const HASH_1 = "de0190c18133b2700adcedb6b65350c4a500e6cd01bc48fbc191fe70133709e7";
+const HASH_2 = "6deffb9b9d497309f039c07d9fce1bfeb24ab55ec360cdc7d7a5ca38074a5bc1";
+const HASH_3 = "382e377c291fe3aa594a2e793deadb6ac3900f6538db5dfc834f88c75ed40245";
 const audit: AuditList = {
   entries: [
     { entry_id: 1, alert_id: "alert-0091", actor: "pipeline", action: "run", detail_json: '{"run_id":"run-mock-obs-003","observation_id":"obs-003"}', created_at: "2026-08-12T12:05:00Z", prev_hash: HASH_0, event_hash: HASH_1 },
