@@ -1,0 +1,272 @@
+/* SIREN design system — dark ops console (UI_DESIGN.md §7) */
+
+:root {
+  --bg: #0F172A;
+  --panel: #1E293B;
+  --panel-2: #334155;
+  --text: #E2E8F0;
+  --text-dim: #94A3B8;
+  --accent: #06B6D4;
+  --safe: #22C55E;
+  --warn: #F59E0B;
+  --danger: #EF4444;
+  --info: #3B82F6;
+  --radius: 8px;
+  --radius-sm: 4px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+#root { width: 100vw; height: 100vh; overflow: hidden; }
+
+/* ---- App shell ---- */
+.app-shell { display: flex; flex-direction: column; height: 100vh; }
+
+.nav-bar {
+  height: 48px; display: flex; align-items: center; gap: 16px;
+  padding: 0 20px; background: var(--panel); border-bottom: 1px solid var(--panel-2);
+  flex-shrink: 0;
+}
+.nav-brand { font-weight: 700; font-size: 16px; color: var(--accent); letter-spacing: 0.5px; }
+.nav-basin { color: var(--text-dim); font-size: 13px; }
+.nav-live { display: flex; align-items: center; gap: 6px; color: var(--safe); font-size: 12px; }
+.nav-live::before {
+  content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--safe);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+.nav-tabs { display: flex; gap: 4px; margin-left: auto; }
+.nav-tab {
+  padding: 6px 14px; border-radius: var(--radius-sm); border: none; background: transparent;
+  color: var(--text-dim); cursor: pointer; font-size: 13px; transition: all 0.15s;
+}
+.nav-tab:hover { color: var(--text); background: var(--panel-2); }
+.nav-tab.active { color: var(--accent); background: var(--panel-2); }
+
+/* ---- Alert banner ---- */
+.alert-banner {
+  height: 40px; display: flex; align-items: center; gap: 10px; padding: 0 20px;
+  background: linear-gradient(90deg, rgba(239,68,68,0.15), rgba(245,158,11,0.15));
+  border-bottom: 1px solid var(--warn); cursor: pointer; flex-shrink: 0;
+  font-size: 13px; animation: slideIn 0.3s ease;
+}
+@keyframes slideIn { from { transform: translateY(-100%); } to { transform: translateY(0); } }
+.alert-banner .icon { font-size: 16px; }
+.alert-banner .sev { font-weight: 700; color: var(--warn); }
+
+/* ---- Views ---- */
+.view-container { flex: 1; overflow: auto; padding: 16px; }
+.view-title { font-size: 20px; font-weight: 600; margin-bottom: 16px; }
+
+/* ---- Cards / panels ---- */
+.card {
+  background: var(--panel); border-radius: var(--radius); padding: 16px;
+  border: 1px solid var(--panel-2);
+}
+.card-title { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
+
+/* ---- Badges / chips ---- */
+.badge {
+  display: inline-flex; align-items: center; padding: 2px 8px; border-radius: var(--radius-sm);
+  font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.badge-safe { background: rgba(34,197,94,0.15); color: var(--safe); border: 1px solid var(--safe); }
+.badge-warn { background: rgba(245,158,11,0.15); color: var(--warn); border: 1px solid var(--warn); }
+.badge-danger { background: rgba(239,68,68,0.15); color: var(--danger); border: 1px solid var(--danger); }
+.badge-info { background: rgba(59,130,246,0.15); color: var(--info); border: 1px solid var(--info); }
+.badge-accent { background: rgba(6,182,212,0.15); color: var(--accent); border: 1px solid var(--accent); }
+
+/* ---- Severity colors ---- */
+.sev-informational { color: var(--info); }
+.sev-watch { color: var(--warn); }
+.sev-elevated { color: #F97316; }
+.sev-critical { color: var(--danger); }
+
+/* ---- Tables ---- */
+.table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.table th { text-align: left; padding: 8px 12px; color: var(--text-dim); font-weight: 600; border-bottom: 1px solid var(--panel-2); }
+.table td { padding: 8px 12px; border-bottom: 1px solid var(--panel-2); }
+.table tr:hover td { background: rgba(51,65,85,0.3); }
+
+/* ---- Buttons ---- */
+.btn {
+  padding: 8px 16px; border-radius: var(--radius-sm); border: none; cursor: pointer;
+  font-size: 14px; font-weight: 600; transition: all 0.15s;
+}
+.btn-primary { background: var(--safe); color: #0F172A; }
+.btn-primary:hover { filter: brightness(1.1); }
+.btn-danger { background: var(--danger); color: white; }
+.btn-warn { background: var(--warn); color: #0F172A; }
+.btn-ghost { background: transparent; color: var(--text-dim); border: 1px solid var(--panel-2); }
+.btn-ghost:hover { color: var(--text); border-color: var(--text-dim); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ---- Mono ---- */
+.mono { font-family: "JetBrains Mono", SFMono-Regular, monospace; }
+
+/* ---- Gauge bars ---- */
+.gauge-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.gauge-label { width: 40px; font-size: 12px; color: var(--text-dim); }
+.gauge-value { width: 50px; font-size: 20px; font-weight: 700; text-align: right; }
+.gauge-bar { flex: 1; height: 8px; background: var(--panel-2); border-radius: 4px; overflow: hidden; }
+.gauge-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+
+/* ---- Map ---- */
+.map-container { width: 100%; height: 100%; background: #0a0f1e; border-radius: var(--radius); }
+.maplibregl-canvas { outline: none; }
+
+/* ---- Swipe compare ---- */
+.swipe-container { position: relative; width: 100%; height: 200px; border-radius: var(--radius); overflow: hidden; }
+.swipe-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+.swipe-handle {
+  position: absolute; top: 0; bottom: 0; width: 4px; background: var(--accent);
+  cursor: ew-resize; z-index: 10;
+}
+.swipe-handle::after {
+  content: "⇄"; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  background: var(--accent); color: #0F172A; width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700;
+}
+
+/* ---- Observation cards ---- */
+.obs-cards { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; }
+.obs-card {
+  min-width: 180px; padding: 14px; border-radius: var(--radius); background: var(--panel);
+  border: 1px solid var(--panel-2); cursor: pointer; transition: border-color 0.15s;
+}
+.obs-card:hover { border-color: var(--accent); }
+.obs-card .date { font-size: 12px; color: var(--text-dim); margin-bottom: 8px; }
+.obs-card .sensor { font-size: 11px; color: var(--accent); margin-bottom: 4px; }
+.obs-card .metric { display: flex; justify-content: space-between; font-size: 12px; margin: 2px 0; }
+.obs-card .metric .val { color: var(--text); font-weight: 600; }
+
+/* ---- Decision bar ---- */
+.decision-bar {
+  display: flex; align-items: center; gap: 12px; padding: 16px 20px;
+  background: var(--panel); border-top: 1px solid var(--panel-2); flex-shrink: 0;
+}
+.decision-bar .reviewer { margin-left: auto; font-size: 12px; color: var(--text-dim); }
+
+/* ---- Payload box ---- */
+.payload-box {
+  background: #0a0f1e; border: 1px solid var(--panel-2); border-radius: var(--radius);
+  padding: 16px; font-family: "JetBrains Mono", monospace; font-size: 13px; word-break: break-all;
+}
+.payload-meta { display: flex; align-items: center; gap: 12px; margin-top: 10px; font-size: 13px; }
+.byte-counter { font-weight: 700; }
+.byte-counter.ok { color: var(--safe); }
+
+/* ---- Router strip ---- */
+.router-strip {
+  display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+  background: var(--panel); border-radius: var(--radius); border: 1px solid var(--panel-2);
+  margin-bottom: 16px; font-size: 13px;
+}
+
+/* ---- Disease action sheet ---- */
+.action-sheet { padding: 16px; }
+.action-item { display: flex; align-items: start; gap: 8px; margin-bottom: 10px; font-size: 13px; }
+.action-item .dot { width: 6px; height: 6px; border-radius: 50%; margin-top: 7px; flex-shrink: 0; }
+
+/* ---- Loading ---- */
+.loading { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-dim); }
+.error-msg { color: var(--danger); font-size: 13px; padding: 16px; }
+
+/* ---- Provenance strip ---- */
+.provenance-strip {
+  height: 24px; display: flex; align-items: center; gap: 12px; padding: 0 20px;
+  background: var(--panel); border-top: 1px solid var(--panel-2); flex-shrink: 0;
+  font-family: "JetBrains Mono", SFMono-Regular, monospace; font-size: 11px; color: var(--text-dim);
+}
+.provenance-strip .sep { color: var(--panel-2); }
+
+/* ---- Offline badge ---- */
+.offline-badge {
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px;
+  border-radius: var(--radius-sm); font-size: 11px; font-weight: 600;
+  background: rgba(34,197,94,0.15); color: var(--safe); border: 1px solid var(--safe);
+}
+
+/* ---- RESET button ---- */
+.nav-reset {
+  padding: 4px 10px; border-radius: var(--radius-sm); border: 1px solid var(--panel-2);
+  background: transparent; color: var(--text-dim); cursor: pointer; font-size: 12px;
+  transition: all 0.15s;
+}
+.nav-reset:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ---- Toast ---- */
+.toast {
+  position: fixed; bottom: 60px; left: 50%; transform: translateX(-50%);
+  padding: 12px 20px; border-radius: var(--radius); background: var(--panel);
+  border: 1px solid var(--danger); color: var(--text); font-size: 13px; z-index: 1000;
+  animation: slideIn 0.2s ease; box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+}
+.toast.info { border-color: var(--info); }
+.toast.success { border-color: var(--safe); }
+
+/* ---- Empty state ---- */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 100%; color: var(--text-dim); text-align: center; gap: 12px;
+}
+.empty-state .icon { font-size: 48px; opacity: 0.3; }
+.empty-state .msg { font-size: 16px; }
+.empty-state .hint { font-size: 13px; }
+
+/* ---- Decision lock chip ---- */
+.decision-locked {
+  display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 600;
+}
+.decision-locked.confirm { background: rgba(34,197,94,0.15); color: var(--safe); border: 1px solid var(--safe); }
+.decision-locked.reject { background: rgba(239,68,68,0.15); color: var(--danger); border: 1px solid var(--danger); }
+.decision-locked.postpone { background: rgba(245,158,11,0.15); color: var(--warn); border: 1px solid var(--warn); }
+
+/* ---- Byte meter bar ---- */
+.byte-meter { display: flex; align-items: center; gap: 8px; }
+.byte-meter-bar { flex: 1; max-width: 200px; height: 8px; background: var(--panel-2); border-radius: 4px; overflow: hidden; }
+.byte-meter-fill { height: 100%; border-radius: 4px; background: var(--safe); transition: width 0.3s; }
+
+/* ---- Copy button ---- */
+.copy-btn {
+  padding: 4px 10px; border-radius: var(--radius-sm); border: 1px solid var(--panel-2);
+  background: transparent; color: var(--text-dim); cursor: pointer; font-size: 12px;
+}
+.copy-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ---- Modal ---- */
+.modal-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6);
+  display: flex; align-items: center; justify-content: center; z-index: 999;
+}
+.modal {
+  background: var(--panel); border-radius: var(--radius); border: 1px solid var(--panel-2);
+  padding: 24px; max-width: 500px; width: 90%; max-height: 80vh; overflow: auto;
+}
+.modal-title { font-size: 18px; font-weight: 600; margin-bottom: 16px; }
+.modal-close { float: right; cursor: pointer; color: var(--text-dim); font-size: 20px; background: none; border: none; }
+.modal-close:hover { color: var(--text); }
+
+/* ---- Active obs card ---- */
+.obs-card.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.obs-card.greyed { opacity: 0.4; }
+
+/* ---- Confirm two-step ---- */
+.confirm-step {
+  display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+  background: rgba(239,68,68,0.1); border-radius: var(--radius-sm); border: 1px solid var(--danger);
+}
+
+/* ---- Skeleton ---- */
+.skeleton { background: var(--panel-2); border-radius: var(--radius-sm); animation: shimmer 1.5s infinite; }
+@keyframes shimmer { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+.skeleton-row { height: 20px; margin-bottom: 8px; }
