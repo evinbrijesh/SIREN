@@ -90,7 +90,7 @@ fake_osm = {
          "geometry": {"type": "Point", "coordinates": [86.83, 27.89]}},
         {"type": "Feature", "properties": {"place": "village", "name": "Chhukung", "population": 210},
          "geometry": {"type": "Point", "coordinates": [86.87, 27.90]}},
-        {"type": "Feature", "properties": {"highway": "bridge", "name": "Imja Suspension Bridge"},
+        {"type": "Feature", "properties": {"highway": "footway", "bridge": "yes", "name": "Imja Suspension Bridge"},
          "geometry": {"type": "Point", "coordinates": [86.82, 27.88]}},
         {"type": "Feature", "properties": {"amenity": "drinking_water", "name": "Upper Well"},
          "geometry": {"type": "Point", "coordinates": [86.84, 27.89]}},

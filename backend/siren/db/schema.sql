@@ -1,6 +1,11 @@
 -- SIREN — SQLite schema
 -- Authoritative source: docs/PRD.md §10 data contracts. Field names/types must match exactly.
 -- Storage: SQLite with JSON columns for nested structures. No PostGIS (see ADR-001).
+--
+-- IMPORTANT (W7): `PRAGMA foreign_keys = ON` is PER-CONNECTION in SQLite.
+-- Every connection (API, pipeline, tests) MUST execute this pragma itself
+-- after connecting — executing this schema file only affects that connection.
+-- The db repository factory must do:  conn.execute("PRAGMA foreign_keys = ON")
 
 PRAGMA foreign_keys = ON;
 
@@ -116,7 +121,7 @@ CREATE TABLE IF NOT EXISTS dispatches (
     alert_id        TEXT NOT NULL,             -- e.g. 'alert-0091'
     geofence_id     TEXT NOT NULL,
     payload         TEXT NOT NULL,             -- compressed <250-byte packet
-    payload_bytes   INTEGER NOT NULL,          -- enforced <= 250 by test
+    payload_bytes   INTEGER NOT NULL CHECK (payload_bytes <= 250),  -- Hard Rule 4, enforced here
     channel         TEXT NOT NULL,             -- sms|push|lora|satellite
     recipient_group TEXT NOT NULL,
     status          TEXT NOT NULL DEFAULT 'sent',  -- sent|delivered|failed
@@ -135,8 +140,41 @@ CREATE TABLE IF NOT EXISTS audit_log (
     created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
 );
 
--- Append-only enforcement: no UPDATE/DELETE triggers are defined for audit_log.
--- Repositories must expose only INSERT + SELECT for this table (see ADR-002 / D6).
+-- Append-only enforcement (Hard Rule 3 / PRD §7.8 / D6): enforced at the
+-- schema level — any UPDATE or DELETE on audit_log aborts the transaction.
+CREATE TRIGGER IF NOT EXISTS audit_log_no_update
+    BEFORE UPDATE ON audit_log
+BEGIN
+    SELECT RAISE(ABORT, 'audit_log is append-only: UPDATE forbidden');
+END;
+
+CREATE TRIGGER IF NOT EXISTS audit_log_no_delete
+    BEFORE DELETE ON audit_log
+BEGIN
+    SELECT RAISE(ABORT, 'audit_log is append-only: DELETE forbidden');
+END;
+
+-- Human gate (Hard Rule 3 / PRD §7.6): a dispatch may only reference a
+-- review whose decision is 'confirm'. Reject/postpone cannot dispatch.
+CREATE TRIGGER IF NOT EXISTS dispatches_require_confirm
+    BEFORE INSERT ON dispatches
+    WHEN EXISTS (
+        SELECT 1 FROM reviews
+        WHERE reviews.review_id = NEW.review_id
+          AND reviews.decision != 'confirm'
+    )
+BEGIN
+    SELECT RAISE(ABORT, 'human gate: dispatch requires a review decision = confirm');
+END;
+
+CREATE TRIGGER IF NOT EXISTS dispatches_require_existing_review
+    BEFORE INSERT ON dispatches
+    WHEN NOT EXISTS (
+        SELECT 1 FROM reviews WHERE reviews.review_id = NEW.review_id
+    )
+BEGIN
+    SELECT RAISE(ABORT, 'human gate: dispatch requires an existing review row');
+END;
 
 -- ---------------------------------------------------------------------------
 -- Indexes

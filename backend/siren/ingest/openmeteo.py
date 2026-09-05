@@ -50,10 +50,17 @@ def temp_index(temp_mean_c: float) -> float:
     return max(0.0, min(1.0, temp_mean_c / 20.0))
 
 
+def _days_before(date_str: str, n: int) -> str:
+    """Return the ISO date n days before (or after, if n negative) date_str."""
+    from datetime import date, timedelta
+    d = date.fromisoformat(date_str)
+    return (d - timedelta(days=n)).isoformat()
+
+
 def main() -> int:
     try:
-        # Fetch a window covering both dates + 7 days prior for each
-        start = DATES[0]
+        # Fetch a window covering both dates + 7 days prior to the first
+        start = _days_before(DATES[0], WINDOW_DAYS - 1)
         end = DATES[-1]
         data = fetch_daily(start, end)
     except Exception as exc:  # noqa: BLE001 — offline-safe exit
@@ -66,8 +73,10 @@ def main() -> int:
     precip = daily.get("precipitation_sum", [])
     temps = daily.get("temperature_2m_mean", [])
 
-    # Build a date -> (precip, temp) lookup
-    lookup = {t: (p, tmp) for t, p, tmp in zip(times, precip, temps)}
+    # Build a date -> (precip, temp) lookup; coerce API nulls to 0.0 / skip
+    lookup: dict[str, tuple[float, float | None]] = {}
+    for t, p, tmp in zip(times, precip, temps):
+        lookup[t] = ((p if p is not None else 0.0), tmp)
 
     series = []
     for i, obs_date in enumerate(DATES, start=1):
@@ -76,12 +85,17 @@ def main() -> int:
             return 1
         p24, tmp = lookup[obs_date]
 
-        # rainfall_7d_mm = sum of precipitation over the 7 days ending on obs_date
-        # (approximate: use the 7 available days in the window)
+        # rainfall_7d_mm = sum of precipitation over the 7 days ENDING on
+        # obs_date: [obs_date - 6 days, obs_date]. Skip missing days.
         p7 = 0.0
-        for t, (p, _) in lookup.items():
-            if t <= obs_date:
-                p7 += p
+        for offset in range(WINDOW_DAYS):
+            day = _days_before(obs_date, -offset)  # offset 0 = obs_date itself
+            if day in lookup:
+                p7 += lookup[day][0]
+
+        if tmp is None:
+            print(f"✗ No temperature data for {obs_date}", file=sys.stderr)
+            return 1
 
         series.append({
             "date": obs_date,
