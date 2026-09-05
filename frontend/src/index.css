@@ -15,34 +15,34 @@
     overflow: hidden;
   }
 
-  /* Default / Ops Dark theme — matte operational console */
+  /* Default / Ops Dark theme — tactical phosphor console (DEFCON-0 / BOREALIS) */
   :root,
   .theme-ops-dark {
-    --color-background: #0b0f17;
-    --color-surface-canvas: #0b0f17;
-    --color-surface-panel: #111827;
-    --color-surface-recessed: #0b0f17;
-    --color-surface-container-low: #111827;
-    --color-surface-container: #1f2937;
-    --color-surface-container-high: #1f2937;
-    --color-surface-container-highest: #374151;
-    --color-border-subtle: #1e293b;
-    --color-border-strong: #334155;
-    --color-text-primary: #f8fafc;
-    --color-text-dim: #94a3b8;
-    --color-text-muted: #64748b;
-    --color-text-inverse: #0b0f17;
-    --color-primary: #38bdf8;
-    --color-primary-fg: #0b0f17;
-    --color-primary-container: #38bdf8;
-    --color-secondary: #94a3b8;
-    --color-secondary-container: #475569;
-    --color-info: #0ea5e9;
+    --color-background: #08090a;
+    --color-surface-canvas: #08090a;
+    --color-surface-panel: #12151b;
+    --color-surface-recessed: #0d0e11;
+    --color-surface-container-low: #12151b;
+    --color-surface-container: #1a1f28;
+    --color-surface-container-high: #1a1f28;
+    --color-surface-container-highest: #232a36;
+    --color-border-subtle: #1f2633;
+    --color-border-strong: #2a2f3a;
+    --color-text-primary: #e8ecf2;
+    --color-text-dim: #6b7b96;
+    --color-text-muted: #48556e;
+    --color-text-inverse: #08090a;
+    --color-primary: #ffb000;
+    --color-primary-fg: #08090a;
+    --color-primary-container: #ffb000;
+    --color-secondary: #6b7b96;
+    --color-secondary-container: #2a2f3a;
+    --color-info: #00f0ff;
     --color-status-safe: #10b981;
-    --color-status-warn: #f59e0b;
-    --color-status-elevated: #f59e0b;
-    --color-status-danger: #ef4444;
-    --color-status-info: #0ea5e9;
+    --color-status-warn: #ffb000;
+    --color-status-elevated: #ffb000;
+    --color-status-danger: #ff1e27;
+    --color-status-info: #00f0ff;
     --color-shadow: transparent;
     --font-weight-headline: 500;
     --map-style: dark;
@@ -139,5 +139,88 @@
   .data-val {
     font-family: "JetBrains Mono", "SFMono-Regular", monospace;
     font-variant-numeric: tabular-nums;
+  }
+
+  /* Tactical bezel — chamfered cut-corner aerospace panel */
+  .tactical-bezel {
+    clip-path: polygon(
+      0 8px, 8px 0,
+      calc(100% - 8px) 0, 100% 8px,
+      100% calc(100% - 8px), calc(100% - 8px) 100%,
+      8px 100%, 0 calc(100% - 8px)
+    );
+  }
+
+  /* Stenciled registration mark — upper-right corner of bezel panels */
+  .tactical-reg::after {
+    content: attr(data-reg);
+    position: absolute;
+    top: 3px;
+    right: 8px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 8px;
+    color: var(--color-text-muted);
+    letter-spacing: 0.1em;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* SAR sweep — one-time 1.2s radar acquisition animation */
+  @keyframes sar-sweep {
+    0%   { left: 0%; opacity: 0; }
+    10%  { opacity: 1; }
+    90%  { opacity: 1; }
+    100% { left: 100%; opacity: 0; }
+  }
+  .sar-sweep-line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: linear-gradient(
+      to right,
+      transparent,
+      var(--color-primary) 40%,
+      var(--color-primary) 60%,
+      transparent
+    );
+    box-shadow: 0 0 12px 2px var(--color-primary);
+    animation: sar-sweep 1.2s ease-out forwards;
+    pointer-events: none;
+    z-index: 15;
+  }
+  .sar-sweep-trail {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: linear-gradient(
+      to right,
+      transparent 0%,
+      rgba(255, 176, 0, 0.04) 80%,
+      rgba(255, 176, 0, 0.12) 100%
+    );
+    animation: sar-sweep 1.2s ease-out forwards;
+    pointer-events: none;
+    z-index: 14;
+  }
+
+  /* Missile-latch — pulsing crimson glow for armed state */
+  @keyframes armed-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 30, 39, 0.4); }
+    50%      { box-shadow: 0 0 16px 4px rgba(255, 30, 39, 0.6); }
+  }
+  .armed-pulse {
+    animation: armed-pulse 1s ease-in-out infinite;
+  }
+
+  /* Safety cover slide-up reveal */
+  @keyframes safety-lift {
+    0%   { transform: translateY(0); opacity: 1; }
+    100% { transform: translateY(-100%); opacity: 0; }
+  }
+  .safety-lift {
+    animation: safety-lift 0.3s ease-out forwards;
   }
 }

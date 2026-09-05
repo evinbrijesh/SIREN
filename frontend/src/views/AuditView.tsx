@@ -144,8 +144,8 @@ export default function AuditView({ run, onToast }: Props) {
 
   return (
     <div className="flex flex-col h-full overflow-auto">
-      {/* Header bar */}
-      <div className="flex items-center justify-between px-space-16 py-space-8 border-b border-border-subtle bg-surface-panel">
+      {/* Header bar — tactical bezel */}
+      <div className="relative flex items-center justify-between px-space-16 py-space-8 border-b border-border-subtle bg-surface-panel tactical-bezel tactical-reg" data-reg="AIR-GAP: VERIFIED">
         <div className="flex items-center gap-space-12">
           <h1 className="label-caps">Audit</h1>
         </div>

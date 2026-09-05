@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, apiOrMock, addToOutbox } from "../api/client";
 import { mockData } from "../api/mockData";
@@ -12,9 +12,9 @@ interface Props {
 }
 
 const GAUGE_COLORS: Record<string, string> = {
-  H: "#ef4444",
-  E: "#f59e0b",
-  D: "#0ea5e9",
+  H: "#ff1e27",
+  E: "#ffb000",
+  D: "#00f0ff",
   C: "#10b981",
 };
 
@@ -36,12 +36,24 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
   const sim = useSimulation();
   const [confirmStep, setConfirmStep] = useState(false);
   const [dispatchArmed, setDispatchArmed] = useState(false);
+  const [safetyLifted, setSafetyLifted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedSector, setSelectedSector] = useState<string>("sector-b");
   const [selectedChannel, setSelectedChannel] = useState<"sms" | "lora" | "satellite">("sms");
 
   const score = run?.score;
   const runId = run?.run_id;
+
+  // Bind latch state to active run ID — switching tabs or runs resets the latch
+  const latchRunIdRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (runId !== latchRunIdRef.current) {
+      setSafetyLifted(false);
+      setDispatchArmed(false);
+      setConfirmStep(false);
+      latchRunIdRef.current = runId;
+    }
+  }, [runId]);
 
   const { data: exposuresData, isLoading: expLoading } = useQuery({
     queryKey: ["exposures", runId],
@@ -222,8 +234,8 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
 
   return (
     <div className="flex flex-col h-full pb-[48px] overflow-auto">
-      {/* Header bar */}
-      <div className="flex items-center justify-between px-space-16 py-space-8 border-b border-border-subtle bg-surface-panel">
+      {/* Header bar — tactical bezel */}
+      <div className="relative flex items-center justify-between px-space-16 py-space-8 border-b border-border-subtle bg-surface-panel tactical-bezel tactical-reg" data-reg="BUS: ACTIVE">
         <div className="flex items-center gap-space-12">
           <h1 className="label-caps">Review</h1>
           <span className="data-val text-body-sm text-primary-container border border-border-subtle px-space-4 py-space-1">
@@ -559,9 +571,32 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
                 {currentDecision === "postpone" && "Postponed"}
               </span>
               {currentDecision === "confirm" && (
-                dispatchArmed ? (
+                !safetyLifted ? (
+                  <button
+                    onClick={() => setSafetyLifted(true)}
+                    className="text-body-sm text-status-danger border border-status-danger px-space-12 py-space-4 hover:bg-status-danger/10 transition-colors bg-transparent cursor-pointer"
+                  >
+                    Lift safety cover
+                  </button>
+                ) : !dispatchArmed ? (
+                  <div className="flex items-center gap-space-8">
+                    <button
+                      onClick={() => setDispatchArmed(true)}
+                      disabled={dispatchMut.isPending}
+                      className="text-body-sm bg-status-danger/20 text-status-danger px-space-12 py-space-4 border border-status-danger armed-pulse cursor-pointer disabled:opacity-60"
+                    >
+                      Arm SOS dispatch
+                    </button>
+                    <button
+                      onClick={() => { setSafetyLifted(false); }}
+                      className="text-body-sm text-text-dim border border-border-subtle px-space-8 py-space-4 hover:text-text-primary transition-colors bg-transparent"
+                    >
+                      Close cover
+                    </button>
+                  </div>
+                ) : (
                   <div className="flex items-center gap-space-8 px-space-8 py-space-4 border border-status-danger bg-surface-recessed">
-                    <span className="text-body-sm text-status-danger">Confirm dispatch?</span>
+                    <span className="text-body-sm text-status-danger">Transmit SOS</span>
                     {/* Sector selector */}
                     <label className="flex items-center gap-space-4">
                       <span className="data-val text-caption text-text-dim">SECTOR</span>
@@ -596,25 +631,17 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
                     <button
                       onClick={() => dispatchMut.mutate()}
                       disabled={dispatchMut.isPending}
-                      className="data-val text-body-sm bg-status-danger text-white px-space-8 py-space-2 border border-status-danger hover:brightness-125 transition-all cursor-pointer disabled:opacity-60"
+                      className="data-val text-body-sm bg-status-danger text-white px-space-8 py-space-2 border border-status-danger armed-pulse cursor-pointer disabled:opacity-60"
                     >
-                      {dispatchMut.isPending ? "SENDING..." : "SEND"}
+                      {dispatchMut.isPending ? "Transmitting..." : "Transmit"}
                     </button>
                     <button
-                      onClick={() => setDispatchArmed(false)}
-                      className="data-val text-body-sm text-text-dim border border-border-subtle px-space-8 py-space-2 hover:text-text-primary transition-colors bg-transparent"
+                      onClick={() => { setDispatchArmed(false); setSafetyLifted(false); }}
+                      className="text-body-sm text-text-dim border border-border-subtle px-space-8 py-space-2 hover:text-text-primary transition-colors bg-transparent"
                     >
-                      ABORT
+                      Abort
                     </button>
                   </div>
-                ) : (
-                  <button
-                    onClick={() => setDispatchArmed(true)}
-                    disabled={dispatchMut.isPending}
-                    className="data-val text-body-sm bg-status-danger text-white px-space-12 py-space-4 border border-status-danger hover:brightness-125 transition-all cursor-pointer disabled:opacity-60"
-                  >
-                    ARM DISPATCH
-                  </button>
                 )
               )}
             </div>
