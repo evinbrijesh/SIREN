@@ -128,3 +128,69 @@ def swath_coverage(s1_zip: str) -> dict[float, float]:
         if 27.6 <= la <= 28.0:
             by_lat.setdefault(round(la, 1), []).append(lo)
     return {lat: max(lons) for lat, lons in sorted(by_lat.items())}
+
+
+# ---------------------------------------------------------------------------
+# Fix for finding #2 (shadow vs water): slope masking.
+# Water is FLAT (slope < ~5°); radar shadow occurs on STEEP slopes. Combining
+# the log-ratio change signal with a DEM slope mask removes shadow-induced
+# false positives that survive multi-looking.
+# ---------------------------------------------------------------------------
+
+def dem_slope(dem_path: str) -> tuple[np.ndarray, "rasterio.DatasetReader"]:
+    """Compute terrain slope (degrees) from the DEM.
+
+    Handles lat/lon scaling: converts the lat/lon gradient to meters using
+    the local latitude (1° lon ≈ 111.32·cos(lat) km, 1° lat ≈ 110.57 km).
+    Returns (slope_degrees_array, dataset) — keep the dataset open while
+    using the array (for windowed sampling).
+    """
+    ds = rasterio.open(dem_path)
+    dem = ds.read(1).astype(np.float32)
+    nodata = ds.nodata
+    if nodata is not None:
+        dem = np.where(dem == nodata, np.nan, dem)
+
+    # Per-row meter conversion (row 0 = north)
+    lats = np.array([ds.xy(r, 0)[1] for r in range(ds.height)])
+    m_per_lon = 111_320.0 * np.cos(np.deg2rad(lats))
+    m_per_lat = 110_540.0
+
+    dy, dx = np.gradient(dem)
+    # dx: per column (lon), dy: per row (lat, negative direction)
+    slope = np.zeros_like(dem)
+    for r in range(ds.height):
+        gz = -dy[r] / m_per_lat            # dz/dy in meters/meter
+        gx = -dx[r] / m_per_lon[r]         # dz/dx in meters/meter
+        slope[r] = np.degrees(np.arctan(np.sqrt(gx**2 + gz**2)))
+    return slope, ds
+
+
+def sample_slope(slope: np.ndarray, ds: "rasterio.DatasetReader", lats: np.ndarray, lons: np.ndarray) -> np.ndarray:
+    """Sample the slope raster at geographic points (nearest cell)."""
+    inv = ~ds.transform
+    cols, rows = inv * (lons, lats)
+    rows = np.clip(rows.astype(int), 0, slope.shape[0] - 1)
+    cols = np.clip(cols.astype(int), 0, slope.shape[1] - 1)
+    return slope[rows, cols]
+
+
+def filter_change_by_slope(
+    change_mask: np.ndarray,
+    lats: np.ndarray,
+    lons: np.ndarray,
+    dem_path: str,
+    max_slope_deg: float = 5.0,
+) -> np.ndarray:
+    """Keep only change pixels on flat terrain (plausible water).
+
+    Shadow-induced false positives sit on steep slopes; water cannot.
+    Returns the filtered boolean mask (same length as lats).
+    """
+    slope, ds = dem_slope(dem_path)
+    try:
+        s = sample_slope(slope, ds, lats, lons)
+    finally:
+        ds.close()
+    keep = s < max_slope_deg
+    return change_mask & keep
