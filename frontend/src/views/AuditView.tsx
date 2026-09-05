@@ -127,10 +127,9 @@ export default function AuditView({ run, onToast }: Props) {
       method: "POST",
       body,
       headers: {
-        "Title": "🚨 SIREN EMERGENCY ALERT",
-        "Tags": "warning,sos,rotating_light",
+        "Title": "SIREN EMERGENCY ALERT",
+        "Tags": "warning,sos",
         "Priority": "urgent",
-        "Actions": "view, Open SIREN, https://siren.app,",
       },
     }).then(
       () => onToast?.({ msg: "Live alert sent to ntfy.sh — check your phone", type: "success" }),
