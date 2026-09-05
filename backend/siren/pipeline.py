@@ -398,6 +398,7 @@ def run_pipeline(
     # the D8 trace fails (steep terrain, degenerate source, etc.)
     corridor_geojson: dict[str, Any]
     exposures: list[dict[str, Any]]
+    corridor_source: str
     try:
         from siren.geo.corridor import exposure_corridor
         result = exposure_corridor(
@@ -410,7 +411,12 @@ def run_pipeline(
             "features": result["features"],
         }
         exposures = result["exposures"]
+        corridor_source = "d8_osm"
     except Exception:
+        logger.exception(
+            "D8 corridor failed for %s — falling back to seeded demo corridor",
+            observation_id,
+        )
         # Fallback: simple corridor as a line from Imja downstream
         corridor_geojson = {
             "type": "LineString",
@@ -431,6 +437,10 @@ def run_pipeline(
             {"asset_id": "well-3", "asset_type": "well", "name": "Well 3",
              "distance_m": 90.0, "buffer_m": 100.0, "inundated": True},
         ]
+        corridor_source = "fallback_seeded"
+
+    # Record corridor provenance in change_stats (O3 — provenance badge)
+    change_stats["corridor_source"] = corridor_source
 
     # 7. Compute risk scores
     exposed_pop = sum(
