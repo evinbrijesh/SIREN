@@ -41,14 +41,20 @@ def _access_loss_factor(exposures_of_type: list[dict[str, Any]]) -> float:
     """Determine access-loss factor from bridge/road exposure states.
 
     1.0 = at least one access route is inundated (cut)
-    0.6 = at least one is buffered (at risk but passable)
-    0.3 = all accessible
+    0.6 = at least one is within its buffer zone (at risk but passable)
+    0.3 = all accessible (outside buffer or no distance data)
     """
     if not exposures_of_type:
         return 0.3
     if any(e.get("inundated") for e in exposures_of_type):
         return 1.0
-    if any(e.get("distance_m") is not None for e in exposures_of_type):
+    # AT_RISK only if distance is within the buffer zone, not just present
+    if any(
+        e.get("distance_m") is not None
+        and e.get("buffer_m") is not None
+        and e["distance_m"] <= e["buffer_m"]
+        for e in exposures_of_type
+    ):
         return 0.6
     return 0.3
 
@@ -183,13 +189,32 @@ def _village_reason(
 def _estimate_served_population(
     wells: list[dict[str, Any]], villages: list[dict[str, Any]]
 ) -> int:
-    """Estimate population served by wells = nearest village population per well."""
+    """Estimate population served by wells.
+
+    Uses per-well population from OSM if available. Otherwise estimates
+    from the nearest village (by distance), not the largest village × count
+    which was inflating the number (e.g., 3 wells × 1240 = 3720).
+    """
     if not villages:
         return 0
     total = 0
-    for _w in wells:
-        # Approximation: each well serves the largest village
-        total += max((v.get("population") or 0) for v in villages)
+    for w in wells:
+        # Prefer OSM population on the well itself
+        well_pop = w.get("population") or 0
+        if well_pop > 0:
+            total += well_pop
+            continue
+        # Fallback: estimate from the nearest village by distance
+        well_dist = w.get("distance_m")
+        if well_dist is not None:
+            nearest = min(
+                villages,
+                key=lambda v: abs((v.get("distance_m") or 9999) - well_dist),
+            )
+            total += (nearest.get("population") or 0)
+        else:
+            # No distance data — use the smallest village to avoid inflation
+            total += min((v.get("population") or 0) for v in villages)
     return total
 
 
