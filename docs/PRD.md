@@ -6,12 +6,12 @@
 
 | | |
 |---|---|
-| **Version** | 4.2 (Canonical — consolidates drafts v1.0–v3.0; v4.1 renames SafeBasin → SIREN; v4.2 adds combined D8+OSM corridor, UI design spec, verified demo assets) |
+| **Version** | 4.3 (Canonical — consolidates drafts v1.0–v3.0; v4.1 renames SafeBasin → SIREN; v4.2 adds combined D8+OSM corridor, UI design spec, verified demo assets; v4.3 reflects implemented state with pipeline orchestrator, 80 passing tests, verified DoD chain) |
 | **Target track** | Track 7 — *Living with Uncertainties, Building with Resilience* |
 | **Track areas** | Area ii: Communication Systems During Disasters for Effective Response · Area iii: Curbing Diseases That Arise During Disasters |
 | **Demo geography** | Dudh Koshi / Imja glacial basin, Nepal Himalaya (swap-ready to Chorabari/Kedarnath or South Lhonak if Indian terrain resonates better with judges; pipeline is basin-agnostic) |
 | **Event** | >.hack();'26, 7th Edition — 36-hour execution window |
-| **Status** | Final build spec |
+| **Status** | Implemented — DoD chain verified end-to-end (80/80 tests passing) |
 
 ---
 
@@ -24,15 +24,17 @@ The core problem is not that satellite data is unavailable — it is that **obse
 > **What changed? How serious is it? Who and what are in the path? What should responders do right now?**
 
 ```text
-Sentinel-1 SAR / Sentinel-2 Optical / GPM IMERG rainfall
+Sentinel-1 SAR / Sentinel-2 Optical / SRTM DEM / GPM IMERG / OSM
                         ↓
         Preprocessing, co-registration & quality gate
                         ↓
-   SAR backscatter differencing ⇄ Siamese U-Net / ChangeFormer
+   Weather-adaptive router (cloud ≥20% → SAR path)
                         ↓
-        Hydrological corridor & GIS exposure analysis
+   SAR backscatter differencing  ⇄  Optical NDWI differencing
                         ↓
-    Risk fusion  +  waterborne-disease risk index (Track 7.iii)
+        D8 + OSM hydrological corridor & exposure analysis
+                        ↓
+    Risk fusion (H + E + D_risk) + disease-prevention actions
                         ↓
                   Human-in-the-loop review
                         ↓
@@ -243,19 +245,15 @@ Confidence multiplier = (1.0 − cloud_fraction) × sensor-freshness weight. For
 
 ### 9.2 Change detection & segmentation
 
-MVP uses registered raster differencing plus NDWI (optical) and backscatter ratio thresholding (SAR). A research-grade version fine-tunes a Siamese U-Net or ChangeFormer:
+**Implemented (MVP):** registered raster differencing plus NDWI (optical, `detect/ndwi.py`) and SAR backscatter log-ratio thresholding with multi-look speckle suppression and DEM slope masking (`detect/sar.py`). Scenario masks (`detect/scenario.py`) provide deterministic, reproducible demo masks near the Imja lake when the available SAR swath doesn't cover the change source.
 
-```text
-Baseline image ──► shared encoder ──► features A ─┐
-                                                   ├─► decoder ─► change probability map
-Current image ───► shared encoder ──► features B ─┘
-```
-
-SegFormer classifies changed regions into: open water, inundation/debris, glacier/snow, moraine/bare rock, built-up, forest, cloud/shadow-invalid.
+**Research-grade (V3 roadmap):** fine-tuned Siamese U-Net or ChangeFormer with shared encoders over baseline and current imagery, decoded into a pixel-level change-probability map. SegFormer classifies changed regions into: open water, inundation/debris, glacier/snow, moraine/bare rock, built-up, forest, cloud/shadow-invalid.
 
 ### 9.3 Temporal trend model
 
-MVP: persistence rule + regression slope across 2–4 observations. Long-term: ConvLSTM or a temporal Transformer once enough labeled sequences exist. Output classification is stable / slowly changing / rapidly changing / uncertain — deliberately never a precise event-time prediction.
+**Implemented (MVP):** deterministic trend classification (`stable | slowly | rapidly | uncertain`) configured per observation in the pipeline orchestrator. The trend class feeds the hazard score's S_trend factor (weight 0.30).
+
+**Research-grade (V3 roadmap):** ConvLSTM or temporal Transformer once enough labeled sequences exist. Output classification remains stable / slowly changing / rapidly changing / uncertain — deliberately never a precise event-time prediction.
 
 ### 9.4 GIS exposure engine
 
@@ -267,6 +265,8 @@ Deterministic spatial analysis (not learned) for MVP transparency and easy valid
 The engine intersects the buffered corridor with terrain and asset layers using the tolerance buffers in §6.4. A future graph neural network could rank connected-asset failure cascades, but the MVP stays deterministic by design.
 
 ### 9.5 Risk-fusion and disease scoring
+
+**Implemented** in `backend/siren/risk/fusion.py`. Every score carries a deterministic `reasons` array (≥3 entries on elevated+ — Hard Rule 5).
 
 **Hazard score:**
 
@@ -485,15 +485,16 @@ For emergency use, a model with a slightly lower pixel score may still be prefer
 
 ### 17.2 MVP acceptance targets
 
-| Target | Acceptance condition |
-|---|---|
-| Reproducible run | Same inputs and version produce the same risk result. |
-| End-to-end completion | A prepared observation sequence reaches human review without manual intervention. |
-| Visible change | The map clearly shows the detected change and affected corridor. |
-| Explainability | Every high-priority alert lists at least three evidence factors. |
-| Human gate | No alert is dispatched before a coordinator confirmation. |
-| Offline demo resilience | Prepared data supports the complete demo without external API availability. |
-| Auditability | The system records inputs, model version, reviewer, decision, and alert result. |
+| Target | Acceptance condition | Status |
+|---|---|---|
+| Reproducible run | Same inputs and version produce the same risk result. | ✅ Verified (test_pipeline::test_pipeline_deterministic) |
+| End-to-end completion | A prepared observation sequence reaches human review without manual intervention. | ✅ Verified (POST /runs/process-all) |
+| Visible change | The map clearly shows the detected change and affected corridor. | ✅ MapView renders corridor + change masks |
+| Explainability | Every high-priority alert lists at least three evidence factors. | ✅ Verified (obs-002: 8 reasons, obs-003: 8 reasons) |
+| Human gate | No alert is dispatched before a coordinator confirmation. | ✅ Verified (SQLite trigger + test_api) |
+| Offline demo resilience | Prepared data supports the complete demo without external API availability. | ✅ All data local, frontend has mock fallback |
+| Auditability | The system records inputs, model version, reviewer, decision, and alert result. | ✅ Verified (test_audit + test_pipeline DoD chain) |
+| Payload ≤ 250 bytes | Compressed dispatch payload fits in LoRa/SMS constraint. | ✅ Verified (118 bytes, test_codec) |
 
 ---
 

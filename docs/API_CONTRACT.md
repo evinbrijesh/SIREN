@@ -1,8 +1,10 @@
 # SIREN — API Contract
 
-Authoritative HTTP surface. Devin D4 implements this; the frontend typed client consumes it. Field names/types must match `docs/PRD.md` §10 and `backend/siren/db/schema.sql` exactly.
+Authoritative HTTP surface. Implemented in `backend/siren/api/app.py`. Field names/types match `docs/PRD.md` §10 and `backend/siren/db/schema.sql` exactly.
 
-Base URL: `http://localhost:8000` · Frontend proxy: `/api` → `http://localhost:8000`
+Base URL: `http://localhost:8010` · Frontend proxy: `/api` → `http://localhost:8010`
+
+> **Note:** The default dev port is 8010 (port 8000 was occupied on the build machine). Update `frontend/vite.config.ts` if you need a different port.
 
 ---
 
@@ -64,7 +66,7 @@ List all observations, newest first.
 Single observation (same shape as above).
 
 ### `POST /runs`
-Trigger a pipeline run for an observation. Body:
+Trigger a pipeline run for an observation. The pipeline runs **synchronously** — quality gate → weather-adaptive router → change detection → corridor + exposures → risk fusion → DB write → audit log. Body:
 
 ```json
 { "observation_id": "obs-003" }
@@ -74,10 +76,22 @@ Response (202 Accepted):
 
 ```json
 {
-  "run_id": "run-0007",
+  "run_id": "run-0004",
   "observation_id": "obs-003",
-  "status": "queued",
-  "started_at": "2026-09-04T12:05:00Z"
+  "status": "processed",
+  "started_at": "2026-09-05T04:10:33Z"
+}
+```
+
+> **Note:** `status` is `"processed"` (not `"queued"`) because the pipeline completes synchronously within the request. The full run with scores and exposures is available via `GET /runs` immediately after.
+
+### `POST /runs/process-all`
+Run the pipeline for all demo observations in sequence. No request body required.
+
+```json
+{
+  "runs": [ { "run_id": "run-0002", ... }, { "run_id": "run-0003", ... }, { "run_id": "run-0004", ... } ],
+  "count": 3
 }
 ```
 
@@ -187,9 +201,18 @@ Full lineage for an alert (append-only).
 }
 ```
 
+### `GET /data/processed/{filename}`
+Static file access for processed rasters and PNG sidecars (masks, overlays). Mounted via FastAPI `StaticFiles`.
+
+```
+GET /data/processed/obs-001_expansion_mask.tif  → GeoTIFF
+GET /data/processed/obs-001_expansion_mask.png  → PNG sidecar
+GET /data/processed/baseline_water_mask.tif     → baseline mask
+```
+
 ---
 
-## Pydantic Models (D4 must implement)
+## Pydantic Models (implemented in `backend/siren/api/models.py`)
 
 ```python
 class QualityVerdict(BaseModel):

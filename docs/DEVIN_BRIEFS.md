@@ -1,9 +1,11 @@
 # Devin Dispatch Briefs — SIREN
 
+> **Status:** All Devin tasks (D1–D8) are complete and committed. The pipeline orchestrator (`backend/siren/pipeline.py`) wires all modules together. 80/80 tests passing. DoD chain verified end-to-end.
+
 Copy-paste each brief into Devin as a task. **Dispatch order: D4, D3, D5, D2, D1, D6, D7** (D8 is already satisfied — see below; API scaffold unblocks the rest).
 
 **Rules for every task:**
-- Work from `docs/PRD.md` (v4.1) and `backend/siren/db/schema.sql` — they are authoritative.
+- Work from `docs/PRD.md` (v4.3) and `backend/siren/db/schema.sql` — they are authoritative.
 - Test against `backend/tests/fixtures/` only. **Never** against real basin data in `data/`.
 - Land as a PR with passing tests. Do not batch-merge.
 - Dependency whitelist: rasterio, geopandas, shapely, numpy, xarray, pysheds, fastapi, pydantic, pytest. Anything else: stop and ask.
@@ -41,7 +43,7 @@ Copy-paste each brief into Devin as a task. **Dispatch order: D4, D3, D5, D2, D1
 
 ---
 
-## D4 — FastAPI Scaffold + Pydantic Models + Route Stubs
+## D4 — FastAPI Scaffold + Pydantic Models + Route Stubs ✅ COMPLETE
 
 **Spec:** PRD §10.2–10.3, §12. Schema: `backend/siren/db/schema.sql`.
 
@@ -63,7 +65,7 @@ Copy-paste each brief into Devin as a task. **Dispatch order: D4, D3, D5, D2, D1
 
 ---
 
-## D3 — Quality Gate Module
+## D3 — Quality Gate Module ✅ COMPLETE
 
 **Spec:** PRD §9.1. Output contract is exact JSON.
 
@@ -79,7 +81,7 @@ Copy-paste each brief into Devin as a task. **Dispatch order: D4, D3, D5, D2, D1
 
 ---
 
-## D5 — Payload Codec (<250 bytes)
+## D5 — Payload Codec (<250 bytes) ✅ COMPLETE
 
 **Spec:** PRD §10.4. `aid` prefix `siren-`.
 
@@ -95,7 +97,7 @@ Copy-paste each brief into Devin as a task. **Dispatch order: D4, D3, D5, D2, D1
 
 ---
 
-## D2 — Preprocessing (clip, reproject, co-register, cloud mask)
+## D2 — Preprocessing (clip, reproject, co-register, cloud mask) ✅ COMPLETE
 
 **Spec:** PRD §6.2.
 
@@ -114,7 +116,7 @@ Copy-paste each brief into Devin as a task. **Dispatch order: D4, D3, D5, D2, D1
 
 ---
 
-## D1 — Ingest Toolkit
+## D1 — Ingest Toolkit ✅ COMPLETE
 
 **Spec:** PRD §11.
 
@@ -134,7 +136,7 @@ Copy-paste each brief into Devin as a task. **Dispatch order: D4, D3, D5, D2, D1
 
 ---
 
-## D6 — Audit Log (append-only)
+## D6 — Audit Log (append-only) ✅ COMPLETE
 
 **Spec:** PRD §7.8.
 
@@ -151,7 +153,7 @@ Copy-paste each brief into Devin as a task. **Dispatch order: D4, D3, D5, D2, D1
 
 ---
 
-## D7 — Frontend Scaffold (4 views, mocked data)
+## D7 — Frontend Scaffold (4 views, mocked data) ✅ COMPLETE
 
 **Spec:** PRD §12, **`docs/UI_DESIGN.md` (layout + design system — authoritative for visual structure)**.
 
@@ -173,4 +175,15 @@ Copy-paste each brief into Devin as a task. **Dispatch order: D4, D3, D5, D2, D1
 
 ## Handoff Note
 
-After each PR lands, OpenCode reviews, merges, and re-points the module from fixtures to real basin data. That re-pointing is OpenCode's job, not Devin's. If a PR is late, OpenCode writes a minimal stub behind the same interface and moves on — Devin never blocks the spine.
+All Devin tasks are complete. OpenCode has integrated all modules into the live pipeline (`backend/siren/pipeline.py`) and wired the frontend to the real API. The DoD chain is verified end-to-end:
+
+- **D1 (Ingest):** `backend/siren/ingest/{cdse,srtm,imerg,overpass}.py` — 25 tests
+- **D2 (Preprocess):** `backend/siren/preprocess/` — 6 tests
+- **D3 (Quality gate):** `backend/siren/preprocess/quality.py` — 11 tests
+- **D4 (API scaffold):** `backend/siren/api/{app,models}.py` — 10 tests
+- **D5 (Payload codec):** `backend/siren/alerting/{codec,validate}.py` — 12 tests
+- **D6 (Audit log):** `backend/siren/audit/writer.py` — 11 tests
+- **D7 (Frontend):** `frontend/src/` — 4 views, TypeScript clean, Vite build passes
+- **D8 (Fixtures):** `backend/tests/fixtures/` — committed, used by all tests
+
+**Pipeline integration (OpenCode):** `backend/siren/pipeline.py` orchestrates detect→geo→risk→DB→audit. `backend/tests/test_pipeline.py` adds 5 tests covering the full DoD chain. Total: 80/80 tests passing.
