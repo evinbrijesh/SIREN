@@ -19,6 +19,7 @@ export interface Observation {
   crs: string;
   quality_score: number | null;
   cloud_fraction: number | null;
+  optical_cloud_fraction: number | null;
   alignment_ok: boolean | null;
   usable: boolean | null;
   confidence_adjustment: number | null;
@@ -70,6 +71,12 @@ export interface Run {
   corridor_geojson: GeoJSONFeature | null;
   change_stats_json: GeoJSONFeature | null;
   score: Score | null;
+  status: "running" | "processed" | "failed";
+  started_at: string;
+  finished_at: string | null;
+  decision: "confirm" | "reject" | "postpone" | null;
+  reviewer: string | null;
+  decided_at: string | null;
 }
 
 export interface Exposure {
@@ -80,6 +87,7 @@ export interface Exposure {
   buffer_m: number | null;
   inundated: boolean;
   population: number | null;
+  geometry_geojson: GeoJSONFeature | null;
 }
 
 export interface ReviewResponse {
@@ -108,6 +116,8 @@ export interface AuditEntry {
   action: string;
   detail_json: string;
   created_at: string;
+  prev_hash: string;
+  event_hash: string;
 }
 
 // Response wrappers
