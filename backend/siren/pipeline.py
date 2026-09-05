@@ -191,10 +191,10 @@ def _ensure_scenario_masks() -> None:
 
 
 def _ensure_obs003_mask() -> None:
-    """Generate obs-003 mask if it doesn't exist (uses +14.3% scenario)."""
+    """Generate obs-003 mask if it doesn't exist (uses +43% scenario)."""
     mask_path = PROCESSED_DIR / "obs-003_expansion_mask.tif"
     if not mask_path.exists():
-        mask, meta = scenario_expansion_mask(0.143, seed=43)
+        mask, meta = scenario_expansion_mask(0.43, seed=42)
         with rasterio.open(
             str(mask_path), "w", driver="GTiff",
             height=mask.shape[0], width=mask.shape[1],
