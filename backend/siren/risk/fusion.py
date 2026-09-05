@@ -146,6 +146,10 @@ def fuse(
     e, e_reasons = exposure_priority(h, exposed_population, critical_assets, settlements, bridges, wells)
     d, d_reasons = disease_risk(inundated_wells, population_density_per_km2, temp_index)
     severity = classify_severity(h, exposed_population, critical_assets)
+    if expansion_pct >= 40.0:
+        severity = "critical"
+    elif severity == "critical":
+        severity = "elevated"
 
     reasons = list(h_reasons)
     if severity in ("elevated", "critical"):
