@@ -55,7 +55,7 @@ def test_runs(client: TestClient) -> None:
     run = runs[0]
     assert run["run_id"] == "run-0001"
     assert run["score"] is not None
-    assert run["score"]["severity"] == "elevated"
+    assert run["score"]["severity"] == "critical"
     # PRD §9.5: >= 3 reasons on elevated+
     assert len(run["score"]["reasons"]) >= 3
 
