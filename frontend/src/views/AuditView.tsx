@@ -121,12 +121,17 @@ export default function AuditView({ run, onToast }: Props) {
       return;
     }
     const body = decodedPayload
-      ? `🚨 SIREN GLOF EMERGENCY ALERT\nGlacial flood detected (+${expansionPct}%). Chhukung at risk. BOIL WATER IMMEDIATELY (Well 3 submerged).\nAlert: ${decodedPayload.alert_id} | Sector: ${decodedPayload.sector}`
-      : "🚨 SIREN GLOF EMERGENCY ALERT — Dispatch authorized. BOIL WATER IMMEDIATELY.";
+      ? `SIREN GLOF EMERGENCY ALERT\nGlacial flood detected (+${expansionPct}%). Chhukung at risk. BOIL WATER IMMEDIATELY (Well 3 submerged).\nAlert: ${decodedPayload.alert_id} | Sector: ${decodedPayload.sector}`
+      : "SIREN GLOF EMERGENCY ALERT — Dispatch authorized. BOIL WATER IMMEDIATELY.";
     fetch(`https://ntfy.sh/${NTFY_TOPIC}`, {
       method: "POST",
       body,
-      headers: { "Title": "SIREN Emergency Alert", "Tags": "warning,sos" },
+      headers: {
+        "Title": "🚨 SIREN EMERGENCY ALERT",
+        "Tags": "warning,sos,rotating_light",
+        "Priority": "urgent",
+        "Actions": "view, Open SIREN, https://siren.app,",
+      },
     }).then(
       () => onToast?.({ msg: "Live alert sent to ntfy.sh — check your phone", type: "success" }),
       () => onToast?.({ msg: "Live alert failed (network error) — simulated dispatch complete", type: "info" }),
