@@ -2,7 +2,9 @@
 
 **SIREN** — Satellite-Informed Risk & Emergency Network. Satellite-assisted early warning and disaster-response decision platform (Track 7: Area ii resilient alerting + Area iii disease prevention). 36-hour hackathon build.
 
-**Read before writing code:** `docs/PRD.md` (v4.1 — product spec, data contracts, scoring formulas) and `docs/BUILD_ROADMAP.md` (phase order, checkpoints, fallbacks). This file tells you *how to work*; those tell you *what to build*.
+**Read before writing code:** `docs/PRD.md` (v4.3 — product spec, data contracts, scoring formulas) and `docs/BUILD_ROADMAP.md` (phase order, checkpoints, fallbacks). This file tells you *how to work*; those tell you *what to build*.
+
+> **Build status:** Phases 0–6 complete. 80/80 tests passing. DoD chain verified end-to-end. See `README.md` for the quick-start guide.
 
 ---
 
@@ -17,22 +19,24 @@
 ```text
 backend/
   siren/
-    api/          # FastAPI routes
+    api/          # FastAPI routes + Pydantic models
     ingest/       # CDSE STAC, Earthdata SRTM, IMERG, Overpass downloaders
     preprocess/   # clip, reproject, co-register, quality gate
-    detect/       # NDWI diff, SAR backscatter ratio, weather-adaptive router, change stats
+    detect/       # NDWI diff, SAR backscatter ratio, weather-adaptive router, scenario masks
     geo/          # D8 corridor, tolerance buffers, exposure intersections
     risk/         # hazard H, exposure E, disease D_risk scoring + reasons
     alerting/     # <250-byte payload codec, simulated dispatch
     audit/        # append-only log writer
     db/           # SQLite schema + repositories
+    pipeline.py   # orchestrator: detect→geo→risk→DB→audit
   tests/
     fixtures/     # synthetic rasters + fake OSM GeoJSON (tiny, committed)
 frontend/
   src/
     views/        # MapView, TimelineView, ReviewView, AuditView
-    api/          # typed client
-    components/
+    api/          # typed client + offline mock fallback
+    simulation/   # SimulationContext (shared demo state)
+    styles/       # design tokens (CSS custom properties)
 data/
   raw/            # downloaded scenes — gitignored, never hand-edited
   processed/      # aligned rasters, masks — gitignored, written only by pipeline
@@ -45,11 +49,11 @@ docs/
 ```bash
 # backend
 cd backend && pip install -e ".[dev]"
-uvicorn siren.api:app --reload --port 8000
-pytest
+uvicorn siren.api:app --reload --port 8010
+pytest                             # 80 tests
 
 # frontend
-cd frontend && npm install && npm run dev   # port 5173, proxies /api → 8000
+cd frontend && npm install && npm run dev   # port 5175, proxies /api → 8010
 ```
 
 ---
