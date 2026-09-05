@@ -17,8 +17,12 @@ dist/
 data/raw/*
 data/processed/*
 data/*.db
+backend/*.db
 !data/raw/.gitkeep
 !data/processed/.gitkeep
+
+# --- Redundant design archives (extracted dirs are committed) ---
+docs/*.zip
 
 # --- Env / secrets ---
 .env
