@@ -40,6 +40,7 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [selectedSector, setSelectedSector] = useState<string>("sector-b");
   const [selectedChannel, setSelectedChannel] = useState<"sms" | "lora" | "satellite">("sms");
+  const [viewMode, setViewMode] = useState<"simple" | "advanced">("simple");
 
   const score = run?.score;
   const runId = run?.run_id;
@@ -229,6 +230,7 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
   const sortedExposures = [...exposures].sort((a, b) => (a.distance_m ?? 9999) - (b.distance_m ?? 9999));
   const areaAfter = (run.change_stats_json?.water_area_km2 as number) ?? 4.1;
   const areaBefore = 3.0;
+  const expansionPct = (run.change_stats_json?.expansion_percent as number) ?? 0;
   const corridorSource = (run.change_stats_json?.corridor_source as string) ?? "unknown";
   const isFallbackCorridor = corridorSource === "fallback_seeded";
 
@@ -253,11 +255,48 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
             {isFallbackCorridor ? "Corridor: fallback" : "Corridor: D8+OSM"}
           </span>
         </div>
-        <div className="flex items-center gap-space-8 text-body-sm text-text-dim">
-          <span>{run.observation_id}</span>
+        <div className="flex items-center gap-space-8">
+          {/* Simple / Advanced mode toggle */}
+          <div className="flex items-center gap-space-2 bg-surface-canvas border border-border-subtle p-space-2">
+            <button
+              onClick={() => setViewMode("simple")}
+              className={`px-space-12 py-space-4 text-body-sm font-medium transition-colors ${
+                viewMode === "simple"
+                  ? "bg-primary text-primary-fg font-bold"
+                  : "text-text-dim hover:text-text-primary"
+              }`}
+            >
+              Simple (Triage)
+            </button>
+            <button
+              onClick={() => setViewMode("advanced")}
+              className={`px-space-12 py-space-4 text-body-sm font-medium transition-colors ${
+                viewMode === "advanced"
+                  ? "bg-primary text-primary-fg font-bold"
+                  : "text-text-dim hover:text-text-primary"
+              }`}
+            >
+              Advanced (Analyst)
+            </button>
+          </div>
+          <span className="text-body-sm text-text-dim">{run.observation_id}</span>
         </div>
       </div>
 
+      {viewMode === "simple" ? (
+        <SimpleTriage
+          run={run}
+          score={score}
+          mlEvidence={mlEvidence}
+          wells={wells}
+          villages={villages}
+          totalPop={totalPop}
+          expansionPct={expansionPct}
+          areaBefore={areaBefore}
+          areaAfter={areaAfter}
+          severity={score.severity}
+        />
+      ) : (
       <div className="flex-1 overflow-auto p-space-12">
         {/* Top row: Evidence + Risk */}
         <div className="flex flex-col lg:flex-row gap-space-8 items-stretch">
@@ -557,8 +596,9 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
 
         {error && <div className="data-val text-body-md text-status-danger p-space-12 mt-space-8">{error}</div>}
       </div>
+      )}
 
-      {/* Decision bar — 2-step armed state for dispatch */}
+      {/* Decision bar — 2-step armed state for dispatch — shared between Simple and Advanced */}
       <aside className="fixed bottom-[24px] left-0 right-0 h-decision-bar-height bg-surface-panel border-t border-border-subtle z-40 px-space-16 flex items-center justify-between">
         <div className="flex items-center gap-space-8">
           {decisionLocked ? (
@@ -714,6 +754,137 @@ function GaugeRow({ label, value, summary }: { label: string; value: number; sum
       <div className="text-right data-val text-metric-display text-text-primary leading-none">{value.toFixed(2)}</div>
       <div />
       <div className="data-val text-body-sm text-text-dim">{summary}</div>
+    </div>
+  );
+}
+
+function SimpleTriage({
+  run, score, mlEvidence, wells, villages, totalPop, expansionPct, areaBefore, areaAfter, severity,
+}: {
+  run: Run;
+  score: NonNullable<Run["score"]>;
+  mlEvidence: MlEvidence;
+  wells: ExposureList["exposures"];
+  villages: ExposureList["exposures"];
+  totalPop: number;
+  expansionPct: number;
+  areaBefore: number;
+  areaAfter: number;
+  severity: string;
+}) {
+  const inundatedWell = wells.find((w) => w.inundated);
+  const wellName = inundatedWell?.name ?? inundatedWell?.asset_id ?? "Well #3";
+  const wellDist = inundatedWell?.distance_m ?? 90;
+  const wellPop = inundatedWell?.population ?? totalPop;
+  const chlorineTablets = wellPop * 2 * 14;
+  const villageName = villages[0]?.name ?? "Chhukung";
+  const isCritical = severity === "critical";
+  const sourceLabel = (run.change_stats_json?.source as string) ?? "Sentinel-1 SAR";
+  const heatmapUri = mlEvidence.heatmap_uri;
+
+  return (
+    <div className="flex-1 overflow-auto p-space-16 flex flex-col gap-space-16 max-w-4xl mx-auto w-full">
+      {/* Satellite Finding Strip — leads with the evidence */}
+      <section className={`bg-surface-panel border ${isCritical ? "border-status-danger" : "border-status-elevated"} border-l-4 flex flex-col`}>
+        <div className="flex items-center gap-space-12 px-space-16 py-space-8 border-b border-border-subtle">
+          <span className={`label-caps ${isCritical ? "text-status-danger" : "text-status-elevated"}`}>
+            Satellite Trigger
+          </span>
+          <span className="text-caption text-text-dim">{sourceLabel}</span>
+        </div>
+        <div className="flex items-stretch gap-space-16 p-space-16">
+          {heatmapUri && (
+            <div className="w-[180px] h-[120px] border border-border-subtle bg-surface-recessed overflow-hidden flex-shrink-0">
+              <img
+                src={heatmapUri}
+                alt="Change detection heatmap"
+                className="w-full h-full object-contain opacity-90"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              />
+            </div>
+          )}
+          <div className="flex flex-col justify-center gap-space-6">
+            <div className="text-headline-md text-text-primary font-bold">
+              <span className="data-val text-primary">+{expansionPct.toFixed(1)}%</span> water expansion detected
+            </div>
+            <div className="text-body-md text-text-dim">
+              Imja Lake surface grew from <span className="data-val text-text-primary">{areaBefore.toFixed(1)} km²</span> to{" "}
+              <span className="data-val text-text-primary">{areaAfter.toFixed(1)} km²</span>.
+              Downstream floodwaters have breached critical village infrastructure.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Water Contamination & Outbreak Threat — Track 7.iii */}
+      <section className="bg-surface-panel border border-border-subtle flex flex-col">
+        <div className="flex items-center justify-between px-space-16 py-space-8 border-b border-border-subtle">
+          <span className="label-caps">Water Contamination &amp; Outbreak Threat</span>
+          <span className="text-caption border border-status-info text-status-info px-space-6 py-space-2">
+            Track 7.iii
+          </span>
+        </div>
+        <div className="p-space-16 flex flex-col gap-space-12">
+          <div className="flex flex-col gap-space-4">
+            <span className="text-body-sm text-text-dim uppercase tracking-wide">Contaminated Source</span>
+            <span className="text-body-md text-text-primary">
+              <span className="text-status-danger font-medium">{wellName}</span> submerged under{" "}
+              <span className="data-val">{wellDist}m</span> flood corridor — toxic glacial floodwaters.
+            </span>
+          </div>
+          <div className="flex flex-col gap-space-4">
+            <span className="text-body-sm text-text-dim uppercase tracking-wide">Population Threatened</span>
+            <span className="text-body-md text-text-primary">
+              <span className="data-val text-primary font-bold">{wellPop.toLocaleString()}</span> residents of{" "}
+              {villageName} rely exclusively on this water point.
+            </span>
+            <span className="text-body-sm text-text-dim">
+              Monsoon conditions (22°C, high humidity) create high incubation risk for waterborne pathogens.
+            </span>
+          </div>
+        </div>
+      </section>
+
+      {/* Automated Medical Logistics — chlorine tablet math */}
+      <section className="bg-surface-panel border border-border-subtle flex flex-col">
+        <div className="px-space-16 py-space-8 border-b border-border-subtle">
+          <span className="label-caps">Automated Medical Logistics</span>
+        </div>
+        <div className="p-space-16">
+          <div className="bg-surface-recessed border border-border-subtle p-space-16 flex flex-col gap-space-8">
+            <div className="text-headline-md text-primary font-bold data-val">
+              {chlorineTablets.toLocaleString()} Chlorine Tablets Required
+            </div>
+            <div className="text-body-sm text-text-dim">
+              Calculation:{" "}
+              <span className="data-val text-text-primary">{wellPop.toLocaleString()}</span> people{" "}
+              × <span className="data-val text-text-primary">2</span> tablets/day{" "}
+              × <span className="data-val text-text-primary">14</span>-day supply isolation window
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Protocol Directives — read-only checklist, not clickable buttons */}
+      <section className="bg-surface-panel border border-border-subtle flex flex-col">
+        <div className="px-space-16 py-space-8 border-b border-border-subtle">
+          <span className="label-caps">Included in SOS Transmission</span>
+        </div>
+        <div className="p-space-16 flex flex-col gap-space-8">
+          <ProtocolItem text="Boil-water emergency broadcast (SMS / LoRa)" />
+          <ProtocolItem text={`Logistics: ${chlorineTablets.toLocaleString()} chlorine tablets allocated (${villageName})`} />
+          <ProtocolItem text="7-day diarrheal & cholera surveillance clinic activated" />
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function ProtocolItem({ text }: { text: string }) {
+  return (
+    <div className="flex items-center gap-space-8 text-body-md text-text-primary">
+      <span className="text-status-safe text-body-md">☑</span>
+      <span>{text}</span>
     </div>
   );
 }
