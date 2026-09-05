@@ -110,6 +110,16 @@ def test_audit_lineage(client: TestClient) -> None:
     actions = [e["action"] for e in entries]
     assert "dispatch" in actions
 
+    # Query by run_id returns entries whose detail_json references run-0001
+    # (review + dispatch both carry run_id in detail_json). The pipeline-run
+    # entries (run/score) are only present when POST /runs triggers the pipeline.
+    audit_by_run = client.get("/audit", params={"run_id": "run-0001"})
+    assert audit_by_run.status_code == 200
+    run_entries = audit_by_run.json()["entries"]
+    assert len(run_entries) >= 2
+    run_actions = {e["action"] for e in run_entries}
+    assert {"review", "dispatch"}.issubset(run_actions)
+
 
 def test_exposures(client: TestClient) -> None:
     resp = client.get("/runs/run-0001/exposures")
