@@ -148,6 +148,9 @@ export default function AuditView({ run, onToast }: Props) {
       <div className="relative flex items-center justify-between px-space-16 py-space-8 border-b border-border-subtle bg-surface-panel tactical-bezel tactical-reg" data-reg="AIR-GAP: VERIFIED">
         <div className="flex items-center gap-space-12">
           <h1 className="label-caps">Audit</h1>
+          <span className="text-caption text-status-safe border border-status-safe px-space-6 py-space-2">
+            AIR-GAP VERIFIED
+          </span>
         </div>
         <div className="flex items-center gap-space-8">
           <span className="data-val text-body-sm text-text-dim">{entries.length} entries</span>
@@ -162,13 +165,13 @@ export default function AuditView({ run, onToast }: Props) {
             <div className="flex items-center gap-space-8">
               <button
                 onClick={() => setShowPreview(true)}
-                className="text-body-sm text-text-dim px-space-8 py-space-2 border border-border-subtle hover:text-text-primary hover:border-border-strong transition-colors bg-transparent"
+                className="text-body-sm text-primary px-space-8 py-space-2 border border-primary hover:bg-primary/10 transition-colors bg-transparent"
               >
                 Preview
               </button>
               <button
                 onClick={copyPayload}
-                className="text-body-sm text-text-dim px-space-8 py-space-2 border border-border-subtle hover:text-text-primary hover:border-border-strong transition-colors bg-transparent"
+                className="text-body-sm text-primary px-space-8 py-space-2 border border-primary hover:bg-primary/10 transition-colors bg-transparent"
               >
                 {copied ? "Copied" : "Copy"}
               </button>
@@ -324,6 +327,22 @@ export default function AuditView({ run, onToast }: Props) {
             </div>
           </div>
         </section>
+
+        {/* Payload decode legend — fills lower void, explains abbreviated fields */}
+        <section className="bg-surface-panel border border-border-subtle flex flex-col">
+          <div className="flex items-center justify-between px-space-12 py-space-8 border-b border-border-subtle">
+            <h2 className="label-caps">Payload Field Legend</h2>
+          </div>
+          <div className="p-space-12 grid grid-cols-2 md:grid-cols-3 gap-space-8 text-body-sm">
+            <LegendItem abbr="aid" full="Alert ID (siren-NN)" />
+            <LegendItem abbr="sec" full="Sector code" />
+            <LegendItem abbr="haz" full="Hazard type (GLOF_FL)" />
+            <LegendItem abbr="lvl" full="Severity level (1-4)" />
+            <LegendItem abbr="exp_pop" full="Exposed population" />
+            <LegendItem abbr="crit" full="Critical assets at risk" />
+            <LegendItem abbr="med_act" full="Medical action directive" />
+          </div>
+        </section>
       </div>
 
       {/* Preview modal — plain-text emergency handset alert */}
@@ -356,6 +375,15 @@ export default function AuditView({ run, onToast }: Props) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function LegendItem({ abbr, full }: { abbr: string; full: string }) {
+  return (
+    <div className="flex items-baseline gap-space-6">
+      <span className="data-val text-primary whitespace-nowrap">{abbr}</span>
+      <span className="text-text-dim">{full}</span>
     </div>
   );
 }
