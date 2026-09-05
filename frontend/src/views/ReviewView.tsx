@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, apiOrMock } from "../api/client";
+import { api, apiOrMock, addToOutbox } from "../api/client";
 import { mockData } from "../api/mockData";
 import { useSimulation } from "../simulation/SimulationContext";
 import type { Run, ExposureList, SarPriorityList, MlEvidence, ReviewResponse, DispatchResponse, ApiError } from "../api/types";
@@ -85,8 +85,14 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
       qc.invalidateQueries({ queryKey: ["run", runId] });
     },
     onError: (e: ApiError) => {
-      setError(e.detail);
-      onToast?.({ msg: e.detail, type: "error" });
+      const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+      if (offline) {
+        addToOutbox(`/runs/${runId}/review`, "POST", JSON.stringify({ reviewer: "coordinator-01", decision: "escalate", note: "demo review" }));
+        onToast?.({ msg: "Offline — review queued in outbox, will sync when online", type: "info" });
+      } else {
+        setError(e.detail);
+        onToast?.({ msg: e.detail, type: "error" });
+      }
     },
   });
 
@@ -99,8 +105,15 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
       onToast?.({ msg: `Dispatch sent (${data.payload_bytes} bytes)`, type: "success" });
     },
     onError: (e: ApiError) => {
-      setError(e.detail);
-      onToast?.({ msg: e.detail, type: "error" });
+      const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+      if (offline) {
+        addToOutbox(`/runs/${runId}/dispatch`, "POST", JSON.stringify({ channel: selectedChannel, recipient_group: selectedSector }));
+        setDispatchArmed(false);
+        onToast?.({ msg: "Offline — dispatch queued in outbox, will sync when online", type: "info" });
+      } else {
+        setError(e.detail);
+        onToast?.({ msg: e.detail, type: "error" });
+      }
     },
   });
 
