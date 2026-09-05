@@ -645,20 +645,41 @@ class Repository:
         score = self.get_score_for_run(run_id)
         if score is None:
             raise NotFoundError(f"no score for run {run_id}")
+        exposures = self.list_exposures(run_id)
+
         # deterministic alert_id (no unseeded randomness — Hard Rule 6)
         alert_id = f"alert-{zlib.crc32(run_id.encode('utf-8')) % 10000:04d}"
-        # <250-byte resilient payload (PRD §10.4)
-        payload_obj = {
-            "aid": "siren-04",
-            "sec": recipient_group[-1].upper() if recipient_group else "B",
-            "haz": "GLOF_FL",
-            "lvl": 3,
-            "exp_pop": 1240,
-            "crit": ["BR-12", "RD-4"],
-            "med_act": "BOIL_WATER_NOW",
+
+        # Build a real alert from score + exposures, then encode via the codec
+        # (PRD §10.4) — no more hardcoded payload blob.
+        exposed_pop = sum(e.get("population", 0) or 0 for e in exposures)
+        critical_assets = [
+            e["asset_id"] for e in exposures
+            if e.get("asset_type") in ("bridge", "road") and e.get("inundated")
+        ][:5]  # cap at 5 to stay within 250 bytes
+        disease_flags = [
+            e["asset_id"] for e in exposures
+            if e.get("asset_type") == "well" and e.get("inundated")
+        ][:3]
+        med_act = "BOIL_WATER_NOW" if disease_flags else "MONITOR"
+
+        alert = {
+            "alert_id": alert_id,
+            "geofence_id": recipient_group[-1].upper() if recipient_group else "B",
+            "severity": score["severity"],
+            "hazard_type": "GLOF_FL",
+            "confidence": score["confidence"],
+            "exposed_population": exposed_pop,
+            "critical_assets": critical_assets,
+            "disease_flags": disease_flags,
+            "recommended_action": "VERIFY_AND_WARN",
+            "human_review_required": True,
         }
-        payload = json.dumps(payload_obj, separators=(",", ":"))
-        payload_bytes = len(payload.encode("utf-8"))
+
+        from siren.alerting.codec import encode
+        payload_bytes_obj = encode(alert)
+        payload = payload_bytes_obj.decode("utf-8")
+        payload_bytes = len(payload_bytes_obj)
 
         # Use the confirm review if one exists; otherwise attempt the insert with
         # a non-existent review_id and let the schema trigger abort -> 409.

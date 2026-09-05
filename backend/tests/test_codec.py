@@ -18,7 +18,7 @@ from siren.alerting.validate import PayloadTooLargeError, validate_size
 ALERT_VERBOSE = {
     "alert_id": "alert-0091",
     "geofence_id": "sector-b",
-    "severity": "HIGH",
+    "severity": "elevated",
     "hazard_type": "possible_flood_or_debris_flow",
     "confidence": 0.76,
     "exposed_population": 1248,
@@ -32,7 +32,7 @@ ALERT_VERBOSE = {
 ALERT_MINIMAL = {
     "alert_id": "alert-0001",
     "geofence_id": "sector-a",
-    "severity": "LOW",
+    "severity": "informational",
     "hazard_type": "minor_expansion",
     "confidence": 0.45,
     "exposed_population": 100,
@@ -48,7 +48,7 @@ ALERT_MINIMAL = {
 ALERT_DEMO = {
     "alert_id": "alert-0091",
     "geofence_id": "B",
-    "severity": "HIGH",
+    "severity": "elevated",
     "hazard_type": "GLOF_FL",
     "confidence": 0.76,
     "exposed_population": 1240,
@@ -87,7 +87,7 @@ def test_round_trip(alert):
 def test_round_trip_all_severities():
     """Every severity level maps to an int and back to its string."""
     base = dict(ALERT_MINIMAL)
-    for sev in ("LOW", "MEDIUM", "HIGH", "CRITICAL"):
+    for sev in ("informational", "watch", "elevated", "critical"):
         base["severity"] = sev
         decoded = decode(encode(base))
         assert decoded["severity"] == sev
@@ -172,7 +172,7 @@ def test_demo_payload_within_budget():
         "aid", "sec", "haz", "lvl", "conf",
         "exp_pop", "crit", "med_act", "act", "req",
     }
-    assert obj["lvl"] == 3  # HIGH
+    assert obj["lvl"] == 3  # elevated
 
 
 # ---------------------------------------------------------------------------
