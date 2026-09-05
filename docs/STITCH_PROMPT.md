@@ -1,5 +1,7 @@
 # Stitch Design Prompt — SIREN Coordinator Console
 
+> **ARCHIVED DESIGN INPUT — not spec.** This prompt was used to generate early UI mockups during the design phase. The numbers below (e.g., obs-003 as 2026-09-04, +14.3%, Elevated) are **stale** and do not match the implemented canonical scenario (obs-003 = 2026-08-12, +43%, Critical, S1 SAR). Refer to `docs/PRD.md` §16 and `README.md` for the current demo scenario. The implemented UI is a Tailwind operational console — see `docs/UI_DESIGN.md` for the current design spec.
+
 ## Project Overview
 
 Design a **dark-themed emergency operations console** called SIREN (Satellite-Informed Risk & Emergency Network). It is a disaster-response decision platform for Himalayan glacial basins. An emergency coordinator uses it to monitor satellite observations of a glacial lake, review escalating hazard evidence, confirm alerts, and dispatch compressed warnings to downstream communities.

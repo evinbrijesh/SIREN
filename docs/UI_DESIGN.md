@@ -224,3 +224,16 @@ App
 3. **The action sheet:** ReviewView lists 3 submerged wells + chlorine quotas + boil-water notice.
 4. **The payload box:** AuditView shows `118 / 250 bytes` with a green LoRa-compatible badge.
 5. **The decision bar:** Confirm SOS is unmissable and requires confirmation state.
+
+---
+
+## 10. Implemented Additions (post-initial-design)
+
+The following were added after the initial UI design spec was written:
+
+- **Multi-theme system** (`frontend/src/theme/`): `ThemeContext.tsx` + `ThemeToggle.tsx` providing Ops Dark (default), Professional Light, and Satellite themes. The toggle is a compact chip in the header bar.
+- **OfflineBadge** (`frontend/src/components/OfflineBadge.tsx`): Truthful online/offline indicator using `navigator.onLine` + window `online`/`offline` event listeners. Shows "ONLINE" or "OFFLINE — ALL SYSTEMS LOCAL".
+- **Audit run_id wiring**: AuditView queries `GET /audit?run_id={activeRunId}` when an active run exists, falling back to mock data only on network failure. The terminal SHA-256 digest is rendered from the last audit entry's `event_hash`.
+- **Audit preview modal**: Decoded plain-text emergency handset alert format, opened via a [PREVIEW] button. Escape closes the modal first (consumes `siren:escape` event).
+- **Channel FSM**: AuditView dispatch channels cycle through QUEUED → TRANSMITTING → DELIVERED (or QUEUED for satellite) with timed transitions.
+- **Tailwind CSS**: The design system is implemented with Tailwind utility classes + CSS custom properties. No `styles/tokens.css` file — tokens live in `index.css` and Tailwind config.
