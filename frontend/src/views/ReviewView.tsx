@@ -131,8 +131,8 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
   if (!run || !score) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-text-dim text-center gap-space-8">
-        <div className="data-val text-body-md">NO ALERTS REQUIRING REVIEW</div>
-        <div className="data-val text-body-sm text-text-muted">Run the simulation from Timeline to generate observations.</div>
+        <div className="text-body-md">No alerts requiring review</div>
+        <div className="text-body-sm text-text-muted">Run the simulation from Timeline to generate observations.</div>
       </div>
     );
   }
@@ -145,16 +145,16 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
       <div className="flex flex-col h-full">
         <div className="flex items-center justify-between px-space-16 py-space-8 border-b border-border-subtle bg-surface-panel">
           <h1 className="label-caps">Review</h1>
-          <span className="data-val text-body-sm text-status-warn border border-status-warn px-space-4 py-space-1">
-            WATCH
+          <span className="text-body-sm text-status-warn border border-status-warn px-space-4 py-space-1">
+            Watch
           </span>
         </div>
         <div className="flex-1 flex flex-col items-center justify-center gap-space-12 px-space-16">
           <div className="text-center max-w-md">
-            <div className="data-val text-headline-sm text-text-primary mb-space-4">
-              Monitoring — Escalation Available
+            <div className="text-headline-sm text-text-primary mb-space-4">
+              Monitoring — escalation available
             </div>
-            <div className="data-val text-body-sm text-text-dim">
+            <div className="text-body-sm text-text-dim">
               Observation {run.observation_id} shows early warning signs
               (expansion {run.change_stats_json?.expansion_percent ?? "+"}%, hazard H={score.hazard_score.toFixed(2)}).
               Escalate to elevated to trigger the full review and dispatch workflow,
@@ -226,26 +226,23 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
       <div className="flex items-center justify-between px-space-16 py-space-8 border-b border-border-subtle bg-surface-panel">
         <div className="flex items-center gap-space-12">
           <h1 className="label-caps">Review</h1>
-          <span className="data-val text-body-sm text-text-dim">RUN</span>
           <span className="data-val text-body-sm text-primary-container border border-border-subtle px-space-4 py-space-1">
             {runId}
           </span>
           {/* Provenance badge (O3) — shows whether corridor is real D8+OSM or fallback */}
           <span
-            className={`data-val text-caption border px-space-4 py-space-1 ${
+            className={`text-caption border px-space-4 py-space-1 ${
               isFallbackCorridor
                 ? "border-status-warn text-status-warn"
                 : "border-status-safe text-status-safe"
             }`}
             title={isFallbackCorridor ? "Corridor from seeded demo data (D8 trace failed)" : "Corridor from D8 flow accumulation + OSM river buffering"}
           >
-            {isFallbackCorridor ? "CORRIDOR: FALLBACK" : "CORRIDOR: D8+OSM"}
+            {isFallbackCorridor ? "Corridor: fallback" : "Corridor: D8+OSM"}
           </span>
         </div>
-        <div className="flex items-center gap-space-8 data-val text-body-sm text-text-dim">
-          <span>TRIGGER: AUTOMATED_INGESTION_SENTINEL_2</span>
-          <span className="text-border-subtle">|</span>
-          <span>UTC {new Date().toISOString().slice(0, 19).replace("T", " ")}</span>
+        <div className="flex items-center gap-space-8 text-body-sm text-text-dim">
+          <span>{run.observation_id}</span>
         </div>
       </div>
 
@@ -257,14 +254,13 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
             <div className="flex items-center justify-between px-space-12 py-space-8 border-b border-border-subtle">
               <h2 className="label-caps">Evidence</h2>
               <div className="flex items-center gap-space-6">
-                <span className={`data-val text-body-sm border px-space-4 py-space-1 ${
+                <span className={`text-body-sm border px-space-4 py-space-1 ${
                   mlEvidence.model_available
                     ? "border-primary-container text-primary-container"
                     : "border-status-warn text-status-warn"
                 }`}>
-                  {mlEvidence.model_available ? "ML ACTIVE" : "ML SCAFFOLD"}
+                  {mlEvidence.model_available ? "ML active" : "Rule-based"}
                 </span>
-                <span className="data-val text-body-sm text-text-dim">S2A_MSIL2A</span>
               </div>
             </div>
 
@@ -279,15 +275,14 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                   />
                   <div className="relative z-10 flex items-center justify-between px-space-8 py-space-4 bg-surface-panel border-b border-border-subtle">
-                    <span className="data-val text-body-sm text-text-dim">BEFORE</span>
-                    <span className="data-val text-body-sm text-text-dim">T-14d</span>
+                    <span className="text-body-sm text-text-dim">Before</span>
                   </div>
                   <div className="relative z-10 flex flex-col px-space-8 py-space-4 mt-auto bg-surface-panel border-t border-border-subtle">
                     <span className="data-val text-headline-md text-text-primary">{areaBefore.toFixed(2)} km²</span>
-                    <span className="data-val text-caption text-text-dim">REFERENCE EXTENT</span>
+                    <span className="text-caption text-text-dim">Reference extent</span>
                   </div>
                 </div>
-                <div className="flex-1 h-[140px] border border-status-elevated bg-surface-recessed relative overflow-hidden flex flex-col">
+                <div className="flex-1 h-[140px] border border-border-subtle bg-surface-recessed relative overflow-hidden flex flex-col">
                   <img
                     src={mlEvidence.mask_uri}
                     alt="Current change mask"
@@ -295,12 +290,11 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                   />
                   <div className="relative z-10 flex items-center justify-between px-space-8 py-space-4 bg-surface-panel border-b border-border-subtle">
-                    <span className="data-val text-body-sm text-text-dim">AFTER</span>
-                    <span className="data-val text-body-sm text-status-elevated">CHANGE</span>
+                    <span className="text-body-sm text-text-dim">After</span>
                   </div>
                   <div className="relative z-10 flex flex-col px-space-8 py-space-4 mt-auto bg-surface-panel border-t border-border-subtle">
-                    <span className="data-val text-headline-md text-status-elevated">{areaAfter.toFixed(2)} km²</span>
-                    <span className="data-val text-caption text-text-dim">+{((run.change_stats_json?.expansion_percent as number) ?? 0).toFixed(1)}% EXPANSION</span>
+                    <span className="data-val text-headline-md text-text-primary">{areaAfter.toFixed(2)} km²</span>
+                    <span className="text-caption text-text-dim">+{((run.change_stats_json?.expansion_percent as number) ?? 0).toFixed(1)}% expansion</span>
                   </div>
                 </div>
               </div>
@@ -314,26 +308,26 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
                 <div className="relative z-10 flex items-center justify-between px-space-8 py-space-4 bg-surface-panel border-b border-border-subtle">
-                  <span className="data-val text-body-sm text-text-primary">
-                    {mlEvidence.model_available ? "SIAMESE U-NET CHANGE PROBABILITY" : "CHANGE DETECTION HEATMAP"}
+                  <span className="text-body-sm text-text-primary">
+                    {mlEvidence.model_available ? "Change probability" : "Change detection heatmap"}
                   </span>
                   <span className="data-val text-body-sm text-text-dim">
-                    CONF: {(mlEvidence.ml_confidence_mean * 100).toFixed(0)}%
+                    {(mlEvidence.ml_confidence_mean * 100).toFixed(0)}% confidence
                   </span>
                 </div>
                 <div className="relative z-10 flex items-center justify-between px-space-8 py-space-4 mt-auto bg-surface-panel border-t border-border-subtle">
                   <div className="flex items-center gap-space-8">
                     <div className="flex items-center gap-space-4">
                       <span className="w-2 h-2 bg-status-danger" />
-                      <span className="data-val text-caption text-text-dim">HIGH</span>
+                      <span className="text-caption text-text-dim">High</span>
                     </div>
                     <div className="flex items-center gap-space-4">
                       <span className="w-2 h-2 bg-status-warn" />
-                      <span className="data-val text-caption text-text-dim">MODERATE</span>
+                      <span className="text-caption text-text-dim">Moderate</span>
                     </div>
                     <div className="flex items-center gap-space-4">
                       <span className="w-2 h-2 bg-surface-canvas border border-border-subtle" />
-                      <span className="data-val text-caption text-text-dim">NONE</span>
+                      <span className="text-caption text-text-dim">None</span>
                     </div>
                   </div>
                   <span className="data-val text-body-sm text-text-dim">
@@ -342,22 +336,20 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
                 </div>
               </div>
 
-              <div className="data-val text-body-sm text-text-dim break-all select-all">
-                {mlEvidence.ml_source === "siamese_unet_consensus"
-                  ? "ML: Siamese U-Net + rule-based consensus (ADR-002)"
-                  : "ML: scaffold mode — rule-based detection with confidence gradient"}
+              <div className="text-body-sm text-text-dim">
+                {mlEvidence.model_available
+                  ? "ML + rule-based consensus (ADR-002)"
+                  : "Rule-based detection with confidence gradient"}
               </div>
             </div>
 
-            <div className="border-t border-border-subtle px-space-12 py-space-8 grid grid-cols-2 gap-space-8 data-val text-body-sm text-text-dim">
+            <div className="border-t border-border-subtle px-space-12 py-space-8 grid grid-cols-2 gap-space-8 text-body-sm text-text-dim">
               <div>
-                PROJ: <span className="text-text-primary">WGS84 / UTM 45N</span>
+                Confidence: <span className="data-val text-text-primary">{(score.confidence * 100).toFixed(1)}%</span>
               </div>
               <div>
-                CONF: <span className="text-text-primary">{(score.confidence * 100).toFixed(1)}%</span>
-                <span className="text-border-subtle"> | </span>
                 <span className={mlEvidence.model_available ? "text-primary-container" : "text-status-warn"}>
-                  {mlEvidence.model_available ? "ML+RULE" : "RULE-ONLY"}
+                  {mlEvidence.model_available ? "ML + rules" : "Rules only"}
                 </span>
               </div>
             </div>
@@ -399,7 +391,6 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
           <section className="bg-surface-panel border border-border-subtle flex flex-col">
             <div className="flex items-center justify-between px-space-12 py-space-8 border-b border-border-subtle">
               <h2 className="label-caps">Disease Prevention</h2>
-              <span className="data-val text-body-sm text-text-dim">PROTOCOL W-4</span>
             </div>
             <div className="p-space-12 flex flex-col gap-space-8">
               {wells.map((well) => {
@@ -417,8 +408,8 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
                       <span>CHLORINE · 2/DAY × 14D</span><span className="text-right text-text-primary">{chlorineTablets.toLocaleString()} TABLETS</span>
                     </div>
                     <div className="flex gap-space-4 mt-space-8">
-                      <span className="border border-status-danger text-status-danger px-space-4 py-space-1">BOIL-WATER ADVISORY</span>
-                      <span className="border border-status-warn text-status-warn px-space-4 py-space-1">ALTERNATE SUPPLY</span>
+                      <span className="border border-status-danger text-status-danger px-space-4 py-space-1">Boil water</span>
+                      <span className="border border-status-warn text-status-warn px-space-4 py-space-1">Alternate supply</span>
                     </div>
                   </article>
                 );
@@ -434,7 +425,6 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
           <section className="bg-surface-panel border border-border-subtle flex flex-col">
             <div className="flex items-center justify-between px-space-12 py-space-8 border-b border-border-subtle">
               <h2 className="label-caps">Exposed Assets</h2>
-              <span className="data-val text-body-sm text-text-dim">BUFFER: 250m</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse data-val text-body-sm">
@@ -481,9 +471,8 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
                 </tbody>
               </table>
             </div>
-            <div className="border-t border-border-subtle px-space-12 py-space-8 flex items-center justify-between data-val text-caption text-text-dim">
-              <span>INUNDATION MODEL: HYDRAULIC-1D</span>
-              <span>{sortedExposures.length} ASSETS DETECTED</span>
+            <div className="border-t border-border-subtle px-space-12 py-space-8 flex items-center justify-between text-caption text-text-dim">
+              <span>{sortedExposures.length} assets detected</span>
             </div>
           </section>
         </div>
@@ -492,14 +481,9 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
         {sarPriority.sectors.length > 0 && (
           <section className="bg-surface-panel border border-border-subtle mt-space-8 flex flex-col">
             <div className="flex items-center justify-between px-space-12 py-space-8 border-b border-border-subtle">
-              <div className="flex items-center gap-space-8">
-                <h2 className="label-caps">Search &amp; Rescue Priority</h2>
-                <span className="data-val text-body-sm text-text-dim border border-border-subtle px-space-4 py-space-1">
-                  STRETCH
-                </span>
-              </div>
-              <span className="data-val text-body-sm text-text-dim">
-                {sarPriority.sectors.length} SECTORS RANKED
+              <h2 className="label-caps">Search &amp; Rescue Priority</h2>
+              <span className="text-body-sm text-text-dim">
+                {sarPriority.sectors.length} sectors
               </span>
             </div>
             <div className="p-space-12">
@@ -562,7 +546,7 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
           {decisionLocked ? (
             <div className="flex items-center gap-space-8">
               <span
-                className={`data-val text-body-md ${
+                className={`text-body-md ${
                   currentDecision === "confirm"
                     ? "text-status-safe"
                     : currentDecision === "reject"
@@ -570,14 +554,14 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
                     : "text-status-warn"
                 }`}
               >
-                {currentDecision === "confirm" && "STATUS: CONFIRMED BY COORDINATOR-01"}
-                {currentDecision === "reject" && "STATUS: REJECTED BY COORDINATOR-01"}
-                {currentDecision === "postpone" && "STATUS: POSTPONED BY COORDINATOR-01"}
+                {currentDecision === "confirm" && "Confirmed"}
+                {currentDecision === "reject" && "Rejected"}
+                {currentDecision === "postpone" && "Postponed"}
               </span>
               {currentDecision === "confirm" && (
                 dispatchArmed ? (
                   <div className="flex items-center gap-space-8 px-space-8 py-space-4 border border-status-danger bg-surface-recessed">
-                    <span className="data-val text-body-sm text-status-danger">ARMED — CONFIRM DISPATCH?</span>
+                    <span className="text-body-sm text-status-danger">Confirm dispatch?</span>
                     {/* Sector selector */}
                     <label className="flex items-center gap-space-4">
                       <span className="data-val text-caption text-text-dim">SECTOR</span>
@@ -636,7 +620,7 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
             </div>
           ) : confirmStep ? (
             <div className="flex items-center gap-space-8 px-space-8 py-space-4 border border-status-danger bg-surface-recessed">
-              <span className="data-val text-body-sm text-status-danger">CONFIRM SOS DISPATCH?</span>
+              <span className="text-body-sm text-status-danger">Confirm dispatch?</span>
               <button
                 onClick={() => reviewMut.mutate({ decision: "confirm" })}
                 disabled={reviewMut.isPending}
@@ -677,10 +661,10 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
             </>
           )}
         </div>
-        <div className="flex items-center gap-space-12 data-val text-body-sm text-text-dim">
-          <span>STATE: {decisionLocked ? "LOCKED" : "PENDING_SIG"}</span>
+        <div className="flex items-center gap-space-12 text-body-sm text-text-dim">
+          <span>{decisionLocked ? "Locked" : "Pending"}</span>
           <span className="text-border-subtle">|</span>
-          <span>REVIEWER: coordinator-01</span>
+          <span>coordinator-01</span>
         </div>
       </aside>
     </div>
