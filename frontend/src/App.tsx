@@ -119,7 +119,7 @@ export default function App() {
 
           {/* Status chips — system-level indicators */}
           <div className="flex items-center gap-space-8 px-space-12 ml-auto">
-            <span className={`w-1.5 h-1.5 ${sim.status === "running" ? "bg-status-safe animate-pulse" : "bg-text-muted"}`} />
+            <span className={`w-2.5 h-2.5 border ${sim.status === "running" ? "border-status-safe bg-status-safe animate-pulse" : "border-text-muted"}`} />
             <span className="text-body-sm text-text-dim">{pipelineStatus}</span>
             <span className="text-border-subtle">|</span>
             <OfflineBadge />
@@ -154,7 +154,9 @@ export default function App() {
             <span className="text-body-md text-text-primary">
               water expansion <span className="data-val">+{expansionPct.toFixed(1)}%</span> detected
             </span>
-            <span className="ml-auto text-body-md text-text-dim">Review pending</span>
+            <span className="ml-auto text-body-sm text-status-elevated border border-status-elevated px-space-8 py-space-2">
+              Review pending →
+            </span>
           </div>
         )}
 
