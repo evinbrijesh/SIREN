@@ -51,8 +51,9 @@ Sentinel-1 SAR / Sentinel-2 Optical / SRTM / GPM IMERG / OSM
 |---|---|
 | Backend | Python 3.11+, FastAPI, Pydantic, SQLite |
 | Geospatial | rasterio, geopandas, shapely, numpy, pysheds |
-| Frontend | React, Vite, TypeScript, MapLibre GL JS, TanStack Query |
-| Storage | SQLite + GeoJSON + GeoTIFF on disk (no PostGIS, no Redis, no Docker) |
+| Frontend | React, Vite, TypeScript, Tailwind CSS, MapLibre GL JS, TanStack Query |
+| Storage | SQLite + GeoJSON + GeoTIFF on disk (no PostGIS, no Redis) |
+| Deployment | Docker Compose (one-command: backend + frontend) |
 
 ---
 
@@ -66,18 +67,18 @@ backend/
     preprocess/   # clip, reproject, co-register, cloud mask, quality gate
     detect/       # NDWI, SAR backscatter, weather-adaptive router, scenario masks
     geo/          # D8 corridor, tolerance buffers, exposure intersections
-    risk/         # hazard H, exposure E, disease D_risk scoring + reasons
+    risk/         # hazard H, exposure E, disease D_risk, SAR priority scoring + reasons
     alerting/     # ≤250-byte payload codec, validator
     audit/        # append-only log writer
     db/           # SQLite schema + repositories
     pipeline.py   # orchestrator: detect→geo→risk→DB→audit
-  tests/          # 80 tests (pytest)
+  tests/          # 104 tests (pytest: 101 active + 3 torch-gated)
 frontend/
   src/
     views/        # MapView, TimelineView, ReviewView, AuditView
     api/          # typed API client + offline mock fallback
     simulation/   # SimulationContext (shared demo state)
-    styles/       # design tokens (CSS custom properties)
+    index.css     # Tailwind base + design tokens
 data/
   raw/            # downloaded scenes (gitignored)
   processed/      # masks, aligned rasters (gitignored, pipeline-written)

@@ -112,6 +112,36 @@ export interface RunList { runs: Run[] }
 export interface ExposureList { exposures: Exposure[] }
 export interface AuditList { entries: AuditEntry[] }
 
+export interface SarSector {
+  sector_id: string;
+  name: string;
+  asset_type: string;
+  population: number;
+  access_loss: number;
+  access_label: "CUT" | "AT_RISK" | "ACCESSIBLE";
+  sar_priority: number;
+  reason: string;
+  assets: string[];
+}
+
+export interface SarPriorityList {
+  sectors: SarSector[];
+  top_priority: SarSector | null;
+  summary: string;
+}
+
+export interface MlEvidence {
+  run_id: string;
+  observation_id: string;
+  ml_source: string;
+  ml_confidence_mean: number;
+  ml_consensus_pixels: number;
+  heatmap_uri: string;
+  mask_uri: string;
+  baseline_mask_uri: string;
+  model_available: boolean;
+}
+
 export interface ApiError {
   error: string;
   detail: string;

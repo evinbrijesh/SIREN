@@ -12,6 +12,8 @@ import type {
   ReviewResponse,
   DispatchResponse,
   AuditList,
+  SarPriorityList,
+  MlEvidence,
   ApiError,
 } from "./types";
 import { mockData } from "./mockData";
@@ -42,6 +44,8 @@ export const api = {
       { method: "POST", body: JSON.stringify({ observation_id: observationId }) },
     ),
   listExposures: (runId: string) => fetchJson<ExposureList>(`/runs/${runId}/exposures`),
+  getSarPriority: (runId: string) => fetchJson<SarPriorityList>(`/runs/${runId}/sar-priority`),
+  getMlEvidence: (runId: string) => fetchJson<MlEvidence>(`/runs/${runId}/ml-evidence`),
   createReview: (runId: string, reviewer: string, decision: "confirm" | "reject" | "postpone", note?: string) =>
     fetchJson<ReviewResponse>(`/runs/${runId}/review`, {
       method: "POST",

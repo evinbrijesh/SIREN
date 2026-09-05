@@ -8,6 +8,8 @@ import type {
   ExposureList,
   AuditList,
   DispatchResponse,
+  SarPriorityList,
+  MlEvidence,
 } from "./types";
 
 const basin: BasinConfig = {
@@ -114,6 +116,68 @@ const dispatch: DispatchResponse = {
   sent_at: "2026-09-04T12:11:00Z",
 };
 
+const sarPriority: SarPriorityList = {
+  sectors: [
+    {
+      sector_id: "village-2",
+      name: "Chhukung",
+      asset_type: "village",
+      population: 1240,
+      access_loss: 0.6,
+      access_label: "AT_RISK",
+      sar_priority: 0.372,
+      reason: "Chhukung (1240 people, buffered) — access at risk, SAR priority 0.37",
+      assets: ["village-2"],
+    },
+    {
+      sector_id: "water-points",
+      name: "Water Points",
+      asset_type: "well",
+      population: 1240,
+      access_loss: 0.6,
+      access_label: "AT_RISK",
+      sar_priority: 0.261,
+      reason: "1 water points (1 inundated) serve ~1240 people; access at risk",
+      assets: ["well-3"],
+    },
+    {
+      sector_id: "access-routes",
+      name: "Access Routes",
+      asset_type: "bridge",
+      population: 1240,
+      access_loss: 0.6,
+      access_label: "AT_RISK",
+      sar_priority: 0.186,
+      reason: "2 access routes (0 cut) affect 1240 people downstream",
+      assets: ["BR-12", "RD-4"],
+    },
+  ],
+  top_priority: {
+    sector_id: "village-2",
+    name: "Chhukung",
+    asset_type: "village",
+    population: 1240,
+    access_loss: 0.6,
+    access_label: "AT_RISK",
+    sar_priority: 0.372,
+    reason: "Chhukung (1240 people, buffered) — access at risk, SAR priority 0.37",
+    assets: ["village-2"],
+  },
+  summary: "3 sector(s) at risk. Top SAR priority: Chhukung (0.37).",
+};
+
+const mlEvidence: MlEvidence = {
+  run_id: "run-0001",
+  observation_id: "obs-003",
+  ml_source: "deterministic_fallback",
+  ml_confidence_mean: 0.78,
+  ml_consensus_pixels: 2150,
+  heatmap_uri: "/data/processed/obs-003_change_heatmap.png",
+  mask_uri: "/data/processed/obs-003_expansion_mask.png",
+  baseline_mask_uri: "/data/processed/baseline_water_mask.png",
+  model_available: false,
+};
+
 export const mockData = {
   basin,
   observations,
@@ -121,4 +185,6 @@ export const mockData = {
   exposures,
   audit,
   dispatch,
+  sarPriority,
+  mlEvidence,
 };

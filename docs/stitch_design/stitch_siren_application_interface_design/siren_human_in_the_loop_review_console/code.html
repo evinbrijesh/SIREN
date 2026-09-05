@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "outline": "#869397", "surface-container-lowest": "#060e20", "tertiary-container": "#ff853c", "on-primary-fixed": "#001f26", "on-secondary-fixed-variant": "#004395", "primary-fixed": "#acedff", "on-primary-container": "#00424f", "outline-variant": "#3d494c", "primary-fixed-dim": "#4cd7f6", "error": "#ffb4ab", "on-secondary-fixed": "#001a42", "tertiary": "#ffb690", "on-secondary-container": "#e6ecff", "on-error": "#690005", "on-background": "#dae2fd", "primary-container": "#06b6d4", "on-tertiary": "#552100", "surface-variant": "#2d3449", "on-secondary": "#002e6a", "surface-tint": "#4cd7f6", "surface-container-low": "#131b2e", "primary": "#4cd7f6", "on-surface": "#dae2fd", "tertiary-fixed": "#ffdbca", "tertiary-fixed-dim": "#ffb690", "secondary-container": "#0566d9", "on-primary-fixed-variant": "#004e5c", "on-primary": "#003640", "background": "#0b1326", "on-surface-variant": "#bcc9cd", "inverse-surface": "#dae2fd", "secondary-fixed-dim": "#adc6ff", "surface": "#0b1326", "surface-container": "#171f33", "surface-dim": "#0b1326", "on-tertiary-container": "#672a00", "secondary-fixed": "#d8e2ff", "on-error-container": "#ffdad6", "secondary": "#adc6ff", "inverse-primary": "#00687a", "error-container": "#93000a", "surface-container-high": "#222a3d", "surface-container-highest": "#2d3449", "on-tertiary-fixed": "#341100", "surface-bright": "#31394d", "on-tertiary-fixed-variant": "#783200", "inverse-on-surface": "#283044" }, "borderRadius": { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" }, "spacing": { "space-sm": "8px", "space-xl": "24px", "space-2xs": "2px", "gutter-console": "8px", "space-lg": "16px", "space-md": "12px", "space-2xl": "32px", "space-xs": "4px", "panel-padding-standard": "16px", "panel-padding-compact": "12px", "grid-unit": "8px" }, "fontFamily": { "code-sm": ["JetBrains Mono"], "body-lg": ["Inter"], "headline-sm": ["Inter"], "label-caps": ["JetBrains Mono"], "code-md": ["JetBrains Mono"], "headline-xl": ["Inter"], "body-sm": ["Inter"], "code-lg": ["JetBrains Mono"], "headline-md": ["Inter"], "headline-lg": ["Inter"], "body-md": ["Inter"] }, "fontSize": { "code-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.02em", "fontWeight": "400" }], "body-lg": ["14px", { "lineHeight": "20px", "letterSpacing": "0em", "fontWeight": "400" }], "headline-sm": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" }], "label-caps": ["10px", { "lineHeight": "12px", "letterSpacing": "0.08em", "fontWeight": "600" }], "code-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0em", "fontWeight": "400" }], "headline-xl": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }], "body-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0em", "fontWeight": "400" }], "code-lg": ["14px", { "lineHeight": "20px", "letterSpacing": "0em", "fontWeight": "500" }], "headline-md": ["18px", { "lineHeight": "24px", "letterSpacing": "0em", "fontWeight": "600" }], "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }], "body-md": ["13px", { "lineHeight": "18px", "letterSpacing": "0em", "fontWeight": "400" }] } } } };</script></head><body class="bg-background font-body-md text-body-md text-on-surface min-h-screen selection:bg-primary selection:text-on-primary"><header class="fixed top-0 left-0 right-0 z-50 flex flex-col bg-surface border-b border-outline-variant"><div class="h-12 w-full px-space-lg flex items-center justify-between border-b border-outline-variant/60 bg-surface-container-lowest"><div class="flex items-center gap-space-md"><img alt="SIREN Radar Logo" class="h-7 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1V8FFz453mRmXcApMVAMBqDQUrYILL12n6z0tdboDrD3jm7FlEIZg60nchXCO6QFiLNUbCVnkF6JvT8DEk8_JrLtmfe7B-M_LLio3CfCwflcRaw9YS6C1vN1VZIhyoW6utwcYGcqJcGnkQvZkf3JBuBQ1NJYQVppKDdFpwo-PWvV5R_yMXoUgriWGpqI8TBKGVb62CkZ_efC6_yhz4xmCWJaAEjjdwMnZgXJ8HYfI_lwetFQ6YsNHAnDvM"/><div class="flex items-baseline gap-space-xs"><span class="font-headline-md text-headline-md font-bold tracking-tight text-primary-container">SIREN</span><span class="font-label-caps text-label-caps uppercase tracking-widest text-outline">RADAR</span></div><div class="h-4 w-[1px] bg-outline-variant mx-space-xs"></div><button class="flex items-center gap-space-xs px-space-sm py-1 bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-on-surface border border-outline-variant rounded font-body-sm text-body-sm transition-colors cursor-pointer" type="button"><span>Dudh Koshi/Imja</span><span class="text-[10px] text-outline">▼</span></button><div class="flex items-center gap-space-xs px-space-sm py-0.5 bg-surface-container-low border border-outline-variant rounded-full"><span class="inline-block w-2 h-2 rounded-full bg-[#22C55E] animate-pulse shadow-[0_0_8px_#22C55E]"></span><span class="font-code-sm text-code-sm uppercase tracking-wider font-semibold text-[#22C55E]">LIVE</span></div></div><nav class="flex items-center h-full gap-space-xs" data-active-classes="bg-surface-container-high text-primary border-b-2 border-primary-container font-semibold"><a class="flex items-center h-12 px-space-md text-on-surface-variant hover:text-on-surface font-body-md text-body-md transition-all border-b-2 border-transparent" data-path="map-view" href="#"><span>Map</span><span class="ml-1.5 font-code-sm text-code-sm text-outline">1</span></a><a class="flex items-center h-12 px-space-md text-on-surface-variant hover:text-on-surface font-body-md text-body-md transition-all border-b-2 border-transparent" data-path="timeline-view" href="#"><span>Timeline</span><span class="ml-1.5 font-code-sm text-code-sm text-outline">2</span></a><a aria-current="page" class="flex items-center h-12 px-space-md transition-all relative bg-surface-container-high text-primary border-b-2 border-primary-container font-semibold" data-path="review-view" href="#"><span>Review</span><span class="ml-1.5 font-code-sm text-code-sm text-outline">3</span><span class="ml-1.5 w-1.5 h-1.5 rounded-full bg-tertiary-container"></span></a><a class="flex items-center h-12 px-space-md text-on-surface-variant hover:text-on-surface font-body-md text-body-md transition-all border-b-2 border-transparent" data-path="audit-view" href="#"><span>Audit</span><span class="ml-1.5 font-code-sm text-code-sm text-outline">4</span></a></nav><div class="flex items-center gap-space-md"><div class="flex items-center gap-space-xs px-2.5 py-0.5 bg-surface-container-low border border-tertiary-container/60 rounded-full"><span class="w-1.5 h-1.5 rounded-full bg-tertiary-container"></span><span class="font-code-sm text-code-sm text-tertiary uppercase font-medium">OFFLINE — ALL SYSTEMS LOCAL</span></div><button class="flex items-center gap-space-xs px-space-sm py-1 bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-on-surface font-code-sm text-code-sm border border-outline-variant rounded transition-colors cursor-pointer" type="button">RESET ⟲</button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div><div class="h-10 w-full px-space-lg flex items-center justify-between border-l-4 border-tertiary-container bg-surface-container-low/90 backdrop-blur-sm"><div class="flex items-center gap-space-md"><div class="flex items-center gap-space-xs px-2 py-0.5 rounded bg-tertiary-container/20 border border-tertiary-container"><span class="material-symbols-outlined text-[15px] text-tertiary">warning</span><span class="font-label-caps text-label-caps tracking-wider uppercase font-bold text-tertiary">ELEVATED HAZARD</span></div><span class="font-body-md text-body-md text-on-surface">+14.3% water expansion detected in Imja Proglacial Sector A-2</span></div><a class="flex items-center gap-space-xs font-code-sm text-code-sm text-primary hover:text-primary-fixed underline transition-colors" data-path="review-view" href="#">Immediate Review Required →</a></div></header><main class="w-full pt-[88px] pb-7 bg-background min-h-screen"><div class="flex flex-col w-full px-space-lg py-space-md gap-space-md">
+<!-- VIEW HEADER -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-space-sm bg-surface-container px-space-lg py-space-md rounded-lg shadow-md">
+<div class="flex flex-col gap-space-2xs">
+<div class="flex items-center gap-space-sm">
+<span class="font-headline-lg text-headline-lg text-on-surface">Review — Run <span class="font-code-lg text-code-lg text-primary">run-0004</span></span>
+<span class="font-label-caps text-label-caps uppercase px-2 py-0.5 rounded bg-tertiary-container/20 text-tertiary">GATE 04</span>
+</div>
+<div class="flex flex-wrap items-center gap-x-space-md gap-y-space-xs font-code-sm text-code-sm text-on-surface-variant">
+<span>Basin: <strong class="text-on-surface">Dudh Koshi / Imja</strong></span>
+<span>·</span>
+<span>Trigger: <strong class="text-tertiary">+14.3% water expansion</strong></span>
+<span>·</span>
+<span class="inline-flex items-center gap-1 text-tertiary font-bold"><span class="w-1.5 h-1.5 rounded-full bg-tertiary-container animate-ping"></span>STATUS: PENDING HUMAN CONFIRMATION</span>
+</div>
+</div>
+<div class="flex items-center gap-space-xs font-code-sm text-code-sm">
+<span class="px-2.5 py-1 rounded bg-surface-container-low text-outline font-medium">SESSION: 0x9AF8-D4</span>
+<span class="px-2.5 py-1 rounded bg-primary-container/20 text-primary-fixed-dim font-medium">MODE: ENFORCE_HITL</span>
+</div>
+</div>
+<!-- THREE-COLUMN CONTENT GRID -->
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-space-md items-start">
+<!-- A. EVIDENCE PANEL (Left, 4.5 cols ~38%) -->
+<section class="xl:col-span-5 bg-surface-container p-space-md rounded-lg flex flex-col gap-space-md shadow-sm">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-primary text-[18px]">satellite_alt</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Evidence — Before / After Satellite Rasters</h2>
+</div>
+<span class="font-code-sm text-code-sm text-outline">ORBIT R-102</span>
+</div>
+<!-- Side-by-side raster preview boxes -->
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-space-sm">
+<!-- Box 1: BEFORE baseline -->
+<div class="relative h-40 rounded-lg overflow-hidden bg-gradient-to-br from-surface-container-highest to-surface-container-lowest p-space-sm flex flex-col justify-between group">
+<div class="absolute inset-0 opacity-40 mix-blend-screen pointer-events-none">
+<svg class="w-full h-full text-secondary" fill="none" preserveaspectratio="none" viewbox="0 0 200 160">
+<path d="M0,130 Q40,110 80,125 T160,115 T200,90 L200,160 L0,160 Z" fill="currentColor" fill-opacity="0.2"></path>
+<path d="M40,90 Q90,70 130,95 Q170,120 120,135 Q70,140 40,90 Z" fill="#0566d9" fill-opacity="0.45"></path>
+<circle cx="95" cy="105" fill="#06b6d4" fill-opacity="0.35" r="28"></circle>
+<circle cx="95" cy="105" fill="#4cd7f6" fill-opacity="0.5" r="14"></circle>
+</svg>
+</div>
+<div class="relative z-10 flex items-center justify-between">
+<span class="font-label-caps text-label-caps px-1.5 py-0.5 rounded bg-surface-container-lowest/80 text-on-surface-variant font-mono">T-72H BASELINE</span>
+<span class="font-code-sm text-code-sm text-outline">2024-10-18</span>
+</div>
+<div class="relative z-10 bg-surface-container-lowest/90 backdrop-blur-sm p-1.5 rounded flex items-center justify-between">
+<span class="font-code-sm text-code-sm text-on-surface font-medium">BASELINE WATER</span>
+<span class="font-code-sm text-code-sm text-secondary-fixed font-bold">3.0 km²</span>
+</div>
+</div>
+<!-- Box 2: AFTER surge -->
+<div class="relative h-40 rounded-lg overflow-hidden bg-gradient-to-br from-surface-container-highest via-surface-container to-surface-container-lowest p-space-sm flex flex-col justify-between">
+<div class="absolute inset-0 opacity-60 mix-blend-screen pointer-events-none">
+<svg class="w-full h-full" fill="none" preserveaspectratio="none" viewbox="0 0 200 160">
+<path d="M0,130 Q40,110 80,125 T160,115 T200,90 L200,160 L0,160 Z" fill="#0566d9" fill-opacity="0.3"></path>
+<!-- expanded perimeter -->
+<path d="M30,78 Q90,52 145,85 Q185,115 130,148 Q60,152 30,78 Z" fill="#ff853c" fill-opacity="0.25"></path>
+<circle cx="102" cy="108" fill="#06b6d4" fill-opacity="0.65" r="42"></circle>
+<circle cx="102" cy="108" fill="#4cd7f6" fill-opacity="0.9" r="22"></circle>
+<path d="M135,115 L170,135" stroke="#ff853c" stroke-dasharray="3 3" stroke-width="2"></path>
+<circle cx="170" cy="135" fill="#ff853c" r="3"></circle>
+</svg>
+</div>
+<div class="relative z-10 flex items-center justify-between">
+<span class="font-label-caps text-label-caps px-1.5 py-0.5 rounded bg-tertiary-container/30 text-tertiary-fixed font-bold">T-0H CURRENT</span>
+<span class="font-code-sm text-code-sm text-tertiary font-bold">2024-10-21</span>
+</div>
+<div class="relative z-10 bg-surface-container-lowest/90 backdrop-blur-sm p-1.5 rounded flex items-center justify-between">
+<span class="font-code-sm text-code-sm text-tertiary-fixed font-bold">SURGE DELTA</span>
+<span class="font-code-sm text-code-sm text-tertiary font-bold tracking-tight">+14.3% (3.4 km²)</span>
+</div>
+</div>
+</div>
+<!-- Change mask raster path -->
+<div class="flex flex-col gap-space-xs">
+<span class="font-label-caps text-label-caps text-outline uppercase tracking-wider">Raster Artifact Path</span>
+<div class="flex items-center justify-between bg-surface-container-lowest px-space-sm py-2 rounded">
+<span class="font-code-sm text-code-sm text-on-surface-variant truncate mr-2" id="raster-path">data/processed/obs-003_expansion_mask.tif</span>
+<button class="text-primary hover:text-primary-fixed p-1 rounded hover:bg-surface-container transition-colors" onclick="navigator.clipboard?.writeText(document.getElementById('raster-path').innerText)" title="Copy Path" type="button">
+<span class="material-symbols-outlined text-[16px]">content_copy</span>
+</button>
+</div>
+</div>
+<!-- Geospatial sensor metadata -->
+<div class="bg-surface-container-low p-space-sm rounded flex flex-col gap-space-2xs text-on-surface-variant">
+<div class="flex items-center gap-space-xs font-code-sm text-code-sm">
+<span class="material-symbols-outlined text-primary text-[15px]">radar</span>
+<span class="font-bold text-on-surface">Sentinel-2 MSI Level-2A</span>
+</div>
+<div class="font-body-sm text-body-sm text-outline">
+          Band combination 8-4-3 (False Color Water Index) · Spatial Resolution: 10m Ground Sampling · Sun Elevation: 48.2°
+        </div>
+</div>
+<!-- Bathymetry Inundation Cut -->
+<div class="bg-surface-container-low p-space-sm rounded flex flex-col gap-space-xs">
+<div class="flex justify-between items-center font-label-caps text-label-caps text-outline uppercase">
+<span>Lake Profile Elevation</span>
+<span class="text-on-surface font-code-sm text-code-sm">5,010m MSL</span>
+</div>
+<div class="w-full bg-surface-container-lowest h-2 rounded overflow-hidden">
+<div class="bg-primary-container h-full w-[74%]"></div>
+</div>
+<div class="flex justify-between font-code-sm text-code-sm text-outline">
+<span>Freeboard: 4.8m (-1.2m surge drop)</span>
+<span class="text-tertiary">Moraine Integrity: 81%</span>
+</div>
+</div>
+</section>
+<!-- B. RISK GAUGE + EVIDENCE REASONS PANEL (Center, 4.5 cols) -->
+<section class="xl:col-span-4 bg-surface-container p-space-md rounded-lg flex flex-col gap-space-md shadow-sm">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-primary text-[18px]">speed</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Risk Formulation Gauges</h2>
+</div>
+<span class="font-label-caps text-label-caps uppercase px-2.5 py-1 rounded bg-tertiary-container/20 text-tertiary font-bold tracking-wider inline-flex items-center gap-1">
+<span class="material-symbols-outlined text-[13px]">warning</span>ELEVATED SEVERITY
+        </span>
+</div>
+<!-- 4 Gauge Metric Rows -->
+<div class="grid grid-cols-2 gap-space-sm">
+<!-- H (Hazard Score) -->
+<div class="bg-surface-container-low p-space-sm rounded flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<span class="font-headline-sm text-headline-sm text-error font-bold font-code-md">H</span>
+<span class="font-label-caps text-label-caps uppercase text-outline">Hazard</span>
+</div>
+<div class="font-code-lg text-headline-lg font-bold text-error my-1">0.62</div>
+<div class="w-full bg-surface-container-lowest h-2 rounded overflow-hidden">
+<div class="bg-error h-full w-[62%]"></div>
+</div>
+</div>
+<!-- E (Exposure Score) -->
+<div class="bg-surface-container-low p-space-sm rounded flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<span class="font-headline-sm text-headline-sm text-tertiary font-bold font-code-md">E</span>
+<span class="font-label-caps text-label-caps uppercase text-outline">Exposure</span>
+</div>
+<div class="font-code-lg text-headline-lg font-bold text-tertiary my-1">0.48</div>
+<div class="w-full bg-surface-container-lowest h-2 rounded overflow-hidden">
+<div class="bg-tertiary-container h-full w-[48%]"></div>
+</div>
+</div>
+<!-- D (Drainage / Deficit Score) -->
+<div class="bg-surface-container-low p-space-sm rounded flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<span class="font-headline-sm text-headline-sm text-secondary font-bold font-code-md">D</span>
+<span class="font-label-caps text-label-caps uppercase text-outline">Drainage</span>
+</div>
+<div class="font-code-lg text-headline-lg font-bold text-secondary my-1">0.31</div>
+<div class="w-full bg-surface-container-lowest h-2 rounded overflow-hidden">
+<div class="bg-secondary-container h-full w-[31%]"></div>
+</div>
+</div>
+<!-- conf (Confidence) -->
+<div class="bg-surface-container-low p-space-sm rounded flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<span class="font-headline-sm text-headline-sm text-primary font-bold font-code-md">conf</span>
+<span class="font-label-caps text-label-caps uppercase text-outline">Confidence</span>
+</div>
+<div class="font-code-lg text-headline-lg font-bold text-primary my-1">0.76</div>
+<div class="w-full bg-surface-container-lowest h-2 rounded overflow-hidden">
+<div class="bg-primary-container h-full w-[76%]"></div>
+</div>
+</div>
+</div>
+<div class="h-[1px] bg-surface-container-highest w-full my-space-2xs"></div>
+<!-- Evidence Reasons (8 Contributing Factors) -->
+<div class="flex flex-col gap-space-xs">
+<div class="flex items-center justify-between mb-1">
+<h3 class="font-headline-sm text-body-lg font-semibold text-on-surface">Evidence Reasons</h3>
+<span class="font-code-sm text-code-sm text-outline">8 Contributing Factors</span>
+</div>
+<div class="flex flex-col gap-1.5 max-h-[360px] overflow-y-auto pr-1">
+<div class="bg-surface-container-low hover:bg-surface-container-high transition-colors p-2 rounded flex items-start gap-space-sm">
+<span class="font-code-sm text-code-sm font-bold text-primary shrink-0 pt-0.5">01</span>
+<span class="font-code-sm text-code-sm text-on-surface-variant">temporal trend <span class="text-tertiary font-semibold">'rapidly'</span> contributes 0.3*0.90 to H</span>
+</div>
+<div class="bg-surface-container-low hover:bg-surface-container-high transition-colors p-2 rounded flex items-start gap-space-sm">
+<span class="font-code-sm text-code-sm font-bold text-primary shrink-0 pt-0.5">02</span>
+<span class="font-code-sm text-code-sm text-on-surface-variant">water-area expansion <span class="text-tertiary font-semibold">+14.3%</span> contributes 0.25*0.48 to H</span>
+</div>
+<div class="bg-surface-container-low hover:bg-surface-container-high transition-colors p-2 rounded flex items-start gap-space-sm">
+<span class="font-code-sm text-code-sm font-bold text-primary shrink-0 pt-0.5">03</span>
+<span class="font-code-sm text-code-sm text-on-surface-variant">rainfall 24h 0.0mm / 7d 0.0mm contributes 0.2*0.00 to H</span>
+</div>
+<div class="bg-surface-container-low hover:bg-surface-container-high transition-colors p-2 rounded flex items-start gap-space-sm">
+<span class="font-code-sm text-code-sm font-bold text-primary shrink-0 pt-0.5">04</span>
+<span class="font-code-sm text-code-sm text-on-surface-variant">terrain slope <span class="text-on-surface font-medium">31.0°</span> contributes 0.15*0.69 to H</span>
+</div>
+<div class="bg-surface-container-low hover:bg-surface-container-high transition-colors p-2 rounded flex items-start gap-space-sm">
+<span class="font-code-sm text-code-sm font-bold text-primary shrink-0 pt-0.5">05</span>
+<span class="font-code-sm text-code-sm text-on-surface-variant">downstream proximity on drainage contributes 0.1*1.00 to H</span>
+</div>
+<div class="bg-surface-container-low hover:bg-surface-container-high transition-colors p-2 rounded flex items-start gap-space-sm">
+<span class="font-code-sm text-code-sm font-bold text-primary shrink-0 pt-0.5">06</span>
+<span class="font-code-sm text-code-sm text-on-surface-variant">hazard <span class="text-error font-medium">H=0.59</span> scales exposure directly</span>
+</div>
+<div class="bg-surface-container-low hover:bg-surface-container-high transition-colors p-2 rounded flex items-start gap-space-sm">
+<span class="font-code-sm text-code-sm font-bold text-primary shrink-0 pt-0.5">07</span>
+<span class="font-code-sm text-code-sm text-on-surface-variant">exposed population <span class="text-secondary-fixed font-bold">1240</span> → vulnerability factor 0.62</span>
+</div>
+<div class="bg-surface-container-low hover:bg-surface-container-high transition-colors p-2 rounded flex items-start gap-space-sm">
+<span class="font-code-sm text-code-sm font-bold text-primary shrink-0 pt-0.5">08</span>
+<span class="font-code-sm text-code-sm text-on-surface-variant"><span class="text-error font-bold">1 inundated/encircled</span> water points → factor 0.20</span>
+</div>
+</div>
+</div>
+</section>
+<!-- C. RIGHT DOCK (3 cols ~320px) -->
+<aside class="xl:col-span-3 flex flex-col gap-space-md">
+<!-- Disease Prevention Action Sheet Card -->
+<div class="bg-surface-container p-space-md rounded-lg flex flex-col gap-space-sm shadow-sm">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-tertiary text-[18px]">medical_services</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Disease Prevention Actions</h2>
+</div>
+<span class="font-label-caps text-label-caps px-1.5 py-0.5 rounded bg-error-container/30 text-error">WASH PRIORITY</span>
+</div>
+<!-- Submerged Well block -->
+<div class="bg-error-container/20 p-2.5 rounded flex flex-col gap-1">
+<div class="flex items-center justify-between">
+<span class="font-headline-sm text-body-md font-bold text-error flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">water_damage</span>Well 3: submerged
+            </span>
+<span class="font-label-caps text-label-caps uppercase text-error">Direct Impact</span>
+</div>
+<div class="font-body-sm text-body-sm text-on-surface-variant pl-4">● chlorine ×200 tablets</div>
+<div class="font-body-sm text-body-sm font-bold text-error pl-4">● BOIL WATER NOW notice</div>
+</div>
+<!-- Encircled Well block -->
+<div class="bg-tertiary-container/20 p-2.5 rounded flex flex-col gap-1">
+<div class="flex items-center justify-between">
+<span class="font-headline-sm text-body-md font-bold text-tertiary flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">chevron_left</span>Well 7: encircled
+            </span>
+<span class="font-label-caps text-label-caps uppercase text-tertiary">Peripheral</span>
+</div>
+<div class="font-body-sm text-body-sm text-on-surface-variant pl-4">● monitor for contamination</div>
+</div>
+<!-- General Health Action items -->
+<div class="bg-surface-container-low p-2.5 rounded flex flex-col gap-1.5 text-on-surface-variant">
+<div class="font-body-sm text-body-sm text-secondary font-medium flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">schedule</span>
+<span>● 7-day diarrheal disease surveillance window</span>
+</div>
+<div class="font-body-sm text-body-sm text-primary font-medium flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">local_drink</span>
+<span>● Safe water sources: alternate supply for 1,240 people</span>
+</div>
+</div>
+</div>
+<!-- Exposed Assets Table Card -->
+<div class="bg-surface-container p-space-md rounded-lg flex flex-col gap-space-sm shadow-sm">
+<div class="flex items-center justify-between">
+<h2 class="font-headline-sm text-body-lg font-semibold text-on-surface">Exposed Assets</h2>
+<span class="font-label-caps text-label-caps text-outline uppercase">Ranked by Dist</span>
+</div>
+<div class="flex flex-col gap-1">
+<!-- Row 1 -->
+<div class="group flex items-center justify-between p-2 rounded bg-surface-container-low hover:bg-surface-container-high transition-colors cursor-pointer">
+<div class="flex items-center gap-2">
+<span class="font-code-sm text-code-sm text-outline">#1</span>
+<div class="flex flex-col">
+<span class="font-headline-sm text-body-md text-on-surface font-semibold group-hover:text-primary transition-colors">Well 3</span>
+<span class="font-code-sm text-code-sm text-outline">type: well</span>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="font-code-sm text-code-sm text-on-surface font-mono">90m</span>
+<span class="font-label-caps text-label-caps px-2 py-0.5 rounded bg-error-container/30 text-error font-bold">INUNDATED</span>
+</div>
+</div>
+<!-- Row 2 -->
+<div class="group flex items-center justify-between p-2 rounded bg-surface-container-low hover:bg-surface-container-high transition-colors cursor-pointer">
+<div class="flex items-center gap-2">
+<span class="font-code-sm text-code-sm text-outline">#2</span>
+<div class="flex flex-col">
+<span class="font-headline-sm text-body-md text-on-surface font-semibold group-hover:text-primary transition-colors">Hillary Bridge</span>
+<span class="font-code-sm text-code-sm text-outline">type: bridge</span>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="font-code-sm text-code-sm text-on-surface font-mono">60m</span>
+<span class="font-label-caps text-label-caps px-2 py-0.5 rounded bg-tertiary-container/20 text-tertiary font-bold">BUFFERED</span>
+</div>
+</div>
+<!-- Row 3 -->
+<div class="group flex items-center justify-between p-2 rounded bg-surface-container-low hover:bg-surface-container-high transition-colors cursor-pointer">
+<div class="flex items-center gap-2">
+<span class="font-code-sm text-code-sm text-outline">#3</span>
+<div class="flex flex-col">
+<span class="font-headline-sm text-body-md text-on-surface font-semibold group-hover:text-primary transition-colors">Road 4</span>
+<span class="font-code-sm text-code-sm text-outline">type: road</span>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="font-code-sm text-code-sm text-on-surface font-mono">40m</span>
+<span class="font-label-caps text-label-caps px-2 py-0.5 rounded bg-tertiary-container/20 text-tertiary font-bold">BUFFERED</span>
+</div>
+</div>
+<!-- Row 4 -->
+<div class="group flex items-center justify-between p-2 rounded bg-surface-container-low hover:bg-surface-container-high transition-colors cursor-pointer">
+<div class="flex items-center gap-2">
+<span class="font-code-sm text-code-sm text-outline">#4</span>
+<div class="flex flex-col">
+<span class="font-headline-sm text-body-md text-on-surface font-semibold group-hover:text-primary transition-colors">Chhukung</span>
+<span class="font-code-sm text-code-sm text-outline">type: village</span>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="font-code-sm text-code-sm text-on-surface font-mono">210m</span>
+<span class="font-label-caps text-label-caps px-2 py-0.5 rounded bg-tertiary-container/20 text-tertiary font-bold">BUFFERED</span>
+</div>
+</div>
+</div>
+</div>
+</aside>
+</div>
+<!-- DECISION BAR (Sticky bottom full-width bar) -->
+<div class="sticky bottom-7 z-30 w-full bg-surface-container-low/95 backdrop-blur-md rounded-lg px-space-lg py-space-sm flex flex-col md:flex-row items-center justify-between gap-space-sm shadow-2xl">
+<!-- Left decision action group -->
+<div class="flex items-center gap-space-sm">
+<button class="bg-primary hover:bg-primary-fixed text-on-primary font-headline-sm text-body-lg font-bold px-4 py-2 rounded shadow-md transition-all flex items-center gap-1.5 cursor-pointer active:scale-95" id="btn-confirm-sos" type="button">
+<span class="material-symbols-outlined text-[18px]">check_circle</span>
+<span>Confirm SOS</span>
+</button>
+<button class="bg-error-container hover:bg-error text-on-error-container hover:text-on-error font-headline-sm text-body-lg font-bold px-4 py-2 rounded transition-all flex items-center gap-1.5 cursor-pointer active:scale-95" id="btn-reject" type="button">
+<span class="material-symbols-outlined text-[18px]">cancel</span>
+<span>Reject</span>
+</button>
+<button class="bg-surface-container-highest hover:bg-surface-bright text-tertiary font-headline-sm text-body-lg font-bold px-4 py-2 rounded transition-all flex items-center gap-1.5 cursor-pointer active:scale-95" id="btn-postpone" type="button">
+<span class="material-symbols-outlined text-[18px]">pause_circle</span>
+<span>Postpone</span>
+</button>
+</div>
+<!-- Center prompt -->
+<div class="flex items-center gap-2 font-code-sm text-code-sm text-tertiary bg-surface-container px-3 py-1.5 rounded text-center">
+<span class="material-symbols-outlined text-[16px] animate-pulse">lock</span>
+<span>Human-in-the-loop gate active — Alert dispatch blocked until coordinator confirms</span>
+</div>
+<!-- Right metadata -->
+<div class="flex items-center gap-2 font-code-sm text-code-sm text-outline">
+<span class="w-2 h-2 rounded-full bg-primary-container"></span>
+<span>reviewer: <strong class="text-on-surface">coordinator-01</strong> (authenticated: CAC/PIV)</span>
+</div>
+</div>
+</div>
+<script>
+  (function() {
+    const confirmBtn = document.getElementById('btn-confirm-sos');
+    const rejectBtn = document.getElementById('btn-reject');
+    const postponeBtn = document.getElementById('btn-postpone');
+
+    if (confirmBtn) {
+      confirmBtn.addEventListener('click', function() {
+        const confirmed = window.confirm("ACTION REQUIRED: Confirming SOS will immediately issue decentralized alerts to 1,240 downstream residents and dispatch WASH emergency response kits. Proceed?");
+        if (confirmed) {
+          confirmBtn.innerHTML = '<span class="material-symbols-outlined text-[18px] animate-spin">refresh</span> SOS DISPATCHED';
+          confirmBtn.classList.remove('bg-primary');
+          confirmBtn.classList.add('bg-secondary-container', 'pointer-events-none');
+        }
+      });
+    }
+
+    if (rejectBtn) {
+      rejectBtn.addEventListener('click', function() {
+        const reason = window.prompt("Please log the rejection rationale for telemetry audit:");
+        if (reason) {
+          rejectBtn.innerText = 'REJECTED (LOGGED)';
+          rejectBtn.classList.add('opacity-60', 'pointer-events-none');
+        }
+      });
+    }
+
+    if (postponeBtn) {
+      postponeBtn.addEventListener('click', function() {
+        postponeBtn.innerText = 'POSTPONED (+15M)';
+        postponeBtn.classList.add('opacity-75');
+      });
+    }
+  })();
+</script></main><footer class="fixed bottom-0 left-0 right-0 h-7 bg-surface-container-lowest border-t border-outline-variant/60 flex items-center justify-between px-space-lg z-40 text-outline"><div class="flex items-center gap-space-xs"><span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span><span class="font-code-sm text-code-sm text-on-surface-variant">GLOF EARLY WARNING NODE 04 [OPERATIONAL]</span></div><div class="font-code-sm text-code-sm text-outline">Sentinel-2 · Sentinel-1 · SRTM · Open-Meteo · © OSM · pipeline v0.1.0</div><div class="flex items-center gap-space-md font-code-sm text-code-sm text-outline"><span>UTC 10:42:19</span><span>SYS_LATENCY: 12ms</span></div></footer></body></html>
