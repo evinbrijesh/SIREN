@@ -84,7 +84,9 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
+  const swipeContainerRef = useRef<HTMLDivElement>(null);
   const [swipePct, setSwipePct] = useState(50);
+  const [isDragging, setIsDragging] = useState(false);
   const [opacity, setOpacity] = useState(100);
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
@@ -296,15 +298,42 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
     setLayers((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const handleSwipe = (e: React.MouseEvent | React.TouchEvent) => {
-    const container = e.currentTarget as HTMLElement;
+  const updateSwipeFromEvent = (clientX: number) => {
+    const container = swipeContainerRef.current;
+    if (!container) return;
     const rect = container.getBoundingClientRect();
-    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
-    setSwipePct(Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100)));
+    const pct = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
+    setSwipePct(pct);
   };
 
-  const beforeImg = mlEvidence.baseline_mask_uri;
-  const afterImg = mlEvidence.heatmap_uri || mlEvidence.mask_uri;
+  const startDrag = (e: React.MouseEvent | React.TouchEvent) => {
+    setIsDragging(true);
+    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+    updateSwipeFromEvent(clientX);
+    e.preventDefault();
+  };
+
+  useEffect(() => {
+    if (!isDragging) return;
+    const onMove = (e: MouseEvent | TouchEvent) => {
+      const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+      updateSwipeFromEvent(clientX);
+    };
+    const onUp = () => setIsDragging(false);
+    window.addEventListener("mousemove", onMove as EventListener);
+    window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchmove", onMove as EventListener, { passive: true });
+    window.addEventListener("touchend", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove as EventListener);
+      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("touchmove", onMove as EventListener);
+      window.removeEventListener("touchend", onUp);
+    };
+  }, [isDragging]);
+
+  const beforeImg = mlEvidence.preview_baseline_uri || mlEvidence.baseline_mask_uri;
+  const afterImg = mlEvidence.preview_after_uri || mlEvidence.heatmap_uri || mlEvidence.mask_uri;
 
   const selectedAsset = exposures.find((e) => e.asset_id === sim.selectedAssetId);
 
@@ -372,29 +401,30 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
             <span className="text-caption text-text-dim">Drag vertical divider to compare expansion limits</span>
           </div>
           <div
-            className="relative w-full h-[140px] rounded bg-surface-recessed overflow-hidden select-none cursor-ew-resize border border-border-subtle"
-            onMouseMove={handleSwipe}
-            onTouchMove={handleSwipe}
+            ref={swipeContainerRef}
+            className="relative w-full h-[160px] rounded bg-surface-recessed overflow-hidden select-none cursor-ew-resize border border-border-subtle"
+            onMouseDown={startDrag}
+            onTouchStart={startDrag}
           >
-            {/* After image */}
+            {/* After image (full, visible where not clipped) */}
             <div className="absolute inset-0 bg-surface-canvas flex items-center justify-center">
               {afterImg ? (
-                <img src={afterImg} alt="after" className="h-full w-full object-contain" />
+                <img src={afterImg} alt="after" className="h-full w-full object-cover" />
               ) : (
                 <span className="text-body-sm text-text-dim">After — no image</span>
               )}
             </div>
-            {/* Before image, clipped */}
+            {/* Before image, clipped to swipe width; image is same rendered size as after */}
             <div
-              className="absolute inset-y-0 left-0 bg-surface-canvas overflow-hidden border-r-0 flex items-center justify-center"
+              className="absolute inset-y-0 left-0 bg-surface-canvas overflow-hidden flex items-center justify-center"
               style={{ width: `${swipePct}%` }}
             >
               {beforeImg ? (
                 <img
                   src={beforeImg}
                   alt="before"
-                  className="h-full max-w-none object-contain"
-                  style={{ width: `${100 / (swipePct / 100 || 1)}%` }}
+                  className="h-full w-full object-cover"
+                  style={{ minWidth: `${100 / (swipePct / 100 || 1)}%` }}
                 />
               ) : (
                 <span className="text-body-sm text-text-dim shrink-0">Before — no image</span>
@@ -407,11 +437,11 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
               After — {afterArea.toFixed(1)} km² (+{expansionPct.toFixed(1)}%)
             </div>
             <div
-              className="absolute top-0 bottom-0 z-30 pointer-events-none flex items-center justify-center -ml-[1px]"
+              className="absolute top-0 bottom-0 z-30 pointer-events-none flex items-center justify-center -ml-[2px]"
               style={{ left: `${swipePct}%` }}
             >
-              <div className="w-[2px] h-full bg-primary-container" />
-              <div className="absolute w-5 h-5 rounded-full bg-surface-panel flex items-center justify-center border-[1.5px] border-primary-container shadow-md">
+              <div className="w-[3px] h-full bg-primary-container" />
+              <div className="absolute w-6 h-6 rounded-full bg-surface-panel flex items-center justify-center border-2 border-primary-container shadow-md">
                 <span className="text-[10px] text-primary-container font-bold leading-none select-none">‹›</span>
               </div>
             </div>

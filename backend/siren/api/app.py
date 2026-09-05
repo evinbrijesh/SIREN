@@ -184,6 +184,8 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
         mask_uri = f"/data/processed/{obs_id}_expansion_mask.png"
         heatmap_uri = stats.get("heatmap_uri", f"/data/processed/{obs_id}_change_heatmap.png")
         baseline_uri = "/data/processed/baseline_water_mask.png"
+        preview_baseline_uri = f"/data/processed/{obs_id}_baseline.png"
+        preview_after_uri = heatmap_uri
         return {
             "run_id": run_id,
             "observation_id": obs_id,
@@ -196,6 +198,8 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
             "mask_bounds": _image_bounds(mask_uri),
             "baseline_mask_uri": baseline_uri,
             "baseline_mask_bounds": _image_bounds(baseline_uri),
+            "preview_baseline_uri": preview_baseline_uri,
+            "preview_after_uri": preview_after_uri,
             "model_available": stats.get("ml_source", "deterministic_fallback") != "deterministic_fallback",
             "change_polygon": stats.get("change_polygon"),
         }

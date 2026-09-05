@@ -15,7 +15,7 @@ const STORAGE_KEY = "siren-theme";
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<ThemeName>(() => {
     const stored = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
-    return (stored as ThemeName) || "ops-dark";
+    return (stored as ThemeName) || "satellite";
   });
 
   const setTheme = (next: ThemeName) => {

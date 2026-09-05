@@ -146,6 +146,8 @@ export interface MlEvidence {
   mask_bounds: number[][] | null;
   baseline_mask_uri: string;
   baseline_mask_bounds: number[][] | null;
+  preview_baseline_uri: string;
+  preview_after_uri: string;
   model_available: boolean;
   change_polygon: GeoJSONFeature | null;
 }
