@@ -186,12 +186,12 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
     if (!sim.selectedAssetId || !mapRef.current) return;
     const selected = exposures.find((asset) => asset.asset_id === sim.selectedAssetId);
     const coordinates = selected ? assetCoordinates(selected) : null;
-    if (coordinates) mapRef.current.flyTo({ center: coordinates, zoom: 14, duration: 900 });
+    if (coordinates) mapRef.current.flyTo({ center: coordinates, zoom: 14, duration: 100 });
   }, [sim.selectedAssetId, exposures]);
 
   const flyToAsset = (asset: Exposure) => {
     const coordinates = assetCoordinates(asset);
-    if (coordinates) mapRef.current?.flyTo({ center: coordinates, zoom: 14, duration: 900 });
+    if (coordinates) mapRef.current?.flyTo({ center: coordinates, zoom: 14, duration: 100 });
   };
 
   const updateCompare = (clientX: number) => {
@@ -225,12 +225,12 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
       <aside className={`${leftOpen ? "w-dock-left-width" : "w-8"} flex-none bg-surface-panel border-r border-border-subtle flex flex-col justify-between transition-all`}>
         {leftOpen ? <>
           <div className="p-space-12">
-            <div className="flex items-center justify-between mb-space-8"><h2 className="label-caps">Layers · 7</h2><button onClick={() => setLeftOpen(false)}>[&lt;]</button></div>
+            <div className="flex items-center justify-between mb-space-8"><h2 className="label-caps">Layers</h2><button onClick={() => setLeftOpen(false)} className="text-text-dim hover:text-text-primary">Close</button></div>
             <div className="space-y-space-2">
               {LAYER_LABELS.map(({ key, label }) => <label key={key} className="flex items-center gap-space-8 px-space-4 py-space-2 hover:bg-surface-container cursor-pointer">
                 <input type="checkbox" checked={layers[key]} onChange={() => setLayers((previous) => ({ ...previous, [key]: !previous[key] }))} className="w-3 h-3 accent-primary-container" />
                 <span className="text-body-md">{label}</span>
-                {key === "sar" && routedSar && <span className="ml-auto data-val text-caption text-status-warn">AUTO</span>}
+                {key === "sar" && routedSar && <span className="ml-auto text-caption text-status-warn">auto</span>}
               </label>)}
             </div>
           </div>
@@ -238,15 +238,14 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
             <div className="flex justify-between mb-space-4"><span className="label-caps">Overlay opacity</span><span className="data-val text-body-sm">{overlayOpacity}%</span></div>
             <input aria-label="Overlay opacity" type="range" min="0" max="100" value={overlayOpacity} onChange={(event) => setOverlayOpacity(Number(event.target.value))} className="w-full h-1 accent-primary-container" />
           </div>
-        </> : <button onClick={() => setLeftOpen(true)} className="py-space-8">[&gt;]</button>}
+        </> : <button onClick={() => setLeftOpen(true)} className="py-space-8 text-text-dim hover:text-text-primary text-body-sm">Layers</button>}
       </aside>
 
       <div className="relative flex-1 min-w-0 bg-surface-recessed overflow-hidden">
         <div ref={mapContainer} className="absolute inset-0" />
-        <div className="absolute top-space-8 left-space-8 z-10 px-space-8 py-space-4 bg-surface-panel border border-border-subtle data-val text-body-sm">{STEP_LABELS[sim.step]}</div>
+        <div className="absolute top-space-8 left-space-8 z-10 px-space-8 py-space-4 bg-surface-panel border border-border-subtle text-body-sm">{STEP_LABELS[sim.step]}</div>
         <div className="absolute top-space-8 right-space-8 z-10 flex gap-space-4">
-          <button disabled={!run || !beforeImage || !afterImage} onClick={() => setCompareOpen((open) => !open)} className="px-space-8 py-space-4 bg-surface-panel border border-border-subtle data-val text-body-sm disabled:opacity-40">[{compareOpen ? "CLOSE COMPARE" : "SWIPE COMPARE"}]</button>
-          <span className="px-space-8 py-space-4 bg-surface-panel border border-border-subtle data-val text-body-sm text-text-dim">27.88N 86.82E</span>
+          <button disabled={!run || !beforeImage || !afterImage} onClick={() => setCompareOpen((open) => !open)} className="px-space-8 py-space-4 bg-surface-panel border border-border-subtle text-body-sm disabled:opacity-40">{compareOpen ? "Close compare" : "Swipe compare"}</button>
         </div>
 
         {compareOpen && beforeImage && afterImage && <div ref={compareRef} className="absolute inset-space-16 top-12 z-20 bg-surface-canvas border border-border-strong overflow-hidden select-none cursor-ew-resize" onMouseDown={(event) => { setIsDragging(true); updateCompare(event.clientX); }} onTouchStart={(event) => { setIsDragging(true); updateCompare(event.touches[0].clientX); }}>
@@ -255,23 +254,23 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
             <img src={beforeImage} alt="Pre-event optical baseline" className="h-full max-w-none object-cover" style={{ width: `${10000 / Math.max(comparePct, 1)}%` }} />
           </div>
           <div className="absolute top-0 left-0 right-0 h-9 bg-surface-panel border-b border-border-subtle flex items-center px-space-8 gap-space-12 cursor-default" onMouseDown={(event) => event.stopPropagation()}>
-            <span className="data-val text-body-sm">BASELINE OPTICAL</span><span className="text-border-subtle">|</span><span className="data-val text-body-sm text-status-warn">CURRENT CHANGE MASK</span>
-            <label className="ml-auto flex items-center gap-space-6 data-val text-caption text-text-dim">FALLBACK OPACITY<input aria-label="Compare opacity" type="range" min="0" max="100" value={compareOpacity} onChange={(event) => setCompareOpacity(Number(event.target.value))} /></label>
+            <span className="text-body-sm">Before</span><span className="text-border-subtle">|</span><span className="text-body-sm">After</span>
+            <label className="ml-auto flex items-center gap-space-6 text-caption text-text-dim">Opacity<input aria-label="Compare opacity" type="range" min="0" max="100" value={compareOpacity} onChange={(event) => setCompareOpacity(Number(event.target.value))} /></label>
           </div>
           <div className="absolute top-9 bottom-0 w-[2px] bg-primary-container pointer-events-none" style={{ left: `${comparePct}%` }} />
-          <div className="absolute bottom-space-8 left-space-8 bg-surface-panel border border-border-subtle px-space-6 py-space-2 data-val text-caption">BEFORE {beforeArea.toFixed(2)} km²</div>
-          <div className="absolute bottom-space-8 right-space-8 bg-surface-panel border border-border-subtle px-space-6 py-space-2 data-val text-caption text-status-warn">AFTER {afterArea.toFixed(2)} km² · Δ +{expansionPct.toFixed(1)}%</div>
+          <div className="absolute bottom-space-8 left-space-8 bg-surface-panel border border-border-subtle px-space-6 py-space-2 data-val text-caption">{beforeArea.toFixed(2)} km²</div>
+          <div className="absolute bottom-space-8 right-space-8 bg-surface-panel border border-border-subtle px-space-6 py-space-2 data-val text-caption">{afterArea.toFixed(2)} km² (+{expansionPct.toFixed(1)}%)</div>
         </div>}
       </div>
 
       <aside className={`${rightOpen ? "w-dock-right-width" : "w-8"} flex-none bg-surface-panel border-l border-border-subtle transition-all`}>
         {rightOpen ? <>
           <div className="p-space-12 border-b border-border-subtle">
-            <div className="flex justify-between mb-space-8"><h2 className="label-caps">Asset state</h2><button onClick={() => setRightOpen(false)}>[&gt;]</button></div>
-            {(Object.keys(STATUS_COLOR) as (keyof typeof STATUS_COLOR)[]).map((status) => <div key={status} className="flex items-center gap-space-8 py-space-2"><span className="w-2.5 h-2.5" style={{ background: STATUS_COLOR[status] }} /><span className="data-val text-body-sm">{status.toUpperCase()}</span></div>)}
+            <div className="flex justify-between mb-space-8"><h2 className="label-caps">Legend</h2><button onClick={() => setRightOpen(false)} className="text-text-dim hover:text-text-primary">Close</button></div>
+            {(Object.keys(STATUS_COLOR) as (keyof typeof STATUS_COLOR)[]).map((status) => <div key={status} className="flex items-center gap-space-8 py-space-2"><span className="w-2.5 h-2.5" style={{ background: STATUS_COLOR[status] }} /><span className="text-body-sm">{status}</span></div>)}
           </div>
           {selectedAsset && <AssetDetailCard asset={selectedAsset} onFlyTo={() => flyToAsset(selectedAsset)} onReview={onJumpToReview} />}
-        </> : <button onClick={() => setRightOpen(true)} className="py-space-8">[&lt;]</button>}
+        </> : <button onClick={() => setRightOpen(true)} className="py-space-8 text-text-dim hover:text-text-primary text-body-sm">Assets</button>}
       </aside>
     </div>
   );

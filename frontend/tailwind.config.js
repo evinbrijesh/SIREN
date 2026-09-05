@@ -4,6 +4,14 @@ module.exports = {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
+      transitionDuration: {
+        DEFAULT: "100ms",
+        75: "75ms",
+        100: "100ms",
+      },
+      transitionTimingFunction: {
+        DEFAULT: "ease-out",
+      },
       colors: {
         background: "var(--color-background)",
         "surface-canvas": "var(--color-surface-canvas)",

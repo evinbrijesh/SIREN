@@ -97,7 +97,7 @@ export default function App() {
           {/* Brand + basin */}
           <div className="flex items-center gap-space-8 px-space-12 border-r border-border-subtle">
             <span className="text-headline-md font-headline text-text-primary tracking-wide">SIREN</span>
-            <span className="text-body-sm text-text-dim hidden sm:inline data-val">{basinName}</span>
+            <span className="text-body-sm text-text-dim hidden sm:inline">{basinName}</span>
           </div>
 
           {/* Tabs */}
@@ -120,7 +120,7 @@ export default function App() {
           {/* Status chips — system-level indicators */}
           <div className="flex items-center gap-space-8 px-space-12 ml-auto">
             <span className={`w-1.5 h-1.5 ${sim.status === "running" ? "bg-status-safe animate-pulse" : "bg-text-muted"}`} />
-            <span className="data-val text-body-sm text-text-dim">{pipelineStatus}</span>
+            <span className="text-body-sm text-text-dim">{pipelineStatus}</span>
             <span className="text-border-subtle">|</span>
             <OfflineBadge />
           </div>
@@ -145,16 +145,16 @@ export default function App() {
             }`}
           >
             <span
-              className={`data-val text-body-md font-medium ${
+              className={`text-body-md font-medium ${
                 severity === "critical" ? "text-status-danger" : "text-status-elevated"
               }`}
             >
-              {severity === "critical" ? "CRITICAL" : "ELEVATED"}
+              {severity === "critical" ? "Critical" : "Elevated"}
             </span>
             <span className="text-body-md text-text-primary">
               water expansion <span className="data-val">+{expansionPct.toFixed(1)}%</span> detected
             </span>
-            <span className="ml-auto text-body-md text-text-dim data-val">REVIEW PENDING</span>
+            <span className="ml-auto text-body-md text-text-dim">Review pending</span>
           </div>
         )}
 
@@ -170,11 +170,11 @@ export default function App() {
 
         {/* Footer — compact status bar */}
         <footer className="h-footer-height flex-none flex items-center px-space-16 bg-surface-panel border-t border-border-subtle">
-          <span className="data-val text-caption text-text-dim">
-            Sentinel-2 / Sentinel-1 / SRTM / Open-Meteo / OSM | pipeline v0.1.0
+          <span className="text-caption text-text-dim">
+            Sentinel-2 / Sentinel-1 / SRTM / Open-Meteo / OSM
           </span>
           <span className="ml-auto data-val text-caption text-text-muted">
-            {new Date().toISOString().slice(0, 19).replace("T", " ")} UTC
+            v0.1.0
           </span>
         </footer>
 

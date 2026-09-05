@@ -74,26 +74,20 @@ export default function TimelineView() {
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-space-16 py-space-8 border-b border-border-subtle bg-surface-panel">
-        <div className="flex items-center gap-space-12">
-          <h1 className="label-caps">Telemetry Sequence</h1>
-          <span className="data-val text-body-sm text-text-dim">BASIN-DK-IMJA-04</span>
-        </div>
-        <div className="flex items-center gap-space-8">
-          <span className="data-val text-body-sm text-text-dim">STEP</span>
-          <span className="data-val text-body-md text-text-primary">{sim.progress}/3</span>
-        </div>
+        <h1 className="label-caps">Timeline</h1>
+        <span className="data-val text-body-sm text-text-dim">{sim.progress}/3</span>
       </div>
 
       <div className="bg-surface-panel border-b border-border-subtle px-space-16 py-space-12 flex items-center gap-space-16">
         <button
           onClick={runSim}
           disabled={isRunning}
-          className="bg-surface-container text-text-primary data-val text-body-md px-space-12 py-space-6 border border-border-strong hover:bg-surface-container-high transition-colors whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed"
+          className="bg-surface-container text-text-primary text-body-md px-space-12 py-space-6 border border-border-strong hover:bg-surface-container-high transition-colors whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {isComplete ? "REPLAY SIMULATION" : isRunning ? "RUNNING..." : "RUN SIMULATION"}
+          {isComplete ? "Replay" : isRunning ? "Running..." : "Run simulation"}
         </button>
         <div className="flex-1 h-[2px] bg-border-subtle overflow-hidden">
-          <div className="h-full bg-primary-container transition-all duration-300" style={{ width: `${(sim.progress / 3) * 100}%` }} />
+          <div className="h-full bg-primary-container transition-all duration-100" style={{ width: `${(sim.progress / 3) * 100}%` }} />
         </div>
         {error && <span className="data-val text-body-sm text-status-danger">{error}</span>}
       </div>
@@ -101,14 +95,11 @@ export default function TimelineView() {
       {sim.progress >= 2 && warningDays !== null && (
         <div className="bg-surface-panel border-l-2 border-l-status-safe border-b border-border-subtle px-space-16 py-space-12 flex items-center justify-between">
           <div className="flex items-center gap-space-8">
-            <span className="data-val text-body-md text-status-safe">EARLY WARNING</span>
+            <span className="text-body-md text-status-safe">Early warning</span>
             <span className="text-body-md text-text-primary">
-              <span className="data-val text-status-safe">{warningDays} days</span> between OBS-01 (
-              <span className="data-val">+{obs1.water_area_change_percent?.toFixed(0)}%</span>) and OBS-02 (
-              <span className="data-val">+{obs2.water_area_change_percent?.toFixed(0)}%</span>)
+              <span className="data-val text-status-safe">{warningDays} days</span> between obs-01 and obs-02
             </span>
           </div>
-          <span className="data-val text-body-sm text-text-dim">DELTA T+{warningDays * 24}H</span>
         </div>
       )}
 
@@ -118,10 +109,8 @@ export default function TimelineView() {
         if (opticalCloud < 0.20 || stepNumber > sim.progress) return null;
         return (
           <div key={`router-${obs.observation_id}`} className="bg-surface-panel border-b border-border-subtle px-space-16 py-space-8 flex items-center gap-space-8">
-            <span className="data-val text-body-sm text-text-dim">OBS {stepNumber}:</span>
-            <span className="data-val text-body-sm text-text-primary">OPTICAL CLOUD {(opticalCloud * 100).toFixed(0)}% ≥ 20% THRESHOLD</span>
-            <span className="data-val text-body-sm text-primary-container">-&gt;</span>
-            <span className="data-val text-body-sm text-status-warn">SWITCHED TO SAR C-BAND PATH</span>
+            <span className="text-body-sm text-text-dim">Obs {stepNumber}:</span>
+            <span className="text-body-sm text-text-primary">Cloud {(opticalCloud * 100).toFixed(0)}% → SAR path</span>
           </div>
         );
       })}

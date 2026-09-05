@@ -66,7 +66,7 @@ export default function AuditView({ run, onToast }: Props) {
     navigator.clipboard.writeText(dispatch.payload).then(() => {
       setCopied(true);
       onToast?.({ msg: "Payload copied", type: "success" });
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => setCopied(false), 1000);
     });
   };
 
@@ -79,13 +79,13 @@ export default function AuditView({ run, onToast }: Props) {
     setChannels((prev) => ({ ...prev, [channel]: "queued" }));
     setTimeout(() => {
       setChannels((prev) => ({ ...prev, [channel]: "transmitting" }));
-    }, 500);
+    }, 100);
     setTimeout(() => {
       setChannels((prev) => ({
         ...prev,
         [channel]: channel === "satellite" ? "queued" : "delivered",
       }));
-    }, 1200);
+    }, 300);
   }, [sim.reviewDecision, onToast]);
 
   // Escape priority: close modal first (consumes the event)
@@ -136,8 +136,8 @@ export default function AuditView({ run, onToast }: Props) {
   if (!sim.dispatchResult && entries.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-text-dim text-center gap-space-8">
-        <div className="data-val text-body-md">NO DISPATCHES YET</div>
-        <div className="data-val text-body-sm text-text-muted">Confirm a review and send a dispatch to see the audit trail.</div>
+        <div className="text-body-md">No dispatches yet</div>
+        <div className="text-body-sm text-text-muted">Confirm a review and send a dispatch to see the audit trail.</div>
       </div>
     );
   }
@@ -148,13 +148,9 @@ export default function AuditView({ run, onToast }: Props) {
       <div className="flex items-center justify-between px-space-16 py-space-8 border-b border-border-subtle bg-surface-panel">
         <div className="flex items-center gap-space-12">
           <h1 className="label-caps">Audit</h1>
-          <span className="data-val text-body-sm text-text-dim border border-border-subtle px-space-4 py-space-1">
-            LOG_STREAM // IMMUTABLE
-          </span>
         </div>
         <div className="flex items-center gap-space-8">
-          <span className="data-val text-body-sm text-text-dim">SYNC:</span>
-          <span className="data-val text-body-sm text-status-safe">LIVE (0.4s)</span>
+          <span className="data-val text-body-sm text-text-dim">{entries.length} entries</span>
         </div>
       </div>
 
@@ -166,21 +162,21 @@ export default function AuditView({ run, onToast }: Props) {
             <div className="flex items-center gap-space-8">
               <button
                 onClick={() => setShowPreview(true)}
-                className="data-val text-body-sm text-text-dim px-space-8 py-space-2 border border-border-subtle hover:text-text-primary hover:border-border-strong transition-colors bg-transparent"
+                className="text-body-sm text-text-dim px-space-8 py-space-2 border border-border-subtle hover:text-text-primary hover:border-border-strong transition-colors bg-transparent"
               >
-                [PREVIEW]
+                Preview
               </button>
               <button
                 onClick={copyPayload}
-                className="data-val text-body-sm text-text-dim px-space-8 py-space-2 border border-border-subtle hover:text-text-primary hover:border-border-strong transition-colors bg-transparent"
+                className="text-body-sm text-text-dim px-space-8 py-space-2 border border-border-subtle hover:text-text-primary hover:border-border-strong transition-colors bg-transparent"
               >
-                [{copied ? "COPIED" : "COPY"}]
+                {copied ? "Copied" : "Copy"}
               </button>
             </div>
           </div>
           <div className="p-space-12">
             <div className="bg-surface-recessed border border-border-subtle p-space-12">
-              <pre className="data-val text-code-lg text-primary-container overflow-x-auto whitespace-pre-wrap select-all break-all">
+              <pre className="data-val text-code-lg text-text-primary overflow-x-auto whitespace-pre-wrap select-all break-all">
                 {dispatch.payload}
               </pre>
             </div>
@@ -189,14 +185,8 @@ export default function AuditView({ run, onToast }: Props) {
                 <div className="w-[200px] h-[2px] bg-border-subtle overflow-hidden">
                   <div className="h-full bg-status-safe" style={{ width: `${bytePct}%` }} />
                 </div>
-                <span className="data-val text-body-sm text-status-safe">{payloadBytes} / {maxBytes} BYTES</span>
+                <span className="data-val text-body-sm text-text-dim">{payloadBytes} / {maxBytes} bytes</span>
               </div>
-              <span className="text-border-subtle">|</span>
-              <span className="data-val text-body-sm text-status-safe">LORA-COMPATIBLE</span>
-              <span className="text-border-subtle">|</span>
-              <span className={`data-val text-body-sm text-text-dim transition-opacity ${copied ? "opacity-100" : "opacity-0"}`}>
-                COPIED TO CLIPBOARD
-              </span>
             </div>
           </div>
         </section>
@@ -205,10 +195,7 @@ export default function AuditView({ run, onToast }: Props) {
         {decodedPayload && (
           <section className="bg-surface-panel border border-border-subtle flex flex-col">
             <div className="flex items-center justify-between px-space-12 py-space-8 border-b border-border-subtle">
-              <h3 className="label-caps">Transmission Preview — Decoded {payloadBytes}-byte message</h3>
-              <span className="data-val text-body-sm text-status-safe border border-status-safe px-space-4 py-space-1">
-                PARSED
-              </span>
+              <h3 className="label-caps">Decoded Message</h3>
             </div>
             <div className="p-space-12 data-val text-body-md">
               <div className="text-status-danger font-medium tracking-wide mb-space-4">
@@ -234,7 +221,6 @@ export default function AuditView({ run, onToast }: Props) {
         <section className="bg-surface-panel border border-border-subtle flex flex-col">
           <div className="flex items-center justify-between px-space-12 py-space-8 border-b border-border-subtle">
             <h2 className="label-caps">Channels</h2>
-            <span className="data-val text-body-sm text-text-dim">ACTIVE CARRIERS: 3</span>
           </div>
           <div className="p-space-12 grid grid-cols-1 md:grid-cols-3 gap-space-8">
             {(["sms", "lora", "satellite"] as const).map((ch) => (
@@ -243,10 +229,10 @@ export default function AuditView({ run, onToast }: Props) {
                 className="p-space-12 border border-border-subtle bg-surface-recessed flex flex-col justify-between gap-space-8"
               >
                 <div className="flex items-center justify-between">
-                  <span className="data-val text-body-md text-text-primary">{CHANNEL_LABELS[ch]}</span>
-                  <span className="data-val text-body-sm text-text-dim">{CHANNEL_TECH[ch]}</span>
+                  <span className="text-body-md text-text-primary">{CHANNEL_LABELS[ch]}</span>
+                  <span className="text-body-sm text-text-dim">{CHANNEL_TECH[ch]}</span>
                 </div>
-                <div className={`data-val text-body-sm flex items-center gap-space-4 ${
+                <div className={`text-body-sm flex items-center gap-space-4 ${
                   channels[ch] === "delivered"
                     ? "text-status-safe"
                     : channels[ch] === "queued"
@@ -283,10 +269,7 @@ export default function AuditView({ run, onToast }: Props) {
         <section className="bg-surface-panel border border-border-subtle flex flex-col">
           <div className="flex items-center justify-between px-space-12 py-space-8 border-b border-border-subtle">
             <h2 className="label-caps">Audit Trail</h2>
-            <div className="flex items-center gap-space-6">
-              <span className="w-1.5 h-1.5 bg-status-safe" />
-              <span className="data-val text-body-sm text-text-dim">SHA-256 CHAIN // {entries.length} ENTRIES</span>
-            </div>
+            <span className="data-val text-body-sm text-text-dim">SHA-256 chain</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -328,9 +311,9 @@ export default function AuditView({ run, onToast }: Props) {
               </tbody>
             </table>
           </div>
-          <div className="flex items-center justify-between px-space-12 py-space-8 border-t border-border-subtle data-val text-body-sm text-text-dim">
-            <span>APPEND-ONLY — NO EDITS, NO DELETES</span>
-            <span title={terminalDigest}>SHA-256: {shortDigest}</span>
+          <div className="flex items-center justify-between px-space-12 py-space-8 border-t border-border-subtle text-body-sm text-text-dim">
+            <span>Append-only</span>
+            <span className="data-val" title={terminalDigest}>{shortDigest}</span>
           </div>
         </section>
       </div>
@@ -349,21 +332,18 @@ export default function AuditView({ run, onToast }: Props) {
             aria-label="Transmission preview"
           >
             <div className="flex items-center justify-between px-space-12 py-space-8 border-b border-border-subtle">
-              <h3 className="label-caps">Handset Preview — Plain-Text Alert</h3>
+              <h3 className="label-caps">Handset Preview</h3>
               <button
                 onClick={() => setShowPreview(false)}
-                className="data-val text-body-sm text-text-dim px-space-8 py-space-2 border border-border-subtle hover:text-text-primary hover:border-border-strong transition-colors bg-transparent"
+                className="text-body-sm text-text-dim px-space-8 py-space-2 border border-border-subtle hover:text-text-primary hover:border-border-strong transition-colors bg-transparent"
               >
-                [CLOSE]
+                Close
               </button>
             </div>
             <div className="p-space-12">
               <pre className="data-val text-code-md text-text-primary bg-surface-recessed border border-border-subtle p-space-12 overflow-x-auto whitespace-pre-wrap break-all">
                 {handsetText}
               </pre>
-              <div className="mt-space-8 data-val text-body-sm text-text-dim">
-                ESC or click outside to close
-              </div>
             </div>
           </div>
         </div>
