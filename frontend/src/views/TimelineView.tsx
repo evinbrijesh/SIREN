@@ -91,8 +91,8 @@ function Sparkline({ timeline, progress }: { timeline: Observation[]; progress: 
       {/* Y-axis labels */}
       <text x={padding.left - 4} y={padding.top + 4} textAnchor="end" fontSize="10" fill="var(--color-primary)" fontFamily="monospace">{maxArea.toFixed(1)}</text>
       <text x={padding.left - 4} y={padding.top + plotH} textAnchor="end" fontSize="10" fill="var(--color-primary)" fontFamily="monospace">{minArea.toFixed(1)}</text>
-      <text x={width - padding.right} y={padding.top + 10} textAnchor="end" fontSize="10" fill="var(--color-info)" fontFamily="monospace">rain mm</text>
-      <text x={width - padding.right} y={padding.top + 24} textAnchor="end" fontSize="10" fill="var(--color-primary)" fontFamily="monospace">area km²</text>
+      <text x={width - padding.right} y={padding.top + 10} textAnchor="end" fontSize="8" fill="var(--color-info)" fontFamily="monospace">rain mm</text>
+      <text x={width - padding.right} y={padding.top + 22} textAnchor="end" fontSize="8" fill="var(--color-primary)" fontFamily="monospace">area km²</text>
     </svg>
   );
 }
@@ -127,14 +127,24 @@ export default function TimelineView() {
   const isComplete = sim.status === "complete";
   const isRunning = sim.status === "running";
 
+  // Collect SAR failover chips for inline display
+  const failoverChips = timeline.slice(1).map((obs, index) => {
+    const stepNumber = index + 1;
+    const opticalCloud = obs.optical_cloud_fraction ?? obs.cloud_fraction ?? 0;
+    if (opticalCloud < 0.20 || stepNumber > sim.progress) return null;
+    return { stepNumber, cloudPct: (opticalCloud * 100).toFixed(0) };
+  }).filter(Boolean) as { stepNumber: number; cloudPct: string }[];
+
   return (
     <div className="flex flex-col h-full">
+      {/* Row 1: Title + progress counter */}
       <div className="flex items-center justify-between px-space-16 py-space-8 border-b border-border-subtle bg-surface-panel">
         <h1 className="label-caps">Timeline</h1>
         <span className="data-val text-body-sm text-text-dim">{sim.progress}/3 observations</span>
       </div>
 
-      <div className="bg-surface-panel border-b border-border-subtle px-space-16 py-space-12 flex items-center gap-space-16">
+      {/* Row 2: Run button + sequence bar + early warning + failover chips — all inline */}
+      <div className="bg-surface-panel border-b border-border-subtle px-space-16 py-space-8 flex items-center gap-space-12 flex-wrap">
         <button
           onClick={runSim}
           disabled={isRunning}
@@ -142,45 +152,34 @@ export default function TimelineView() {
         >
           {isComplete ? "Replay" : isRunning ? "Running..." : "Run simulation"}
         </button>
-        <div className="flex-1 flex items-center gap-space-4">
+        <div className="flex items-center gap-space-4 min-w-[120px]">
           <span className="text-caption text-text-dim whitespace-nowrap">SEQUENCE</span>
           <div className="flex-1 h-[2px] bg-border-subtle overflow-hidden">
             <div className="h-full bg-primary-container transition-all duration-100" style={{ width: `${(sim.progress / 3) * 100}%` }} />
           </div>
         </div>
-        {error && <span className="data-val text-body-sm text-status-danger">{error}</span>}
-      </div>
-
-      {sim.progress >= 2 && warningDays !== null && (
-        <div className="bg-surface-panel border-l-2 border-l-status-safe border-b border-border-subtle px-space-16 py-space-12 flex items-center gap-space-12">
-          <span className="text-status-safe text-body-md">★</span>
-          <div className="flex items-center gap-space-8">
-            <span className="text-body-md text-status-safe font-medium">Early warning window</span>
-            <span className="text-body-md text-text-primary">
-              <span className="data-val text-status-safe">{warningDays} days</span> between obs-01 and obs-02 — surge detected before critical expansion
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Sensor failover router strip — styled tactical chips */}
-      {timeline.slice(1).map((obs, index) => {
-        const stepNumber = index + 1;
-        const opticalCloud = obs.optical_cloud_fraction ?? obs.cloud_fraction ?? 0;
-        if (opticalCloud < 0.20 || stepNumber > sim.progress) return null;
-        return (
-          <div key={`router-${obs.observation_id}`} className="bg-surface-panel border-b border-border-subtle px-space-16 py-space-8 flex items-center gap-space-8">
-            <span className="text-caption text-text-dim">Obs {stepNumber}</span>
-            <span className="text-caption border border-status-danger text-status-danger px-space-6 py-space-2">
-              Cloud {(opticalCloud * 100).toFixed(0)}%
+        {sim.progress >= 2 && warningDays !== null && (
+          <span className="flex items-center gap-space-6 text-body-sm">
+            <span className="text-status-safe">★</span>
+            <span className="text-status-safe font-medium">Early warning</span>
+            <span className="data-val text-status-safe">{warningDays}d</span>
+            <span className="text-text-dim">obs-01 → obs-02</span>
+          </span>
+        )}
+        {failoverChips.map((chip) => (
+          <span key={`failover-${chip.stepNumber}`} className="flex items-center gap-space-4">
+            <span className="text-caption text-text-dim">Obs {chip.stepNumber}</span>
+            <span className="text-caption border border-status-danger text-status-danger px-space-4 py-space-1">
+              Cloud {chip.cloudPct}%
             </span>
             <span className="text-caption text-text-dim">→</span>
-            <span className="text-caption border border-primary text-primary px-space-6 py-space-2 bg-primary/10">
-              SAR failover
+            <span className="text-caption border border-primary text-primary px-space-4 py-space-1 bg-primary/10">
+              SAR
             </span>
-          </div>
-        );
-      })}
+          </span>
+        ))}
+        {error && <span className="data-val text-body-sm text-status-danger ml-auto">{error}</span>}
+      </div>
 
       <div className="flex-1 overflow-auto p-space-12 space-y-space-12">
         {/* Observation cards */}
@@ -212,10 +211,10 @@ export default function TimelineView() {
                     {severity.toUpperCase()}
                   </span>
                 </div>
-                {/* Thumbnail */}
+                {/* Thumbnail — 80x60px shows actual raster content */}
                 {thumbUri && (
-                  <div className="w-full h-[48px] bg-surface-canvas border-b border-border-subtle overflow-hidden flex items-center justify-center">
-                    <img src={thumbUri} alt={`${obs.observation_id} water mask`} className="h-full w-full object-contain opacity-70" />
+                  <div className="w-full h-[80px] bg-surface-canvas border-b border-border-subtle overflow-hidden flex items-center justify-center">
+                    <img src={thumbUri} alt={`${obs.observation_id} water mask`} className="h-full w-full object-contain opacity-80" />
                   </div>
                 )}
                 <div className="w-full px-space-12 py-space-8 flex flex-col gap-space-2 data-val text-body-sm">
