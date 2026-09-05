@@ -237,7 +237,7 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
   return (
     <div className="flex flex-col h-full pb-[48px] overflow-auto">
       {/* Header bar — tactical bezel */}
-      <div className="relative flex items-center justify-between px-space-16 py-space-8 border-b border-border-subtle bg-surface-panel tactical-bezel tactical-reg" data-reg="BUS: ACTIVE">
+      <div className="relative flex items-center justify-between px-space-16 py-space-8 border-b border-border-subtle bg-surface-panel">
         <div className="flex items-center gap-space-12">
           <h1 className="label-caps">Review</h1>
           <span className="data-val text-body-sm text-primary-container border border-border-subtle px-space-4 py-space-1">
