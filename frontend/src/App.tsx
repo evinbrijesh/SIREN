@@ -26,11 +26,16 @@ export default function App() {
   const { data: runsData } = useQuery({
     queryKey: ["runs"],
     queryFn: () => apiOrMock(() => api.listRuns(), "runs") as Promise<RunList>,
+    refetchInterval: sim.status === "running" ? 1000 : false,
   });
 
-  const latestRun = runsData?.runs?.[0] ?? mockData.runs.runs[0];
+  // Find the run for the current sim step (from runIds), or fall back to latest
+  const currentRunId = sim.step !== "before" ? sim.runIds[sim.step] : null;
+  const runs = runsData?.runs ?? mockData.runs.runs;
+  const latestRun = (currentRunId ? runs.find((r) => r.run_id === currentRunId) : undefined) ?? runs[0] ?? mockData.runs.runs[0];
   const severity = latestRun?.score?.severity;
   const showBanner = (severity === "elevated" || severity === "critical") && !sim.reviewDecision;
+  const expansionPct = (latestRun?.change_stats_json?.expansion_percent as number) ?? 0;
 
   // Online/offline listener
   useEffect(() => {
@@ -47,7 +52,8 @@ export default function App() {
       if (e.key >= "1" && e.key <= "4") {
         setView(TAB_KEYS[parseInt(e.key) - 1]);
       } else if (e.key.toLowerCase() === "r" && view === "timeline") {
-        // R triggers run from timeline view
+        // R triggers run simulation from timeline view
+        sim.advance();
       } else if (e.key === "Escape") {
         setToast(null);
       }
@@ -98,7 +104,7 @@ export default function App() {
         <div className="alert-banner" onClick={() => setView("review")}>
           <span className="icon">⚠</span>
           <span className="sev">{severity?.toUpperCase()}</span>
-          <span>— +14.3% · 2 villages · 1 bridge · 3 wells → Review</span>
+          <span>— +{expansionPct.toFixed(1)}% water expansion → Review</span>
         </div>
       )}
 

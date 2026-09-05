@@ -1,11 +1,20 @@
 // SimulationContext — single source of truth for the demo cursor.
 // Backend is source of truth for run data; this context is only a cursor + selection.
-// No new deps — pure React context.
+// When advancing, calls POST /runs to trigger the real pipeline.
+// Falls back to mock advancement if the backend is unreachable (offline-safe).
 
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { api } from "../api/client";
 
 export type SimStep = "before" | "obs-1" | "obs-2" | "obs-3";
 export type SimStatus = "idle" | "running" | "complete";
+
+// Map sim steps to observation IDs (obs-001, obs-002, obs-003)
+const STEP_TO_OBS: Record<Exclude<SimStep, "before">, string> = {
+  "obs-1": "obs-001",
+  "obs-2": "obs-002",
+  "obs-3": "obs-003",
+};
 
 export interface SimulationState {
   step: SimStep;
@@ -21,7 +30,7 @@ export interface SimulationState {
 }
 
 interface SimulationContextValue extends SimulationState {
-  advance: () => void;
+  advance: () => Promise<void>;
   reset: () => void;
   scrubTo: (step: SimStep) => void;
   selectAsset: (assetId: string | null) => void;
@@ -46,23 +55,40 @@ const SimulationContext = createContext<SimulationContextValue | null>(null);
 export function SimulationProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<SimulationState>(initialState);
 
-  const advance = useCallback(() => {
-    setState((prev) => {
-      const currentIdx = STEPS.indexOf(prev.step);
-      if (currentIdx >= STEPS.length - 1) return prev;
-      const nextStep = STEPS[currentIdx + 1];
-      const nextIdx = currentIdx + 1;
-      return {
+  const advance = useCallback(async () => {
+    const currentIdx = STEPS.indexOf(state.step);
+    if (currentIdx >= STEPS.length - 1) return;
+
+    const nextStep = STEPS[currentIdx + 1] as Exclude<SimStep, "before">;
+    const nextIdx = currentIdx + 1;
+
+    // Mark as running
+    setState((prev) => ({
+      ...prev,
+      step: nextStep,
+      progress: nextIdx,
+      status: "running",
+      reviewDecision: null,
+      dispatchResult: null,
+    }));
+
+    // Call the real backend to trigger the pipeline
+    try {
+      const obsId = STEP_TO_OBS[nextStep];
+      const result = await api.createRun(obsId);
+      setState((prev) => ({
         ...prev,
-        step: nextStep,
-        progress: nextIdx,
+        runIds: { ...prev.runIds, [nextStep]: result.run_id },
         status: nextIdx === STEPS.length - 1 ? "complete" : "running",
-        // clear review when advancing to a new step
-        reviewDecision: prev.reviewDecision,
-        dispatchResult: prev.dispatchResult,
-      };
-    });
-  }, []);
+      }));
+    } catch {
+      // Backend unreachable — still advance the cursor (offline demo-safe)
+      setState((prev) => ({
+        ...prev,
+        status: nextIdx === STEPS.length - 1 ? "complete" : "running",
+      }));
+    }
+  }, [state.step]);
 
   const reset = useCallback(() => {
     setState({ ...initialState });

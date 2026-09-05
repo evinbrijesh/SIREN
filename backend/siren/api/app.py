@@ -1,9 +1,11 @@
 """FastAPI application for SIREN.
 
-Routes are thin and delegate to the SQLite repository (siren.db.repo). Demo /
-fixture data is seeded by the repository on construction. Implements the
-endpoints defined in docs/API_CONTRACT.md exactly — field names/types are not
-renamed.
+Routes are thin and delegate to the SQLite repository (siren.db.repo) and
+the pipeline orchestrator (siren.pipeline). Implements the endpoints
+defined in docs/API_CONTRACT.md exactly — field names/types are not renamed.
+
+POST /runs triggers the full pipeline (quality→route→detect→corridor→risk→DB)
+synchronously and returns the completed run with scores and exposures.
 
 Boot with:  uvicorn siren.api:app --port 8000
 """
@@ -16,6 +18,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from siren.api import models
 from siren.db.repo import HumanGateError, NotFoundError, Repository, default_db_path
@@ -27,7 +30,7 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:5173"],
+        allow_origins=["http://localhost:5173", "http://localhost:5175"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -74,7 +77,7 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
             )
         return obs
 
-    # POST /runs
+    # POST /runs — triggers the full pipeline synchronously
     @app.post(
         "/runs",
         response_model=models.RunCreateResponse,
@@ -86,7 +89,23 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
                 status_code=404,
                 detail={"error": "not_found", "detail": f"observation {body.observation_id} not found"},
             )
-        return repo.create_run(body.observation_id)
+        # Run the full pipeline (quality→route→detect→corridor→risk→DB)
+        from siren.pipeline import run_pipeline
+        try:
+            run = run_pipeline(body.observation_id, repo)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=500,
+                detail={"error": "pipeline_error", "detail": str(exc)},
+            )
+        # started_at is set by the pipeline from the initial create_run
+        started_at = run.get("started_at") if run else ""
+        return {
+            "run_id": run["run_id"],
+            "observation_id": body.observation_id,
+            "status": "processed",
+            "started_at": started_at,
+        }
 
     # GET /runs
     @app.get("/runs", response_model=models.RunList)
@@ -144,6 +163,24 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
     @app.get("/audit", response_model=models.AuditList)
     def list_audit(alert_id: str) -> Any:
         return {"entries": repo.list_audit(alert_id)}
+
+    # POST /runs/process-all — run the full demo simulation (all observations)
+    @app.post("/runs/process-all")
+    def process_all() -> Any:
+        from siren.pipeline import run_all_observations
+        try:
+            runs = run_all_observations(repo)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=500,
+                detail={"error": "pipeline_error", "detail": str(exc)},
+            )
+        return {"runs": runs, "count": len(runs)}
+
+    # Mount data/processed/ as static files so the frontend can fetch rasters
+    data_processed = Path(__file__).resolve().parents[3] / "data" / "processed"
+    if data_processed.exists():
+        app.mount("/data/processed", StaticFiles(directory=str(data_processed)), name="processed")
 
     return app
 
