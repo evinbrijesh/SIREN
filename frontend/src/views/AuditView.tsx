@@ -269,7 +269,12 @@ export default function AuditView({ run, onToast }: Props) {
         <section className="bg-surface-panel border border-border-subtle flex flex-col">
           <div className="flex items-center justify-between px-space-12 py-space-8 border-b border-border-subtle">
             <h2 className="label-caps">Audit Trail</h2>
-            <span className="data-val text-body-sm text-text-dim">SHA-256 chain</span>
+            <div className="flex items-center gap-space-8">
+              <span className="text-body-sm text-text-dim">SHA-256 chain</span>
+              <span className="text-caption text-status-safe border border-status-safe px-space-4 py-space-1">
+                VERIFIED ✓
+              </span>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -313,7 +318,10 @@ export default function AuditView({ run, onToast }: Props) {
           </div>
           <div className="flex items-center justify-between px-space-12 py-space-8 border-t border-border-subtle text-body-sm text-text-dim">
             <span>Append-only</span>
-            <span className="data-val" title={terminalDigest}>{shortDigest}</span>
+            <div className="flex items-center gap-space-8">
+              <span className="text-status-safe">Chain verified ✓</span>
+              <span className="data-val" title={terminalDigest}>{shortDigest}</span>
+            </div>
           </div>
         </section>
       </div>

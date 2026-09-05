@@ -83,15 +83,16 @@ const exposures: ExposureList = {
   ],
 };
 
-const HASH_0 = "0".repeat(64);
-const HASH_1 = "1".repeat(64);
-const HASH_2 = "2".repeat(64);
-const HASH_3 = "3".repeat(64);
+// Deterministic SHA-256-like hex strings (not sequential — look like real hashes)
+const HASH_0 = "0000000000000000000000000000000000000000000000000000000000000000";
+const HASH_1 = "a4f3c8e9d2b1076f5a3e8c4d1b9f0e2a7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a";
+const HASH_2 = "f7e2d1c0b3a4965f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e9d8c7b6a5f4e";
+const HASH_3 = "3b8d7f6e5a4c3b2a1f0e9d8c7b6a5f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c9b8a7f6";
 const audit: AuditList = {
   entries: [
-    { entry_id: 1, alert_id: "alert-0091", actor: "pipeline", action: "run", detail_json: '{"run_id":"run-mock-obs-002","observation_id":"obs-002"}', created_at: "2026-08-04T12:05:00Z", prev_hash: HASH_0, event_hash: HASH_1 },
-    { entry_id: 2, alert_id: "alert-0091", actor: "coordinator-01", action: "review", detail_json: '{"decision":"confirm","run_id":"run-mock-obs-002"}', created_at: "2026-08-04T12:10:00Z", prev_hash: HASH_1, event_hash: HASH_2 },
-    { entry_id: 3, alert_id: "alert-0091", actor: "coordinator-01", action: "dispatch", detail_json: '{"channel":"sms","run_id":"run-mock-obs-002"}', created_at: "2026-08-04T12:11:00Z", prev_hash: HASH_2, event_hash: HASH_3 },
+    { entry_id: 1, alert_id: "alert-0091", actor: "pipeline", action: "run", detail_json: '{"run_id":"run-mock-obs-003","observation_id":"obs-003"}', created_at: "2026-08-12T12:05:00Z", prev_hash: HASH_0, event_hash: HASH_1 },
+    { entry_id: 2, alert_id: "alert-0091", actor: "coordinator-01", action: "review", detail_json: '{"decision":"confirm","run_id":"run-mock-obs-003"}', created_at: "2026-08-12T12:10:00Z", prev_hash: HASH_1, event_hash: HASH_2 },
+    { entry_id: 3, alert_id: "alert-0091", actor: "coordinator-01", action: "dispatch", detail_json: '{"channel":"sms","run_id":"run-mock-obs-003"}', created_at: "2026-08-12T12:11:00Z", prev_hash: HASH_2, event_hash: HASH_3 },
   ],
 };
 
