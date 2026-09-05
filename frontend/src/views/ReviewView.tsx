@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, apiOrMock } from "../api/client";
 import { mockData } from "../api/mockData";
@@ -6,7 +6,7 @@ import { useSimulation } from "../simulation/SimulationContext";
 import type { Run, ExposureList, SarPriorityList, MlEvidence, ReviewResponse, DispatchResponse, ApiError } from "../api/types";
 
 interface Props {
-  run: Run;
+  run?: Run;
   onToast?: (t: { msg: string; type: "error" | "info" | "success" }) => void;
   onJumpToMap?: () => void;
 }
@@ -25,6 +25,12 @@ const GAUGE_TEXT: Record<string, string> = {
   C: "text-status-safe",
 };
 
+function exposureStatus(exposure: ExposureList["exposures"][number]): "SAFE" | "BUFFERED" | "INUNDATED" {
+  if (exposure.inundated) return "INUNDATED";
+  if (exposure.distance_m !== null && exposure.buffer_m !== null && exposure.distance_m <= exposure.buffer_m) return "BUFFERED";
+  return "SAFE";
+}
+
 export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
   const qc = useQueryClient();
   const sim = useSimulation();
@@ -32,22 +38,25 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
   const [dispatchArmed, setDispatchArmed] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const score = run.score;
-  const runId = run.run_id;
+  const score = run?.score;
+  const runId = run?.run_id;
 
   const { data: exposuresData, isLoading: expLoading } = useQuery({
     queryKey: ["exposures", runId],
-    queryFn: () => apiOrMock(() => api.listExposures(runId), "exposures") as Promise<ExposureList>,
+    queryFn: () => apiOrMock(() => api.listExposures(runId!), "exposures") as Promise<ExposureList>,
+    enabled: Boolean(runId),
   });
 
   const { data: sarData } = useQuery({
     queryKey: ["sar-priority", runId],
-    queryFn: () => apiOrMock(() => api.getSarPriority(runId), "sarPriority") as Promise<SarPriorityList>,
+    queryFn: () => apiOrMock(() => api.getSarPriority(runId!), "sarPriority") as Promise<SarPriorityList>,
+    enabled: Boolean(runId),
   });
 
   const { data: mlData } = useQuery({
     queryKey: ["ml-evidence", runId],
-    queryFn: () => apiOrMock(() => api.getMlEvidence(runId), "mlEvidence") as Promise<MlEvidence>,
+    queryFn: () => apiOrMock(() => api.getMlEvidence(runId!), "mlEvidence") as Promise<MlEvidence>,
+    enabled: Boolean(runId),
   });
 
   const sarPriority = sarData ?? mockData.sarPriority;
@@ -59,13 +68,14 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
 
   const reviewMut = useMutation({
     mutationFn: (vars: { decision: "confirm" | "reject" | "postpone" }) =>
-      apiOrMock(() => api.createReview(runId, "coordinator-01", vars.decision, "demo review"), "dispatch" as any) as Promise<ReviewResponse>,
+      api.createReview(runId!, "coordinator-01", vars.decision, "demo review") as Promise<ReviewResponse>,
     onSuccess: (_data, vars) => {
       sim.setReviewDecision(vars.decision);
       setConfirmStep(false);
       setError(null);
       onToast?.({ msg: `Decision recorded: ${vars.decision}`, type: "success" });
       qc.invalidateQueries({ queryKey: ["runs"] });
+      qc.invalidateQueries({ queryKey: ["run", runId] });
     },
     onError: (e: ApiError) => {
       setError(e.detail);
@@ -74,7 +84,7 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
   });
 
   const dispatchMut = useMutation({
-    mutationFn: () => apiOrMock(() => api.createDispatch(runId, "sms", "sector-b"), "dispatch") as Promise<DispatchResponse>,
+    mutationFn: () => api.createDispatch(runId!, "sms", "sector-b") as Promise<DispatchResponse>,
     onSuccess: (data) => {
       sim.setDispatchResult(data);
       setError(null);
@@ -87,7 +97,18 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
     },
   });
 
-  if (!score || (score.severity !== "elevated" && score.severity !== "critical")) {
+  useEffect(() => {
+    const disarm = (event: Event) => {
+      if (!confirmStep && !dispatchArmed) return;
+      event.preventDefault();
+      setConfirmStep(false);
+      setDispatchArmed(false);
+    };
+    window.addEventListener("siren:escape", disarm);
+    return () => window.removeEventListener("siren:escape", disarm);
+  }, [confirmStep, dispatchArmed]);
+
+  if (!run || !score || (score.severity !== "elevated" && score.severity !== "critical")) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-text-dim text-center gap-space-8">
         <div className="data-val text-body-md">NO ALERTS REQUIRING REVIEW</div>
@@ -109,7 +130,8 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
     );
   }
 
-  const decisionLocked = sim.reviewDecision !== null;
+  const currentDecision = run.decision ?? sim.reviewDecision;
+  const decisionLocked = currentDecision !== null;
   const sortedExposures = [...exposures].sort((a, b) => (a.distance_m ?? 9999) - (b.distance_m ?? 9999));
   const areaAfter = (run.change_stats_json?.water_area_km2 as number) ?? 4.1;
   const areaBefore = 3.0;
@@ -256,10 +278,10 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
             </div>
             <div className="p-space-12 flex flex-col gap-space-12">
               <div className="flex flex-col gap-space-8">
-                <GaugeRow label="H" value={score.hazard_score} />
-                <GaugeRow label="E" value={score.exposure_priority} />
-                {score.disease_risk !== null && <GaugeRow label="D" value={score.disease_risk} />}
-                <GaugeRow label="C" value={score.confidence} />
+                <GaugeRow label="H" value={score.hazard_score} summary="0.30 trend + 0.25 expansion + 0.20 rainfall + 0.15 slope + 0.10 drainage proximity" />
+                <GaugeRow label="E" value={score.exposure_priority} summary="Hazard × population vulnerability × critical-infrastructure weight" />
+                {score.disease_risk !== null && <GaugeRow label="D" value={score.disease_risk} summary="Inundated water points × population density × temperature index" />}
+                <GaugeRow label="C" value={score.confidence} summary="Quality-gate confidence after cloud and co-registration checks" />
               </div>
               <div className="border-t border-border-subtle pt-space-12">
                 <h3 className="label-caps mb-space-8">Evidence Reasons ({score.reasons.length})</h3>
@@ -285,24 +307,25 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
               <span className="data-val text-body-sm text-text-dim">PROTOCOL W-4</span>
             </div>
             <div className="p-space-12 flex flex-col gap-space-8">
-              {wells.map((w) => {
-                const isSubmerged = w.inundated;
+              {wells.map((well) => {
+                const populationServed = well.population ?? totalPop;
+                const chlorineTablets = populationServed * 2 * 14;
+                const status = well.inundated ? "INUNDATED" : "ENCIRCLED";
                 return (
-                  <div key={w.asset_id} className="flex flex-col">
-                    <div className={`data-val text-body-md ${isSubmerged ? "text-status-danger" : "text-status-warn"}`}>
-                      {w.name ?? w.asset_id} — {isSubmerged ? "SUBMERGED" : "ENCIRCLED"}
+                  <article key={well.asset_id} className="border border-border-subtle bg-surface-recessed p-space-8 data-val text-body-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-text-primary">{well.name ?? well.asset_id} · {well.asset_id}</span>
+                      <span className={well.inundated ? "text-status-danger" : "text-status-warn"}>{status}</span>
                     </div>
-                    <div className="flex flex-col gap-space-2 mt-space-2 pl-space-8 data-val text-body-sm text-text-primary">
-                      {isSubmerged ? (
-                        <>
-                          <div>-&gt; chlorine x200 tablets</div>
-                          <div>-&gt; boil water notice</div>
-                        </>
-                      ) : (
-                        <div>-&gt; monitor for contamination</div>
-                      )}
+                    <div className="grid grid-cols-2 gap-space-4 mt-space-6 text-text-dim">
+                      <span>POP SERVED</span><span className="text-right text-text-primary">{populationServed.toLocaleString()}</span>
+                      <span>CHLORINE · 2/DAY × 14D</span><span className="text-right text-text-primary">{chlorineTablets.toLocaleString()} TABLETS</span>
                     </div>
-                  </div>
+                    <div className="flex gap-space-4 mt-space-8">
+                      <span className="border border-status-danger text-status-danger px-space-4 py-space-1">BOIL-WATER ADVISORY</span>
+                      <span className="border border-status-warn text-status-warn px-space-4 py-space-1">ALTERNATE SUPPLY</span>
+                    </div>
+                  </article>
                 );
               })}
               <div className="border-t border-border-subtle pt-space-8 flex flex-col gap-space-2 data-val text-body-sm text-text-primary">
@@ -348,12 +371,14 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
                       <td className="py-space-6 px-space-12 text-right">
                         <span
                           className={`border px-space-4 py-space-1 text-caption ${
-                            e.inundated
+                            exposureStatus(e) === "INUNDATED"
                               ? "border-status-danger text-status-danger"
-                              : "border-status-warn text-status-warn"
+                              : exposureStatus(e) === "BUFFERED"
+                              ? "border-status-warn text-status-warn"
+                              : "border-status-safe text-status-safe"
                           }`}
                         >
-                          {e.inundated ? "INUNDATED" : "BUFFERED"}
+                          {exposureStatus(e)}
                         </span>
                       </td>
                     </tr>
@@ -443,18 +468,18 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
             <div className="flex items-center gap-space-8">
               <span
                 className={`data-val text-body-md ${
-                  sim.reviewDecision === "confirm"
+                  currentDecision === "confirm"
                     ? "text-status-safe"
-                    : sim.reviewDecision === "reject"
+                    : currentDecision === "reject"
                     ? "text-status-danger"
                     : "text-status-warn"
                 }`}
               >
-                {sim.reviewDecision === "confirm" && "CONFIRMED"}
-                {sim.reviewDecision === "reject" && "REJECTED"}
-                {sim.reviewDecision === "postpone" && "POSTPONED"}
+                {currentDecision === "confirm" && "STATUS: CONFIRMED BY COORDINATOR-01"}
+                {currentDecision === "reject" && "STATUS: REJECTED BY COORDINATOR-01"}
+                {currentDecision === "postpone" && "STATUS: POSTPONED BY COORDINATOR-01"}
               </span>
-              {sim.reviewDecision === "confirm" && (
+              {currentDecision === "confirm" && (
                 dispatchArmed ? (
                   <div className="flex items-center gap-space-8 px-space-8 py-space-4 border border-status-danger bg-surface-recessed">
                     <span className="data-val text-body-sm text-status-danger">ARMED — CONFIRM DISPATCH?</span>
@@ -485,7 +510,7 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
             </div>
           ) : confirmStep ? (
             <div className="flex items-center gap-space-8 px-space-8 py-space-4 border border-status-danger bg-surface-recessed">
-              <span className="data-val text-body-sm text-status-danger">CONFIRM SOS DISPATCH?</span>
+              <span className="data-val text-body-sm text-status-danger">CONFIRM SOS DISPATCH TO 3 SECTORS?</span>
               <button
                 onClick={() => reviewMut.mutate({ decision: "confirm" })}
                 disabled={reviewMut.isPending}
@@ -536,14 +561,16 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
   );
 }
 
-function GaugeRow({ label, value }: { label: string; value: number }) {
+function GaugeRow({ label, value, summary }: { label: string; value: number; summary: string }) {
   return (
-    <div className="flex items-center gap-space-12">
-      <div className={`w-4 data-val text-body-md font-medium ${GAUGE_TEXT[label]}`}>{label}</div>
-      <div className="flex-1 h-[4px] bg-surface-recessed border border-border-subtle overflow-hidden">
+    <div className="grid grid-cols-[16px_1fr_56px] gap-x-space-12 gap-y-space-2 items-center" title={summary}>
+      <div className={`data-val text-body-md font-medium ${GAUGE_TEXT[label]}`}>{label}</div>
+      <div className="h-[4px] bg-surface-recessed border border-border-subtle overflow-hidden">
         <div className="h-full" style={{ width: `${value * 100}%`, backgroundColor: GAUGE_COLORS[label] }} />
       </div>
-      <div className="w-14 text-right data-val text-metric-display text-text-primary leading-none">{value.toFixed(2)}</div>
+      <div className="text-right data-val text-metric-display text-text-primary leading-none">{value.toFixed(2)}</div>
+      <div />
+      <div className="data-val text-caption text-text-muted">{summary}</div>
     </div>
   );
 }
