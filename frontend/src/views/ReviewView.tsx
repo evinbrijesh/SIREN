@@ -37,6 +37,8 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
   const [confirmStep, setConfirmStep] = useState(false);
   const [dispatchArmed, setDispatchArmed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedSector, setSelectedSector] = useState<string>("sector-b");
+  const [selectedChannel, setSelectedChannel] = useState<"sms" | "lora" | "satellite">("sms");
 
   const score = run?.score;
   const runId = run?.run_id;
@@ -89,7 +91,7 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
   });
 
   const dispatchMut = useMutation({
-    mutationFn: () => api.createDispatch(runId!, "sms", "sector-b") as Promise<DispatchResponse>,
+    mutationFn: () => api.createDispatch(runId!, selectedChannel, selectedSector) as Promise<DispatchResponse>,
     onSuccess: (data) => {
       sim.setDispatchResult(data);
       setError(null);
@@ -550,6 +552,37 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
                 dispatchArmed ? (
                   <div className="flex items-center gap-space-8 px-space-8 py-space-4 border border-status-danger bg-surface-recessed">
                     <span className="data-val text-body-sm text-status-danger">ARMED — CONFIRM DISPATCH?</span>
+                    {/* Sector selector */}
+                    <label className="flex items-center gap-space-4">
+                      <span className="data-val text-caption text-text-dim">SECTOR</span>
+                      <select
+                        value={selectedSector}
+                        onChange={(e) => setSelectedSector(e.target.value)}
+                        className="data-val text-body-sm bg-surface-canvas border border-border-subtle px-space-4 py-space-2 text-text-primary focus:border-primary-container outline-none"
+                      >
+                        {sarPriority?.sectors?.map((s) => (
+                          <option key={s.sector_id} value={s.sector_id}>
+                            {s.name} ({s.population.toLocaleString()} ppl, {s.access_label})
+                          </option>
+                        )) ?? <option value="sector-b">Sector B (default)</option>}
+                        <option value="sector-a">Sector A (all downstream)</option>
+                        <option value="sector-b">Sector B (Chhukung)</option>
+                        <option value="sector-c">Sector C (Hillary Bridge)</option>
+                      </select>
+                    </label>
+                    {/* Channel selector */}
+                    <label className="flex items-center gap-space-4">
+                      <span className="data-val text-caption text-text-dim">CHANNEL</span>
+                      <select
+                        value={selectedChannel}
+                        onChange={(e) => setSelectedChannel(e.target.value as "sms" | "lora" | "satellite")}
+                        className="data-val text-body-sm bg-surface-canvas border border-border-subtle px-space-4 py-space-2 text-text-primary focus:border-primary-container outline-none"
+                      >
+                        <option value="sms">SMS (fastest, cell coverage)</option>
+                        <option value="lora">LoRa (mesh, low bandwidth)</option>
+                        <option value="satellite">Satellite (remote, queued)</option>
+                      </select>
+                    </label>
                     <button
                       onClick={() => dispatchMut.mutate()}
                       disabled={dispatchMut.isPending}
@@ -577,7 +610,7 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
             </div>
           ) : confirmStep ? (
             <div className="flex items-center gap-space-8 px-space-8 py-space-4 border border-status-danger bg-surface-recessed">
-              <span className="data-val text-body-sm text-status-danger">CONFIRM SOS DISPATCH TO 3 SECTORS?</span>
+              <span className="data-val text-body-sm text-status-danger">CONFIRM SOS DISPATCH?</span>
               <button
                 onClick={() => reviewMut.mutate({ decision: "confirm" })}
                 disabled={reviewMut.isPending}
