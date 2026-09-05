@@ -23,14 +23,40 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from siren.audit.hash_chain import GENESIS_HASH, event_hash
+
 SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"
 
 # --- Deterministic demo/fixture data (matches API_CONTRACT.md examples) ---
 
+
+def _project_root() -> Path:
+    env = os.environ.get("SIREN_PROJECT_ROOT")
+    if env:
+        return Path(env)
+    for parent in Path(__file__).resolve().parents:
+        if (parent / "data" / "assets").is_dir():
+            return parent
+    return Path(__file__).resolve().parents[3]
+
+
+def _basin_boundary() -> dict[str, Any]:
+    path = _project_root() / "data" / "assets" / "dudh_koshi_aoi.geojson"
+    if not path.exists():
+        return {"type": "Polygon", "coordinates": []}
+    data = json.loads(path.read_text())
+    if data.get("type") == "FeatureCollection":
+        features = data.get("features", [])
+        return features[0]["geometry"] if features else {"type": "Polygon", "coordinates": []}
+    if data.get("type") == "Feature":
+        return data["geometry"]
+    return data
+
+
 DEMO_BASIN = {
     "basin_id": "dudh-koshi-demo-01",
     "name": "Dudh Koshi / Imja",
-    "boundary_geojson": {"type": "Polygon", "coordinates": []},
+    "boundary_geojson": _basin_boundary(),
     "crs": "EPSG:4326",
 }
 
@@ -38,19 +64,20 @@ DEMO_OBSERVATIONS = [
     {
         "observation_id": "obs-001",
         "basin_id": "dudh-koshi-demo-01",
-        "acquired_at": "2026-08-23T12:00:00Z",
-        "source": "sentinel-2-l2a",
+        "acquired_at": "2026-07-23T12:00:00Z",
+        "source": "sentinel-1-grd-nrt",
         "raster_uri": "data/processed/obs-001.tif",
         "crs": "EPSG:4326",
-        "quality_score": 0.92,
-        "cloud_fraction": 0.05,
+        "quality_score": 0.94,
+        "cloud_fraction": 0.0,
+        "optical_cloud_fraction": 0.0,
         "alignment_ok": True,
         "usable": True,
         "confidence_adjustment": 1.0,
-        "water_area_km2": 2.8,
-        "water_area_change_percent": 0.0,
-        "rainfall_24h_mm": 12.0,
-        "rainfall_7d_mm": 34.0,
+        "water_area_km2": 3.2,
+        "water_area_change_percent": 8.0,
+        "rainfall_24h_mm": 18.2,
+        "rainfall_7d_mm": 64.0,
         "mean_slope_degrees": 31.0,
         "processing_version": "0.1.0",
         "status": "processed",
@@ -58,19 +85,20 @@ DEMO_OBSERVATIONS = [
     {
         "observation_id": "obs-002",
         "basin_id": "dudh-koshi-demo-01",
-        "acquired_at": "2026-08-29T12:00:00Z",
+        "acquired_at": "2026-08-04T12:00:00Z",
         "source": "sentinel-1-grd-nrt",
         "raster_uri": "data/processed/obs-002.tif",
         "crs": "EPSG:4326",
         "quality_score": 0.90,
         "cloud_fraction": 0.0,
+        "optical_cloud_fraction": 0.95,
         "alignment_ok": True,
         "usable": True,
         "confidence_adjustment": 1.0,
-        "water_area_km2": 2.9,
-        "water_area_change_percent": 3.6,
-        "rainfall_24h_mm": 28.0,
-        "rainfall_7d_mm": 96.0,
+        "water_area_km2": 4.1,
+        "water_area_change_percent": 28.0,
+        "rainfall_24h_mm": 84.6,
+        "rainfall_7d_mm": 192.4,
         "mean_slope_degrees": 31.0,
         "processing_version": "0.1.0",
         "status": "processed",
@@ -78,19 +106,20 @@ DEMO_OBSERVATIONS = [
     {
         "observation_id": "obs-003",
         "basin_id": "dudh-koshi-demo-01",
-        "acquired_at": "2026-09-04T12:00:00Z",
+        "acquired_at": "2026-08-12T12:00:00Z",
         "source": "sentinel-1-grd-nrt",
         "raster_uri": "data/processed/obs-003.tif",
         "crs": "EPSG:4326",
         "quality_score": 0.88,
-        "cloud_fraction": 0.11,
+        "cloud_fraction": 0.0,
+        "optical_cloud_fraction": 0.90,
         "alignment_ok": True,
         "usable": True,
         "confidence_adjustment": 0.95,
-        "water_area_km2": 3.2,
-        "water_area_change_percent": 14.3,
-        "rainfall_24h_mm": 72.4,
-        "rainfall_7d_mm": 188.0,
+        "water_area_km2": 4.3,
+        "water_area_change_percent": 43.0,
+        "rainfall_24h_mm": 60.0,
+        "rainfall_7d_mm": 160.0,
         "mean_slope_degrees": 31.0,
         "processing_version": "0.1.0",
         "status": "processed",
@@ -131,7 +160,7 @@ DEMO_ASSETS = [
         "asset_type": "well",
         "name": "Well 3",
         "geometry_geojson": {"type": "Point", "coordinates": [86.86, 27.89]},
-        "population": None,
+        "population": 1240,
         "weight": 1.0,
     },
 ]
@@ -142,21 +171,28 @@ DEMO_RUN = {
     "processing_version": "0.1.0",
     "change_mask_uri": "data/processed/obs-003_expansion_mask.tif",
     "corridor_geojson": {"type": "LineString", "coordinates": []},
-    "change_stats_json": {"water_area_km2": 3.2, "expansion_percent": 14.3},
+    "change_stats_json": {
+        "water_area_km2": 4.3,
+        "expansion_percent": 43.0,
+        "rainfall_24h_mm": 60.0,
+        "rainfall_7d_mm": 160.0,
+        "source": "sentinel-1-grd-nrt",
+        "routing": {"path": "sar", "sar_primary": True, "cloud_fraction_reported": 0.9},
+    },
 }
 
 DEMO_SCORE = {
     "score_id": "score-0001",
     "run_id": "run-0001",
-    "hazard_score": 0.62,
-    "exposure_priority": 0.48,
-    "disease_risk": 0.31,
-    "confidence": 0.76,
-    "severity": "elevated",
+    "hazard_score": 0.84,
+    "exposure_priority": 0.51,
+    "disease_risk": 0.08,
+    "confidence": 0.90,
+    "severity": "critical",
     "reasons": [
-        "Water area expanded 14.3% vs baseline",
-        "72.4 mm rainfall in 24h exceeds watch threshold",
-        "188 mm 7-day rainfall saturates slopes",
+        "Water area expanded 43.0% vs baseline",
+        "60.0 mm rainfall in 24h increases runoff pressure",
+        "Optical cloud 90% triggered the Sentinel-1 SAR path",
     ],
 }
 
@@ -209,51 +245,82 @@ class Repository:
 
     def _init_schema_and_seed(self) -> None:
         self._conn.executescript(SCHEMA_PATH.read_text())
+        self._migrate_schema()
         self._seed()
         self._conn.commit()
 
+    def _migrate_schema(self) -> None:
+        observation_columns = {
+            row["name"] for row in self._conn.execute("PRAGMA table_info(observations)").fetchall()
+        }
+        if "optical_cloud_fraction" not in observation_columns:
+            self._conn.execute("ALTER TABLE observations ADD COLUMN optical_cloud_fraction REAL")
+        audit_columns = {
+            row["name"] for row in self._conn.execute("PRAGMA table_info(audit_log)").fetchall()
+        }
+        if "prev_hash" not in audit_columns:
+            self._conn.execute("ALTER TABLE audit_log ADD COLUMN prev_hash TEXT NOT NULL DEFAULT ''")
+        if "event_hash" not in audit_columns:
+            self._conn.execute("ALTER TABLE audit_log ADD COLUMN event_hash TEXT NOT NULL DEFAULT ''")
+
     def _seed(self) -> None:
-        if self._conn.execute("SELECT COUNT(*) FROM basins").fetchone()[0] == 0:
+        self._conn.execute(
+            """INSERT INTO basins(basin_id, name, boundary_geojson, crs) VALUES(?,?,?,?)
+               ON CONFLICT(basin_id) DO UPDATE SET
+               name=excluded.name, boundary_geojson=excluded.boundary_geojson, crs=excluded.crs""",
+            (
+                DEMO_BASIN["basin_id"],
+                DEMO_BASIN["name"],
+                json.dumps(DEMO_BASIN["boundary_geojson"]),
+                DEMO_BASIN["crs"],
+            ),
+        )
+
+        for o in DEMO_OBSERVATIONS:
             self._conn.execute(
-                "INSERT INTO basins(basin_id, name, boundary_geojson, crs) VALUES(?,?,?,?)",
+                """INSERT INTO observations
+                (observation_id, basin_id, acquired_at, source, raster_uri, crs,
+                 quality_score, cloud_fraction, optical_cloud_fraction, alignment_ok, usable, confidence_adjustment,
+                 water_area_km2, water_area_change_percent, rainfall_24h_mm, rainfall_7d_mm,
+                 mean_slope_degrees, processing_version, status)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                ON CONFLICT(observation_id) DO UPDATE SET
+                acquired_at=excluded.acquired_at, source=excluded.source,
+                raster_uri=excluded.raster_uri, crs=excluded.crs,
+                quality_score=excluded.quality_score, cloud_fraction=excluded.cloud_fraction,
+                optical_cloud_fraction=excluded.optical_cloud_fraction,
+                alignment_ok=excluded.alignment_ok, usable=excluded.usable,
+                confidence_adjustment=excluded.confidence_adjustment,
+                water_area_km2=excluded.water_area_km2,
+                water_area_change_percent=excluded.water_area_change_percent,
+                rainfall_24h_mm=excluded.rainfall_24h_mm,
+                rainfall_7d_mm=excluded.rainfall_7d_mm,
+                mean_slope_degrees=excluded.mean_slope_degrees,
+                processing_version=excluded.processing_version, status=excluded.status""",
                 (
-                    DEMO_BASIN["basin_id"],
-                    DEMO_BASIN["name"],
-                    json.dumps(DEMO_BASIN["boundary_geojson"]),
-                    DEMO_BASIN["crs"],
+                    o["observation_id"], o["basin_id"], o["acquired_at"], o["source"],
+                    o["raster_uri"], o["crs"], o["quality_score"], o["cloud_fraction"],
+                    o["optical_cloud_fraction"], int(o["alignment_ok"]), int(o["usable"]), o["confidence_adjustment"],
+                    o["water_area_km2"], o["water_area_change_percent"], o["rainfall_24h_mm"],
+                    o["rainfall_7d_mm"], o["mean_slope_degrees"], o["processing_version"],
+                    o["status"],
                 ),
             )
 
-        if self._conn.execute("SELECT COUNT(*) FROM observations").fetchone()[0] == 0:
-            for o in DEMO_OBSERVATIONS:
-                self._conn.execute(
-                    """INSERT INTO observations
-                    (observation_id, basin_id, acquired_at, source, raster_uri, crs,
-                     quality_score, cloud_fraction, alignment_ok, usable, confidence_adjustment,
-                     water_area_km2, water_area_change_percent, rainfall_24h_mm, rainfall_7d_mm,
-                     mean_slope_degrees, processing_version, status)
-                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                    (
-                        o["observation_id"], o["basin_id"], o["acquired_at"], o["source"],
-                        o["raster_uri"], o["crs"], o["quality_score"], o["cloud_fraction"],
-                        int(o["alignment_ok"]), int(o["usable"]), o["confidence_adjustment"],
-                        o["water_area_km2"], o["water_area_change_percent"], o["rainfall_24h_mm"],
-                        o["rainfall_7d_mm"], o["mean_slope_degrees"], o["processing_version"],
-                        o["status"],
-                    ),
-                )
-
-        if self._conn.execute("SELECT COUNT(*) FROM assets").fetchone()[0] == 0:
-            for a in DEMO_ASSETS:
-                self._conn.execute(
-                    """INSERT INTO assets
-                    (asset_id, basin_id, asset_type, name, geometry_geojson, population, weight)
-                    VALUES(?,?,?,?,?,?,?)""",
-                    (
-                        a["asset_id"], a["basin_id"], a["asset_type"], a["name"],
-                        json.dumps(a["geometry_geojson"]), a["population"], a["weight"],
-                    ),
-                )
+        for a in DEMO_ASSETS:
+            self._conn.execute(
+                """INSERT INTO assets
+                (asset_id, basin_id, asset_type, name, geometry_geojson, population, weight)
+                VALUES(?,?,?,?,?,?,?)
+                ON CONFLICT(asset_id) DO UPDATE SET
+                asset_type=excluded.asset_type, name=excluded.name,
+                geometry_geojson=excluded.geometry_geojson,
+                population=excluded.population, weight=excluded.weight""",
+                (
+                    a["asset_id"], a["basin_id"], a["asset_type"], a["name"],
+                    json.dumps(a["geometry_geojson"]), a["population"], a["weight"],
+                ),
+            )
 
         if self._conn.execute("SELECT COUNT(*) FROM runs").fetchone()[0] == 0:
             r = DEMO_RUN
@@ -335,6 +402,7 @@ class Repository:
             "crs": row["crs"],
             "quality_score": row["quality_score"],
             "cloud_fraction": row["cloud_fraction"],
+            "optical_cloud_fraction": row["optical_cloud_fraction"],
             "alignment_ok": _bool(row["alignment_ok"]),
             "usable": _bool(row["usable"]),
             "confidence_adjustment": row["confidence_adjustment"],
@@ -475,6 +543,12 @@ class Repository:
                 "severity": score_row["severity"],
                 "reasons": json.loads(score_row["reasons_json"]),
             }
+        review_row = self._conn.execute(
+            """SELECT r.reviewer, r.decision, r.decided_at FROM reviews r
+               JOIN scores s ON r.score_id=s.score_id
+               WHERE s.run_id=? ORDER BY r.decided_at DESC, r.review_id DESC LIMIT 1""",
+            (row["run_id"],),
+        ).fetchone()
         return {
             "run_id": row["run_id"],
             "observation_id": row["observation_id"],
@@ -483,13 +557,19 @@ class Repository:
             "corridor_geojson": json.loads(row["corridor_geojson"]) if row["corridor_geojson"] else None,
             "change_stats_json": json.loads(row["change_stats_json"]) if row["change_stats_json"] else None,
             "score": score,
+            "status": "processed" if row["finished_at"] else "running",
+            "started_at": row["started_at"],
+            "finished_at": row["finished_at"],
+            "decision": review_row["decision"] if review_row else None,
+            "reviewer": review_row["reviewer"] if review_row else None,
+            "decided_at": review_row["decided_at"] if review_row else None,
         }
 
     # --- exposures ---
 
     def list_exposures(self, run_id: str) -> list[dict[str, Any]]:
         rows = self._conn.execute(
-            """SELECT e.*, a.asset_type, a.name, a.population
+            """SELECT e.*, a.asset_type, a.name, a.population, a.geometry_geojson
                FROM exposures e JOIN assets a ON e.asset_id = a.asset_id
                WHERE e.run_id=? ORDER BY e.exposure_id""",
             (run_id,),
@@ -503,6 +583,7 @@ class Repository:
                 "buffer_m": row["buffer_m"],
                 "inundated": bool(row["inundated"]),
                 "population": row["population"],
+                "geometry_geojson": json.loads(row["geometry_geojson"]),
             }
             for row in rows
         ]
@@ -620,10 +701,36 @@ class Repository:
     # --- audit (append-only: INSERT + SELECT only; no update/delete methods) ---
 
     def _audit(self, alert_id: str | None, actor: str, action: str, detail: dict[str, Any]) -> None:
+        detail_json = json.dumps(detail, sort_keys=True, separators=(",", ":"), default=str)
+        created_at = _utcnow_iso()
+        existing = self._audit_rows_with_hashes()
+        prev_hash = existing[-1]["event_hash"] if existing else GENESIS_HASH
+        digest = event_hash(prev_hash, created_at, detail_json)
         self._conn.execute(
-            "INSERT INTO audit_log(alert_id, actor, action, detail_json) VALUES(?,?,?,?)",
-            (alert_id, actor, action, json.dumps(detail)),
+            """INSERT INTO audit_log
+               (alert_id, actor, action, detail_json, created_at, prev_hash, event_hash)
+               VALUES(?,?,?,?,?,?,?)""",
+            (alert_id, actor, action, detail_json, created_at, prev_hash, digest),
         )
+
+    def _audit_rows_with_hashes(self) -> list[dict[str, Any]]:
+        rows = self._conn.execute("SELECT * FROM audit_log ORDER BY entry_id").fetchall()
+        entries: list[dict[str, Any]] = []
+        previous = GENESIS_HASH
+        for row in rows:
+            digest = event_hash(previous, row["created_at"], row["detail_json"])
+            entries.append({
+                "entry_id": row["entry_id"],
+                "alert_id": row["alert_id"],
+                "actor": row["actor"],
+                "action": row["action"],
+                "detail_json": row["detail_json"],
+                "created_at": row["created_at"],
+                "prev_hash": previous,
+                "event_hash": digest,
+            })
+            previous = digest
+        return entries
 
     def list_audit(self, alert_id: str | None = None, run_id: str | None = None) -> list[dict[str, Any]]:
         """Query audit log by alert_id and/or run_id.
@@ -633,29 +740,12 @@ class Repository:
         the alert_id column). When alert_id is provided, matches the alert_id
         column directly. Both filters are AND-ed when both are given.
         """
-        clauses: list[str] = []
-        params: list[Any] = []
+        entries = self._audit_rows_with_hashes()
         if alert_id is not None:
-            clauses.append("alert_id=?")
-            params.append(alert_id)
+            entries = [entry for entry in entries if entry["alert_id"] == alert_id]
         if run_id is not None:
-            clauses.append("detail_json LIKE ?")
-            params.append(f'%"{run_id}"%')
-        where = " WHERE " + " AND ".join(clauses) if clauses else ""
-        rows = self._conn.execute(
-            f"SELECT * FROM audit_log{where} ORDER BY entry_id", params
-        ).fetchall()
-        return [
-            {
-                "entry_id": row["entry_id"],
-                "alert_id": row["alert_id"],
-                "actor": row["actor"],
-                "action": row["action"],
-                "detail_json": row["detail_json"],
-                "created_at": row["created_at"],
-            }
-            for row in rows
-        ]
+            entries = [entry for entry in entries if f'"{run_id}"' in entry["detail_json"]]
+        return entries
 
 
 def default_db_path() -> str:

@@ -19,7 +19,7 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 
@@ -92,6 +92,29 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
                 pass
         return basin
 
+    @app.get("/data/map-assets/dem-hillshade.png")
+    def get_dem_hillshade() -> Response:
+        from siren.api.map_assets import hillshade_png
+        return Response(hillshade_png(str(_project_root())), media_type="image/png")
+
+    @app.get("/data/map-assets/sar-backscatter.png")
+    def get_sar_backscatter() -> Response:
+        from siren.api.map_assets import sar_backscatter_png
+        return Response(sar_backscatter_png(str(_project_root())), media_type="image/png")
+
+    @app.get("/data/map-assets/{observation_id}/baseline-optical.png")
+    def get_baseline_optical_crop(observation_id: str) -> Response:
+        if observation_id not in {"obs-001", "obs-002", "obs-003"}:
+            raise HTTPException(
+                status_code=404,
+                detail={"error": "not_found", "detail": f"observation {observation_id} not found"},
+            )
+        from siren.api.map_assets import baseline_optical_crop_png
+        return Response(
+            baseline_optical_crop_png(str(_project_root()), observation_id),
+            media_type="image/png",
+        )
+
     # GET /observations
     @app.get("/observations", response_model=models.ObservationList)
     def list_observations() -> Any:
@@ -143,6 +166,16 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
     def list_runs() -> Any:
         return {"runs": repo.list_runs()}
 
+    @app.get("/runs/{run_id}", response_model=models.Run)
+    def get_run(run_id: str) -> Any:
+        run = repo.get_run(run_id)
+        if run is None:
+            raise HTTPException(
+                status_code=404,
+                detail={"error": "not_found", "detail": f"run {run_id} not found"},
+            )
+        return run
+
     # GET /runs/{run_id}/exposures
     @app.get("/runs/{run_id}/exposures", response_model=models.ExposureList)
     def list_exposures(run_id: str) -> Any:
@@ -184,7 +217,7 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
         mask_uri = f"/data/processed/{obs_id}_expansion_mask.png"
         heatmap_uri = stats.get("heatmap_uri", f"/data/processed/{obs_id}_change_heatmap.png")
         baseline_uri = "/data/processed/baseline_water_mask.png"
-        preview_baseline_uri = f"/data/processed/{obs_id}_baseline.png"
+        preview_baseline_uri = f"/data/map-assets/{obs_id}/baseline-optical.png"
         preview_after_uri = heatmap_uri
         return {
             "run_id": run_id,
