@@ -96,8 +96,8 @@ export default function App() {
         <nav className="h-nav-height flex-none flex items-stretch bg-surface-panel border-b border-border-subtle">
           {/* Brand + basin */}
           <div className="flex items-center gap-space-8 px-space-12 border-r border-border-subtle">
-            <span className="text-headline-md font-headline text-text-primary tracking-wide">SIREN</span>
-            <span className="text-body-md text-text-dim hidden sm:inline">{basinName}</span>
+            <span className="text-headline-lg font-headline font-bold text-text-primary tracking-wider">SIREN</span>
+            <span className="text-body-md text-text-dim hidden sm:inline font-medium">/ {basinName}</span>
           </div>
 
           {/* Tabs */}
@@ -106,9 +106,9 @@ export default function App() {
               <button
                 key={tab.key}
                 onClick={() => setView(tab.key)}
-                className={`px-space-16 text-body-md transition-colors border-b-2 ${
+                className={`px-space-24 text-body-lg font-medium transition-colors border-b-2 ${
                   view === tab.key
-                    ? "text-text-primary border-primary"
+                    ? "text-text-primary border-primary font-semibold"
                     : "text-text-dim border-transparent hover:text-text-primary hover:bg-surface-container"
                 }`}
               >
@@ -119,8 +119,8 @@ export default function App() {
 
           {/* Status chips — system-level indicators */}
           <div className="flex items-center gap-space-8 px-space-12 ml-auto">
-            <span className={`w-2.5 h-2.5 border ${sim.status === "running" ? "border-status-safe bg-status-safe animate-pulse" : "border-text-muted"}`} />
-            <span className="text-body-sm text-text-dim">{pipelineStatus}</span>
+            <span className={`w-3 h-3 rounded-full border ${sim.status === "running" ? "border-status-safe bg-status-safe animate-pulse" : "border-text-muted"}`} />
+            <span className="text-body-md font-mono text-text-dim">{pipelineStatus}</span>
             <span className="text-border-subtle">|</span>
             <OfflineBadge />
           </div>
@@ -140,22 +140,22 @@ export default function App() {
         {showBanner && (
           <div
             onClick={() => setView("review")}
-            className={`h-banner-height flex-none flex items-center gap-space-12 px-space-16 bg-surface-panel border-b border-border-subtle border-l-2 cursor-pointer ${
+            className={`h-banner-height flex-none flex items-center gap-space-16 px-space-24 bg-surface-panel border-b border-border-subtle border-l-4 cursor-pointer hover:bg-surface-container transition-colors ${
               severity === "critical" ? "border-l-status-danger" : "border-l-status-elevated"
             }`}
           >
             <span
-              className={`text-body-md font-medium ${
+              className={`text-body-lg font-bold uppercase tracking-wider ${
                 severity === "critical" ? "text-status-danger" : "text-status-elevated"
               }`}
             >
-              {severity === "critical" ? "Critical" : "Elevated"}
+              [{severity === "critical" ? "CRITICAL ALERT" : "ELEVATED ALERT"}]
             </span>
-            <span className="text-body-md text-text-primary">
-              water expansion <span className="data-val">+{expansionPct.toFixed(1)}%</span> detected
+            <span className="text-body-lg text-text-primary font-medium">
+              Water expansion <span className="data-val text-primary font-bold">+{expansionPct.toFixed(1)}%</span> detected
             </span>
-            <span className="ml-auto text-body-sm text-status-elevated border border-status-elevated px-space-8 py-space-2">
-              Review pending →
+            <span className="ml-auto text-body-md font-bold text-status-elevated border-2 border-status-elevated bg-status-elevated/15 hover:bg-status-elevated/30 px-space-12 py-space-4 transition-all flex items-center gap-space-6" style={{ boxShadow: "0 0 12px rgba(255,176,0,0.25)" }}>
+              REVIEW PENDING →
             </span>
           </div>
         )}
