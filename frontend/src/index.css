@@ -15,98 +15,100 @@
     overflow: hidden;
   }
 
-  ::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* Default / Ops Dark theme (emergency-operations console) */
+  /* Default / Ops Dark theme — matte operational console */
   :root,
   .theme-ops-dark {
-    --color-background: #0b1326;
-    --color-surface-canvas: #0F172A;
-    --color-surface-panel: #1E293B;
-    --color-surface-recessed: #0A0F1E;
-    --color-surface-container-low: #131b2e;
-    --color-surface-container: #171f33;
-    --color-surface-container-high: #222a3d;
-    --color-surface-container-highest: #2d3449;
-    --color-border-subtle: #334155;
-    --color-text-primary: #E2E8F0;
-    --color-text-dim: #94A3B8;
-    --color-text-inverse: #0F172A;
-    --color-primary: #4cd7f6;
-    --color-primary-fg: #0F172A;
-    --color-primary-container: #06b6d4;
-    --color-secondary: #adc6ff;
-    --color-secondary-container: #0566d9;
-    --color-info: #3B82F6;
-    --color-status-safe: #22C55E;
-    --color-status-warn: #F59E0B;
-    --color-status-elevated: #F97316;
-    --color-status-danger: #EF4444;
-    --color-status-info: #3B82F6;
-    --color-shadow: rgba(0, 0, 0, 0.4);
-    --font-weight-headline: 600;
+    --color-background: #0b0f17;
+    --color-surface-canvas: #0b0f17;
+    --color-surface-panel: #111827;
+    --color-surface-recessed: #0b0f17;
+    --color-surface-container-low: #111827;
+    --color-surface-container: #1f2937;
+    --color-surface-container-high: #1f2937;
+    --color-surface-container-highest: #374151;
+    --color-border-subtle: #1e293b;
+    --color-border-strong: #334155;
+    --color-text-primary: #f8fafc;
+    --color-text-dim: #94a3b8;
+    --color-text-muted: #64748b;
+    --color-text-inverse: #0b0f17;
+    --color-primary: #38bdf8;
+    --color-primary-fg: #0b0f17;
+    --color-primary-container: #38bdf8;
+    --color-secondary: #94a3b8;
+    --color-secondary-container: #475569;
+    --color-info: #0ea5e9;
+    --color-status-safe: #10b981;
+    --color-status-warn: #f59e0b;
+    --color-status-elevated: #f59e0b;
+    --color-status-danger: #ef4444;
+    --color-status-info: #0ea5e9;
+    --color-shadow: transparent;
+    --font-weight-headline: 500;
     --map-style: dark;
   }
 
-  /* Professional Light theme (NGO / government dashboard) */
+  /* Professional Light theme — NGO / government dashboard */
   .theme-professional-light {
     --color-background: #f8fafc;
-    --color-surface-canvas: #f1f5f9;
+    --color-surface-canvas: #f8fafc;
     --color-surface-panel: #ffffff;
-    --color-surface-recessed: #e2e8f0;
-    --color-surface-container-low: #f8fafc;
-    --color-surface-container: #ffffff;
-    --color-surface-container-high: #f1f5f9;
-    --color-surface-container-highest: #e2e8f0;
-    --color-border-subtle: #cbd5e1;
+    --color-surface-recessed: #f1f5f9;
+    --color-surface-container-low: #ffffff;
+    --color-surface-container: #f1f5f9;
+    --color-surface-container-high: #e2e8f0;
+    --color-surface-container-highest: #cbd5e1;
+    --color-border-subtle: #e2e8f0;
+    --color-border-strong: #cbd5e1;
     --color-text-primary: #0f172a;
     --color-text-dim: #475569;
+    --color-text-muted: #94a3b8;
     --color-text-inverse: #ffffff;
     --color-primary: #0369a1;
     --color-primary-fg: #ffffff;
-    --color-primary-container: #0ea5e9;
-    --color-secondary: #1e40af;
-    --color-secondary-container: #2563eb;
-    --color-info: #2563eb;
+    --color-primary-container: #0369a1;
+    --color-secondary: #475569;
+    --color-secondary-container: #64748b;
+    --color-info: #0369a1;
     --color-status-safe: #15803d;
     --color-status-warn: #a16207;
-    --color-status-elevated: #c2410c;
+    --color-status-elevated: #a16207;
     --color-status-danger: #b91c1c;
-    --color-status-info: #2563eb;
-    --color-shadow: rgba(15, 23, 42, 0.08);
-    --font-weight-headline: 700;
+    --color-status-info: #0369a1;
+    --color-shadow: transparent;
+    --font-weight-headline: 600;
     --map-style: light;
   }
 
-  /* Satellite-first theme (GIS / remote-sensing workstation) */
+  /* Satellite-first theme — GIS / remote-sensing workstation */
   .theme-satellite {
-    --color-background: #0f1216;
-    --color-surface-canvas: #11151c;
-    --color-surface-panel: rgba(20, 25, 34, 0.92);
-    --color-surface-recessed: #0a0d12;
-    --color-surface-container-low: #131722;
-    --color-surface-container: #181d27;
-    --color-surface-container-high: #212633;
-    --color-surface-container-highest: #2a303d;
-    --color-border-subtle: rgba(255, 255, 255, 0.12);
+    --color-background: #0b0f17;
+    --color-surface-canvas: #0b0f17;
+    --color-surface-panel: #111827;
+    --color-surface-recessed: #0b0f17;
+    --color-surface-container-low: #111827;
+    --color-surface-container: #1f2937;
+    --color-surface-container-high: #1f2937;
+    --color-surface-container-highest: #374151;
+    --color-border-subtle: #1e293b;
+    --color-border-strong: #334155;
     --color-text-primary: #f8fafc;
     --color-text-dim: #94a3b8;
-    --color-text-inverse: #0f1216;
+    --color-text-muted: #64748b;
+    --color-text-inverse: #0b0f17;
     --color-primary: #f59e0b;
-    --color-primary-fg: #0f1216;
-    --color-primary-container: #fbbf24;
+    --color-primary-fg: #0b0f17;
+    --color-primary-container: #f59e0b;
     --color-secondary: #38bdf8;
     --color-secondary-container: #0ea5e9;
     --color-info: #38bdf8;
-    --color-status-safe: #4ade80;
-    --color-status-warn: #fbbf24;
-    --color-status-elevated: #fb923c;
-    --color-status-danger: #f87171;
+    --color-status-safe: #10b981;
+    --color-status-warn: #f59e0b;
+    --color-status-elevated: #f59e0b;
+    --color-status-danger: #ef4444;
     --color-status-info: #38bdf8;
-    --color-shadow: rgba(0, 0, 0, 0.5);
-    --font-weight-headline: 600;
+    --color-shadow: transparent;
+    --font-weight-headline: 500;
     --map-style: satellite;
   }
 
@@ -116,11 +118,26 @@
     font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
     overscroll-behavior: none;
     -webkit-font-smoothing: antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+  /* Section label — small caps tracking for operational headers */
+  .label-caps {
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 11px;
+    line-height: 14px;
+    color: var(--color-text-dim);
+    font-weight: 500;
+  }
+  /* Data value — monospace with explicit units */
+  .data-val {
+    font-family: "JetBrains Mono", "SFMono-Regular", monospace;
+    font-variant-numeric: tabular-nums;
   }
 }

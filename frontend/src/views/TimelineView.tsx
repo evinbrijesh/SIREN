@@ -61,54 +61,54 @@ export default function TimelineView() {
   const totalSteps = timeline.length - 1;
 
   return (
-    <div className="flex flex-col gap-space-16 h-full">
-      <div className="flex items-center justify-between">
-        <h1 className="text-headline-lg text-text-primary font-medium tracking-tight">Timeline</h1>
+    <div className="flex flex-col h-full">
+      {/* Header bar */}
+      <div className="flex items-center justify-between px-space-16 py-space-8 border-b border-border-subtle bg-surface-panel">
+        <div className="flex items-center gap-space-12">
+          <h1 className="label-caps">Telemetry Sequence</h1>
+          <span className="data-val text-body-sm text-text-dim">BASIN-DK-IMJA-04</span>
+        </div>
         <div className="flex items-center gap-space-8">
-          <span className="text-caption text-text-dim uppercase tracking-wider">Telemetry Sequence</span>
-          <span className="font-mono text-code-sm text-primary-container">BASIN-DK-IMJA-04</span>
+          <span className="data-val text-body-sm text-text-dim">STEP</span>
+          <span className="data-val text-body-md text-text-primary">{currentStepIdx}/{totalSteps}</span>
         </div>
       </div>
 
       {/* Simulation controller */}
-      <div className="bg-surface-panel border border-border-subtle p-space-16 rounded-xl flex items-center gap-space-16">
+      <div className="bg-surface-panel border-b border-border-subtle px-space-16 py-space-12 flex items-center gap-space-16">
         <button
           onClick={runSim}
           disabled={isRunning}
-          className="bg-primary-container text-surface-canvas font-medium text-body-md rounded-lg px-space-16 py-space-8 hover:brightness-110 active:scale-[0.98] transition-all flex items-center gap-space-6 whitespace-nowrap select-none cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+          className="bg-surface-container text-text-primary data-val text-body-md px-space-12 py-space-6 border border-border-strong hover:bg-surface-container-high transition-colors flex items-center gap-space-6 whitespace-nowrap select-none cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          <span>{isComplete ? "↻" : isRunning ? "⏸" : "▶"}</span>
-          <span>{isComplete ? "Replay" : isRunning ? "Running..." : "Run Simulation"}</span>
+          <span>{isComplete ? "REPLAY" : isRunning ? "RUNNING" : "RUN"}</span>
         </button>
-        <span className="font-mono text-code-lg text-text-dim tracking-tight select-none">
-          {currentStepIdx}/{totalSteps}
-        </span>
-        <div className="flex-1 h-[4px] bg-border-subtle rounded-full overflow-hidden relative">
+        <div className="flex-1 h-[2px] bg-border-subtle overflow-hidden relative">
           <div
-            className="h-full bg-primary-container transition-all duration-300 rounded-full"
+            className="h-full bg-primary-container transition-all duration-300"
             style={{ width: `${(currentStepIdx / totalSteps) * 100}%` }}
           />
         </div>
       </div>
 
-      {/* Prevention callout */}
+      {/* Prevention callout — semantic state only */}
       {currentStepIdx >= 2 && warningDays !== null && (
-        <div className="bg-surface-panel border-l-[3px] border-l-status-safe border border-border-subtle p-space-16 rounded-xl flex items-center justify-between">
-          <div className="flex items-center gap-space-8 text-body-lg">
-            <span className="text-status-safe font-semibold leading-none select-none">★</span>
-            <span className="text-text-primary">
-              <span className="text-status-safe font-medium">{warningDays} days</span> of early warning between Obs 1 (
-              <span className="text-status-safe font-medium">+{obs1?.water_area_change_percent?.toFixed(0)}%</span>) and Obs 2 (
-              <span className="text-status-safe font-medium">+{obs2?.water_area_change_percent?.toFixed(0)}%</span>)
+        <div className="bg-surface-panel border-l-2 border-l-status-safe border-b border-border-subtle px-space-16 py-space-12 flex items-center justify-between">
+          <div className="flex items-center gap-space-8">
+            <span className="data-val text-body-md text-status-safe">EARLY WARNING</span>
+            <span className="text-body-md text-text-primary">
+              <span className="data-val text-status-safe">{warningDays} days</span> between OBS-01 (
+              <span className="data-val">+{obs1?.water_area_change_percent?.toFixed(1)}%</span>) and OBS-02 (
+              <span className="data-val">+{obs2?.water_area_change_percent?.toFixed(1)}%</span>)
             </span>
           </div>
-          <span className="font-mono text-code-sm text-text-dim hidden md:inline-block">
-            DELTA: ΔT+{warningDays * 24}H
+          <span className="data-val text-body-sm text-text-dim">
+            DELTA T+{warningDays * 24}H
           </span>
         </div>
       )}
 
-      {/* Router strip */}
+      {/* Router strip — SAR fallback indicator */}
       {timeline.map((obs, i) => {
         if (i === 0) return null;
         const isSAR = obs.source.includes("sentinel-1") || obs.source.includes("sar");
@@ -116,86 +116,91 @@ export default function TimelineView() {
           return (
             <div
               key={`router-${obs.observation_id}`}
-              className="bg-surface-panel border border-border-subtle p-space-12 rounded-xl flex items-center gap-space-8 select-none"
+              className="bg-surface-panel border-b border-border-subtle px-space-16 py-space-8 flex items-center gap-space-8 select-none"
             >
-              <span className="text-body-lg text-text-dim font-medium">Obs {i}:</span>
-              <span className="text-body-lg text-text-primary">{(obs.cloud_fraction ?? 1) * 100}% cloud</span>
-              <span className="text-body-lg text-primary-container font-semibold">→</span>
-              <span className="text-body-lg text-text-primary">SAR path</span>
+              <span className="data-val text-body-sm text-text-dim">OBS-{String(i).padStart(2, "0")}:</span>
+              <span className="data-val text-body-sm text-text-primary">{((obs.cloud_fraction ?? 1) * 100).toFixed(0)}% cloud</span>
+              <span className="data-val text-body-sm text-primary-container">-&gt;</span>
+              <span className="data-val text-body-sm text-text-primary">SAR path</span>
               <span className="text-border-subtle mx-space-4">|</span>
-              <span className="font-mono text-code-sm text-text-dim">C-Band Synthetic Aperture Radar fallback engaged</span>
+              <span className="data-val text-body-sm text-text-dim">C-Band SAR fallback engaged</span>
             </div>
           );
         }
         return null;
       })}
 
-      {/* Observation cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-space-12">
-        {timeline.map((obs, i) => {
-          const sev = severityFromObs(obs);
-          const pct = obs.water_area_change_percent ?? 0;
-          const isSAR = obs.source.includes("sentinel-1") || obs.source.includes("sar");
-          const isActive = i === currentStepIdx;
-          const isGreyed = i > currentStepIdx;
-          const cardStep: SimStep = i === 0 ? "before" : (`obs-${i}` as SimStep);
-          const dateStr = new Date(obs.acquired_at).toISOString().slice(0, 10);
+      {/* Observation cards — dense data grid */}
+      <div className="flex-1 overflow-auto p-space-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-space-8">
+          {timeline.map((obs, i) => {
+            const sev = severityFromObs(obs);
+            const pct = obs.water_area_change_percent ?? 0;
+            const isSAR = obs.source.includes("sentinel-1") || obs.source.includes("sar");
+            const isActive = i === currentStepIdx;
+            const isGreyed = i > currentStepIdx;
+            const cardStep: SimStep = i === 0 ? "before" : (`obs-${i}` as SimStep);
+            const dateStr = new Date(obs.acquired_at).toISOString().slice(0, 10);
 
-          return (
-            <div
-              key={obs.observation_id}
-              onClick={() => !isGreyed && sim.scrubTo(cardStep)}
-              className={`bg-surface-panel border rounded-xl p-space-16 flex flex-col justify-between gap-space-16 transition-colors ${
-                isActive ? "border-2 border-primary-container" : "border-border-subtle hover:border-text-dim/40"
-              } ${isGreyed ? "opacity-40 pointer-events-none" : "cursor-pointer"}`}
-            >
-              <div className="flex flex-col gap-space-8">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-space-6">
-                    <span className="text-headline-sm text-text-primary font-medium">
-                      {i === 0 ? "Baseline" : `Obs ${i}`}
-                    </span>
-                    {isActive && <span className="w-2 h-2 rounded-full bg-primary-container animate-pulse" />}
+            return (
+              <div
+                key={obs.observation_id}
+                onClick={() => !isGreyed && sim.scrubTo(cardStep)}
+                className={`bg-surface-panel border flex flex-col transition-colors ${
+                  isActive ? "border-primary" : "border-border-subtle hover:border-border-strong"
+                } ${isGreyed ? "opacity-40 pointer-events-none" : "cursor-pointer"}`}
+              >
+                {/* Card header */}
+                <div className="flex items-center justify-between px-space-12 py-space-8 border-b border-border-subtle">
+                  <span className="data-val text-body-md text-text-primary font-medium">
+                    {i === 0 ? "BASELINE" : `OBS-${String(i).padStart(2, "0")}`}
+                  </span>
+                  <span className={`data-val text-body-sm border px-space-4 py-space-1 ${SEVERITY_BADGE[sev]}`}>
+                    {sev.toUpperCase()}
+                  </span>
+                </div>
+
+                {/* Card body — telemetry table */}
+                <div className="px-space-12 py-space-8 flex flex-col gap-space-2 data-val text-body-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-text-dim">DATE</span>
+                    <span className="text-text-primary">{dateStr}</span>
                   </div>
-                  <span className={`inline-block px-space-8 py-space-2 rounded text-caption uppercase tracking-wider bg-transparent border ${SEVERITY_BADGE[sev]}`}>
-                    {sev}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-code-sm text-text-dim">{dateStr}</span>
-                  <span className={`font-mono text-code-sm ${isSAR ? "text-primary-container font-medium" : "text-status-info"}`}>
-                    {isSAR ? "S1 SAR" : "S2 Optical"}
-                  </span>
-                </div>
-              </div>
-
-              <div className="bg-surface-recessed border border-border-subtle rounded-lg p-space-12 flex flex-col gap-space-8 font-mono text-code-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-text-dim">Cloud</span>
-                  <span className="text-text-primary">
-                    {obs.cloud_fraction !== null ? `${(obs.cloud_fraction * 100).toFixed(0)}%` : "—"}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-text-dim">Rain 24h</span>
-                  <span className="text-text-primary">{obs.rainfall_24h_mm ?? "—"}mm</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-text-dim">Area</span>
-                  <span className={`text-text-primary font-medium ${isActive ? "text-primary-container" : ""}`}>
-                    {obs.water_area_km2 ?? "—"} km²
-                  </span>
-                </div>
-                <div className="flex items-center justify-between border-t border-border-subtle/50 pt-space-6 mt-space-2">
-                  <span className="text-text-dim">Change</span>
-                  <span className={`font-medium ${pct > 0 ? "text-status-warn" : "text-text-primary"}`}>
-                    {pct > 0 ? "▲ " : ""}+{pct.toFixed(0)}%
-                  </span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-text-dim">SOURCE</span>
+                    <span className={isSAR ? "text-primary-container" : "text-status-info"}>
+                      {isSAR ? "S1 SAR" : "S2 OPTICAL"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-text-dim">CLOUD</span>
+                    <span className="text-text-primary">
+                      {obs.cloud_fraction !== null ? `${(obs.cloud_fraction * 100).toFixed(0)}%` : "N/A"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-text-dim">RAIN 24H</span>
+                    <span className="text-text-primary">
+                      {obs.rainfall_24h_mm != null ? `${obs.rainfall_24h_mm.toFixed(1)} mm` : "N/A"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-text-dim">AREA</span>
+                    <span className={`text-text-primary ${isActive ? "text-primary-container" : ""}`}>
+                      {obs.water_area_km2 != null ? `${obs.water_area_km2.toFixed(2)} km²` : "N/A"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-border-subtle pt-space-2 mt-space-2">
+                    <span className="text-text-dim">CHANGE</span>
+                    <span className={pct > 0 ? "text-status-warn" : "text-text-primary"}>
+                      {pct > 0 ? "+" : ""}{pct.toFixed(1)}%
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );

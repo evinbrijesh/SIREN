@@ -14,10 +14,10 @@ interface MapViewProps {
 }
 
 const STEP_LABELS: Record<SimStep, string> = {
-  before: "Baseline — Nov 22, 2025",
-  "obs-1": "Obs 1 — Aug 23, 2026",
-  "obs-2": "Obs 2 — Aug 29, 2026",
-  "obs-3": "Obs 3 — Sep 4, 2026",
+  before: "BASELINE | 2025-11-22",
+  "obs-1": "OBS 01 | 2026-08-23",
+  "obs-2": "OBS 02 | 2026-08-29",
+  "obs-3": "OBS 03 | 2026-09-04",
 };
 
 const STATUS_COLOR: Record<string, string> = {
@@ -30,15 +30,13 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 const STATUS_LABEL: Record<string, string> = {
-  safe: "Safe",
-  buffered: "Buffered",
-  amber: "Buffered",
-  inundated: "Inundated",
-  red: "Inundated",
-  green: "Safe",
+  safe: "SAFE",
+  buffered: "BUFFERED",
+  amber: "BUFFERED",
+  inundated: "INUNDATED",
+  red: "INUNDATED",
+  green: "SAFE",
 };
-
-const LAYER_ORDER = ["basemap", "basin-fill", "basin-border", "water-fill", "water-outline", "corridor-line", "heatmap-overlay"];
 
 type MapViewLayers = {
   basemap: boolean;
@@ -49,13 +47,13 @@ type MapViewLayers = {
   heatmap: boolean;
 };
 
-const LAYER_LABELS: { key: keyof MapViewLayers; label: string; icon: string }[] = [
-  { key: "basemap", label: "Satellite basemap", icon: "🛰️" },
-  { key: "basin", label: "Basin AOI", icon: "□" },
-  { key: "water", label: "Water expansion", icon: "💧" },
-  { key: "corridor", label: "D8 corridor", icon: "→" },
-  { key: "assets", label: "OSM assets", icon: "📍" },
-  { key: "heatmap", label: "ML heatmap", icon: "🔥" },
+const LAYER_LABELS: { key: keyof MapViewLayers; label: string }[] = [
+  { key: "basemap", label: "Satellite basemap" },
+  { key: "basin", label: "Basin AOI" },
+  { key: "water", label: "Water expansion" },
+  { key: "corridor", label: "D8 corridor" },
+  { key: "assets", label: "OSM assets" },
+  { key: "heatmap", label: "ML heatmap" },
 ];
 
 function isFeatureCollection(g: GeoJSONFeature | null): g is { type: "FeatureCollection"; features: any[] } {
@@ -137,7 +135,7 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
       style: {
         version: 8,
         sources: {},
-        layers: [{ id: "background", type: "background", paint: { "background-color": "#0A0F1E" } }],
+        layers: [{ id: "background", type: "background", paint: { "background-color": "#0b0f17" } }],
       },
       center: [86.82, 27.88],
       zoom: 11,
@@ -166,14 +164,14 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
         id: "basin-fill",
         type: "fill",
         source: "basin",
-        paint: { "fill-color": "var(--color-primary)", "fill-opacity": 0.05 * (opacity / 100) },
+        paint: { "fill-color": "#38bdf8", "fill-opacity": 0.05 * (opacity / 100) },
         layout: { visibility: layers.basin ? "visible" : "none" },
       });
       map.addLayer({
         id: "basin-border",
         type: "line",
         source: "basin",
-        paint: { "line-color": "var(--color-primary)", "line-width": 1.5, "line-dasharray": [4, 4] },
+        paint: { "line-color": "#38bdf8", "line-width": 1, "line-dasharray": [4, 4] },
         layout: { visibility: layers.basin ? "visible" : "none" },
       });
 
@@ -183,14 +181,14 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
         id: "water-fill",
         type: "fill",
         source: "water",
-        paint: { "fill-color": "var(--color-status-danger)", "fill-opacity": 0.35 * (opacity / 100) },
+        paint: { "fill-color": "#ef4444", "fill-opacity": 0.35 * (opacity / 100) },
         layout: { visibility: layers.water ? "visible" : "none" },
       });
       map.addLayer({
         id: "water-outline",
         type: "line",
         source: "water",
-        paint: { "line-color": "var(--color-status-danger)", "line-width": 1.5 },
+        paint: { "line-color": "#ef4444", "line-width": 1.5 },
         layout: { visibility: layers.water ? "visible" : "none" },
       });
 
@@ -201,7 +199,7 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
         id: "corridor-line",
         type: "line",
         source: "corridor",
-        paint: { "line-color": "var(--color-status-warn)", "line-width": 2.5, "line-dasharray": [6, 4] },
+        paint: { "line-color": "#f59e0b", "line-width": 2, "line-dasharray": [6, 4] },
         layout: { visibility: layers.corridor ? "visible" : "none" },
       });
 
@@ -338,38 +336,37 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
   const selectedAsset = exposures.find((e) => e.asset_id === sim.selectedAssetId);
 
   return (
-    <div className="flex flex-row gap-space-12 h-full items-stretch">
-      {/* Left dock */}
-      <aside className={`${leftOpen ? "w-dock-left-width" : "w-10"} flex-none bg-surface-panel rounded-xl p-space-16 border border-border-subtle flex flex-col justify-between transition-all`}>
+    <div className="flex flex-row h-full items-stretch">
+      {/* Left dock — layers */}
+      <aside className={`${leftOpen ? "w-dock-left-width" : "w-8"} flex-none bg-surface-panel border-r border-border-subtle flex flex-col justify-between transition-all`}>
         {leftOpen ? (
           <>
-            <div className="space-y-space-16">
+            <div className="p-space-12 space-y-space-12">
               <div className="flex items-center justify-between">
-                <h2 className="text-headline-md font-headline text-text-primary tracking-tight">Layers</h2>
-                <button onClick={() => setLeftOpen(false)} className="text-text-dim hover:text-text-primary">◀</button>
+                <h2 className="label-caps">Layers</h2>
+                <button onClick={() => setLeftOpen(false)} className="text-text-dim hover:text-text-primary text-body-sm">[&lt;]</button>
               </div>
-              <div className="flex flex-col space-y-space-10 text-body-md">
-                {LAYER_LABELS.map(({ key, label, icon }) => (
+              <div className="flex flex-col space-y-space-2">
+                {LAYER_LABELS.map(({ key, label }) => (
                   <label
                     key={key}
-                    className="flex items-center gap-space-8 select-none text-text-primary cursor-pointer hover:text-primary transition-colors"
+                    className="flex items-center gap-space-8 select-none text-text-primary cursor-pointer hover:bg-surface-container px-space-4 py-space-2 transition-colors"
                   >
                     <input
                       type="checkbox"
                       checked={layers[key]}
                       onChange={() => toggleLayer(key)}
-                      className="w-4 h-4 rounded bg-surface-recessed border border-border-subtle text-primary focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                      className="w-3 h-3 bg-surface-recessed border border-border-strong text-primary focus:ring-0 focus:ring-offset-0 cursor-pointer"
                     />
-                    <span className="text-body-sm">{icon}</span>
-                    <span>{label}</span>
+                    <span className="text-body-md">{label}</span>
                   </label>
                 ))}
               </div>
             </div>
-            <div className="pt-space-16 border-t border-border-subtle">
-              <div className="flex justify-between items-center mb-space-8">
-                <span className="text-body-sm text-text-dim uppercase tracking-wider">Opacity</span>
-                <span className="font-mono text-code-sm text-primary-container">{opacity}%</span>
+            <div className="p-space-12 border-t border-border-subtle">
+              <div className="flex justify-between items-center mb-space-4">
+                <span className="label-caps">Overlay Opacity</span>
+                <span className="data-val text-body-sm text-text-primary">{opacity}%</span>
               </div>
               <input
                 type="range"
@@ -377,32 +374,35 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
                 max={100}
                 value={opacity}
                 onChange={(e) => setOpacity(parseInt(e.target.value, 10))}
-                className="w-full h-1.5 rounded bg-surface-recessed appearance-none cursor-pointer accent-primary-container"
+                className="w-full h-1 bg-surface-recessed appearance-none cursor-pointer accent-primary-container"
               />
             </div>
           </>
         ) : (
-          <button onClick={() => setLeftOpen(true)} className="text-text-dim hover:text-text-primary mx-auto">▶</button>
+          <button onClick={() => setLeftOpen(true)} className="text-text-dim hover:text-text-primary mx-auto py-space-8 text-body-sm">[&gt;]</button>
         )}
       </aside>
 
-      {/* Center */}
-      <div className="flex-1 flex flex-col gap-space-12 min-w-0">
-        <div className="relative flex-1 min-h-0 bg-surface-recessed rounded-xl overflow-hidden border border-border-subtle shadow-panel">
+      {/* Center — map + before/after */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <div className="relative flex-1 min-h-0 bg-surface-recessed overflow-hidden border-b border-border-subtle">
           <div ref={mapContainer} className="absolute inset-0" />
-          <div className="absolute top-space-16 left-space-16 z-10 px-space-12 py-space-6 bg-surface-panel/90 backdrop-blur rounded border border-border-subtle text-body-sm text-text-primary shadow-panel">
+          <div className="absolute top-space-8 left-space-8 z-10 px-space-8 py-space-4 bg-surface-panel border border-border-subtle data-val text-body-sm text-text-primary">
             {STEP_LABELS[sim.step]}
+          </div>
+          <div className="absolute top-space-8 right-space-8 z-10 px-space-8 py-space-4 bg-surface-panel border border-border-subtle data-val text-body-sm text-text-dim">
+            27.88N 86.82E | UTM 45N
           </div>
         </div>
 
-        <section className="bg-surface-panel rounded-xl p-space-16 border border-border-subtle flex flex-col gap-space-12 flex-none shadow-panel">
-          <div className="flex justify-between items-center">
-            <h3 className="text-headline-md font-headline text-text-primary tracking-tight">Before / After</h3>
-            <span className="text-caption text-text-dim">Drag vertical divider to compare expansion limits</span>
+        <section className="bg-surface-panel border-t border-border-subtle flex flex-col flex-none">
+          <div className="flex justify-between items-center px-space-12 py-space-8 border-b border-border-subtle">
+            <h3 className="label-caps">Before / After — Swipe Compare</h3>
+            <span className="data-val text-body-sm text-text-dim">DRAG DIVIDER</span>
           </div>
           <div
             ref={swipeContainerRef}
-            className="relative w-full h-[160px] rounded bg-surface-recessed overflow-hidden select-none cursor-ew-resize border border-border-subtle"
+            className="relative w-full h-[140px] bg-surface-recessed overflow-hidden select-none cursor-ew-resize"
             onMouseDown={startDrag}
             onTouchStart={startDrag}
           >
@@ -411,10 +411,10 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
               {afterImg ? (
                 <img src={afterImg} alt="after" className="h-full w-full object-cover" />
               ) : (
-                <span className="text-body-sm text-text-dim">After — no image</span>
+                <span className="data-val text-body-sm text-text-muted">N/A — no image</span>
               )}
             </div>
-            {/* Before image, clipped to swipe width; image is same rendered size as after */}
+            {/* Before image, clipped to swipe width */}
             <div
               className="absolute inset-y-0 left-0 bg-surface-canvas overflow-hidden flex items-center justify-center"
               style={{ width: `${swipePct}%` }}
@@ -427,64 +427,62 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
                   style={{ minWidth: `${100 / (swipePct / 100 || 1)}%` }}
                 />
               ) : (
-                <span className="text-body-sm text-text-dim shrink-0">Before — no image</span>
+                <span className="data-val text-body-sm text-text-muted shrink-0">N/A — no image</span>
               )}
             </div>
-            <div className="absolute top-2 left-2 text-body-xs text-text-dim bg-surface-panel/90 px-1.5 rounded">
-              Before — {beforeArea.toFixed(1)} km²
+            <div className="absolute top-space-4 left-space-4 data-val text-caption text-text-dim bg-surface-panel border border-border-subtle px-space-4 py-space-2">
+              BEFORE | {beforeArea.toFixed(2)} km²
             </div>
-            <div className="absolute top-2 right-2 text-body-xs text-primary-container bg-surface-panel/90 px-1.5 rounded">
-              After — {afterArea.toFixed(1)} km² (+{expansionPct.toFixed(1)}%)
+            <div className="absolute top-space-4 right-space-4 data-val text-caption text-status-elevated bg-surface-panel border border-border-subtle px-space-4 py-space-2">
+              AFTER | {afterArea.toFixed(2)} km² | Δ +{expansionPct.toFixed(1)}%
             </div>
             <div
-              className="absolute top-0 bottom-0 z-30 pointer-events-none flex items-center justify-center -ml-[2px]"
+              className="absolute top-0 bottom-0 z-30 pointer-events-none flex items-center justify-center -ml-[1px]"
               style={{ left: `${swipePct}%` }}
             >
-              <div className="w-[3px] h-full bg-primary-container" />
-              <div className="absolute w-6 h-6 rounded-full bg-surface-panel flex items-center justify-center border-2 border-primary-container shadow-md">
-                <span className="text-[10px] text-primary-container font-bold leading-none select-none">‹›</span>
+              <div className="w-[2px] h-full bg-primary-container" />
+              <div className="absolute w-4 h-4 bg-surface-panel flex items-center justify-center border border-primary-container">
+                <span className="text-[9px] text-primary-container font-bold leading-none select-none data-val">&lt;&gt;</span>
               </div>
             </div>
           </div>
         </section>
       </div>
 
-      {/* Right dock */}
-      <aside className={`${rightOpen ? "w-dock-right-width" : "w-10"} flex-none bg-surface-panel rounded-xl p-space-16 border border-border-subtle flex flex-col justify-between transition-all`}>
+      {/* Right dock — legend + asset detail */}
+      <aside className={`${rightOpen ? "w-dock-right-width" : "w-8"} flex-none bg-surface-panel border-l border-border-subtle flex flex-col transition-all`}>
         {rightOpen ? (
           <>
-            <div className="flex items-center justify-between mb-space-12">
-              <h2 className="text-headline-md font-headline text-text-primary tracking-tight">Legend</h2>
-              <button onClick={() => setRightOpen(false)} className="text-text-dim hover:text-text-primary">▶</button>
-            </div>
-            <div className="space-y-space-24">
-              <div className="space-y-space-12">
-                <div className="flex flex-col space-y-space-8 text-body-md">
-                  {([
-                    ["green", "Safe"],
-                    ["amber", "Buffered"],
-                    ["red", "Inundated"],
-                  ] as const).map(([status, label]) => (
-                    <div key={status} className="flex items-center gap-space-8">
-                      <span
-                        className="w-3 h-3 rounded-full shrink-0"
-                        style={{ backgroundColor: `var(--color-status-${status === "green" ? "safe" : status === "amber" ? "warn" : "danger"})`, border: "2px solid var(--color-surface-canvas)" }}
-                      />
-                      <span className="text-text-primary">{label}</span>
-                    </div>
-                  ))}
-                </div>
+            <div className="p-space-12 border-b border-border-subtle">
+              <div className="flex items-center justify-between mb-space-8">
+                <h2 className="label-caps">Legend</h2>
+                <button onClick={() => setRightOpen(false)} className="text-text-dim hover:text-text-primary text-body-sm">[&gt;]</button>
               </div>
-
-              {selectedAsset && (
-                <div className="pt-space-16 border-t border-border-subtle space-y-space-12">
-                  <AssetDetail asset={selectedAsset} onJumpToReview={onJumpToReview} />
-                </div>
-              )}
+              <div className="flex flex-col space-y-space-4">
+                {([
+                  ["green", "SAFE"],
+                  ["amber", "BUFFERED"],
+                  ["red", "INUNDATED"],
+                ] as const).map(([status, label]) => (
+                  <div key={status} className="flex items-center gap-space-8">
+                    <span
+                      className="w-2.5 h-2.5 shrink-0"
+                      style={{ backgroundColor: `var(--color-status-${status === "green" ? "safe" : status === "amber" ? "warn" : "danger"})` }}
+                    />
+                    <span className="text-body-md text-text-primary data-val">{label}</span>
+                  </div>
+                ))}
+              </div>
             </div>
+
+            {selectedAsset && (
+              <div className="p-space-12 flex-1 overflow-auto">
+                <AssetDetail asset={selectedAsset} onJumpToReview={onJumpToReview} />
+              </div>
+            )}
           </>
         ) : (
-          <button onClick={() => setRightOpen(true)} className="text-text-dim hover:text-text-primary mx-auto">◀</button>
+          <button onClick={() => setRightOpen(true)} className="text-text-dim hover:text-text-primary mx-auto py-space-8 text-body-sm">[&lt;]</button>
         )}
       </aside>
     </div>
@@ -507,7 +505,7 @@ function updateAssetMarkers(map: maplibregl.Map, exposures: any[], markersRef: R
     if (!coords) return;
     const status = asset.inundated ? "red" : asset.distance_m != null ? "amber" : "green";
     const el = document.createElement("div");
-    el.style.cssText = `width: 14px; height: 14px; border-radius: 50%; background: ${STATUS_COLOR[status]}; border: 2px solid var(--color-surface-canvas); cursor: pointer; box-shadow: 0 0 0 1px var(--color-border-subtle);`;
+    el.style.cssText = `width: 10px; height: 10px; background: ${STATUS_COLOR[status]}; border: 1px solid #0b0f17; cursor: pointer;`;
     el.title = asset.name || asset.asset_id;
     el.onclick = () => selectAsset(asset.asset_id);
     const marker = new maplibregl.Marker(el).setLngLat(coords).addTo(map);
@@ -518,28 +516,28 @@ function updateAssetMarkers(map: maplibregl.Map, exposures: any[], markersRef: R
 function AssetDetail({ asset, onJumpToReview }: { asset: any; onJumpToReview?: () => void }) {
   const status = asset.inundated ? "red" : asset.distance_m != null ? "amber" : "green";
   return (
-    <div className="space-y-space-12">
-      <div className="space-y-space-4">
-        <span className="text-caption text-text-dim uppercase tracking-wider">Target Inspection</span>
-        <h3 className="text-headline-md font-headline text-text-primary">{asset.name || asset.asset_id}</h3>
+    <div className="space-y-space-8">
+      <div className="space-y-space-2">
+        <span className="label-caps">Target Inspection</span>
+        <h3 className="text-headline-md text-text-primary data-val">{asset.name || asset.asset_id}</h3>
       </div>
-      <div className="space-y-space-4 text-body-md text-text-dim">
-        <p>Type: {asset.asset_type}</p>
-        <p>Distance: {asset.distance_m}m from corridor</p>
-        {asset.population != null && asset.population > 0 && <p>Population: {asset.population.toLocaleString()}</p>}
+      <div className="space-y-space-2 text-body-md text-text-dim data-val">
+        <div>TYPE: {asset.asset_type}</div>
+        <div>DIST: {asset.distance_m != null ? `${asset.distance_m.toFixed(0)} m` : "N/A"}</div>
+        {asset.population != null && asset.population > 0 && <div>POP: {asset.population.toLocaleString()}</div>}
       </div>
       <span
-        className="inline-block px-space-8 py-space-2 rounded text-body-sm tracking-wider uppercase bg-transparent border"
+        className="inline-block px-space-8 py-space-2 data-val text-body-sm tracking-wide border"
         style={{ color: STATUS_COLOR[status], borderColor: STATUS_COLOR[status] }}
       >
-        {STATUS_LABEL[status].toUpperCase()}
+        {STATUS_LABEL[status]}
       </span>
       {onJumpToReview && (
         <button
           onClick={onJumpToReview}
-          className="w-full mt-space-8 px-space-12 py-space-6 rounded text-body-sm text-primary border border-primary hover:bg-surface-recessed transition-colors bg-transparent"
+          className="w-full mt-space-4 px-space-8 py-space-4 data-val text-body-sm text-primary border border-primary hover:bg-surface-container transition-colors bg-transparent"
         >
-          Review →
+          REVIEW &gt;
         </button>
       )}
     </div>
