@@ -322,7 +322,7 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
                   <img
                     src={mlEvidence.baseline_mask_uri}
                     alt="Baseline water mask"
-                    className="absolute inset-0 w-full h-full object-contain opacity-80"
+                    className="absolute inset-0 w-full h-full object-cover opacity-80"
                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                   />
                   <div className="relative z-10 flex items-center justify-between px-space-8 py-space-4 bg-surface-panel border-b border-border-subtle">
@@ -337,7 +337,7 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
                   <img
                     src={mlEvidence.mask_uri}
                     alt="Current change mask"
-                    className="absolute inset-0 w-full h-full object-contain opacity-90"
+                    className="absolute inset-0 w-full h-full object-cover opacity-90"
                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                   />
                   <div className="relative z-10 flex items-center justify-between px-space-8 py-space-4 bg-surface-panel border-b border-border-subtle">
@@ -355,7 +355,7 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
                 <img
                   src={mlEvidence.heatmap_uri}
                   alt="ML change detection heatmap"
-                  className="absolute inset-0 w-full h-full object-contain"
+                  className="absolute inset-0 w-full h-full object-cover"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
                 <div className="relative z-10 flex items-center justify-between px-space-8 py-space-4 bg-surface-panel border-b border-border-subtle">

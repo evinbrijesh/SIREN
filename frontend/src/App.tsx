@@ -106,9 +106,9 @@ export default function App() {
               <button
                 key={tab.key}
                 onClick={() => setView(tab.key)}
-                className={`px-space-24 text-body-lg font-medium transition-colors border-b-2 ${
+                className={`px-space-24 text-body-lg font-semibold transition-colors border-b-2 ${
                   view === tab.key
-                    ? "text-text-primary border-primary font-semibold"
+                    ? "text-text-primary border-primary"
                     : "text-text-dim border-transparent hover:text-text-primary hover:bg-surface-container"
                 }`}
               >
@@ -176,7 +176,7 @@ export default function App() {
             Sentinel-2 / Sentinel-1 / SRTM / Open-Meteo / OSM
           </span>
           <span className="ml-auto data-val text-caption text-text-muted">
-            build a5a1751
+            build 9d0266c
           </span>
         </footer>
 
