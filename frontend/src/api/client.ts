@@ -53,6 +53,8 @@ export const api = {
       body: JSON.stringify({ channel, recipient_group: recipientGroup }),
     }),
   listAudit: (alertId: string) => fetchJson<AuditList>(`/audit?alert_id=${alertId}`),
+  processAll: () =>
+    fetchJson<{ runs: Run[]; count: number }>("/runs/process-all", { method: "POST" }),
 };
 
 // Offline-safe wrapper: if the backend is down, return mock data so the

@@ -38,24 +38,18 @@ export default function TimelineView() {
   // Chronological: baseline + observations reversed
   const timeline = [...observations].reverse();
 
-  const runSim = () => {
+  const runSim = async () => {
     if (sim.status === "complete") {
       sim.reset();
       return;
     }
     setIsRunning(true);
-    // Advance through steps with delay
-    let step = 0;
-    const interval = setInterval(() => {
-      step++;
-      if (step <= STEPS.length - 1) {
-        sim.scrubTo(STEPS[step]);
-      }
-      if (step >= STEPS.length - 1) {
-        clearInterval(interval);
-        setIsRunning(false);
-      }
-    }, 1000);
+    // Advance through all 3 observation steps — each calls POST /runs
+    for (let i = 0; i < 3; i++) {
+      await sim.advance();
+      await new Promise((r) => setTimeout(r, 600));
+    }
+    setIsRunning(false);
   };
 
   // Prevention callout — computed from timestamps, never hardcoded

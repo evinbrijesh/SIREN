@@ -139,5 +139,7 @@ def test_create_run(client: TestClient) -> None:
     resp = client.post("/runs", json={"observation_id": "obs-001"})
     assert resp.status_code == 202
     body = resp.json()
-    assert body["status"] == "queued"
+    # Pipeline now runs synchronously — status is "processed", not "queued"
+    assert body["status"] == "processed"
     assert body["observation_id"] == "obs-001"
+    assert body["run_id"].startswith("run-")

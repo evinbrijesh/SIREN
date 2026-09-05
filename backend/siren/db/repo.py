@@ -373,6 +373,79 @@ class Repository:
             "started_at": started_at,
         }
 
+    def complete_run(
+        self,
+        run_id: str,
+        change_mask_uri: str,
+        corridor_geojson: dict[str, Any],
+        change_stats_json: dict[str, Any],
+    ) -> None:
+        """Update a run with pipeline results (mask, corridor, stats).
+
+        Only audit_log has UPDATE triggers; runs is updatable.
+        """
+        self._conn.execute(
+            """UPDATE runs
+               SET change_mask_uri=?, corridor_geojson=?, change_stats_json=?,
+                   finished_at=?
+               WHERE run_id=?""",
+            (
+                change_mask_uri,
+                json.dumps(corridor_geojson),
+                json.dumps(change_stats_json),
+                _utcnow_iso(),
+                run_id,
+            ),
+        )
+        self._conn.commit()
+
+    def add_score(
+        self,
+        run_id: str,
+        hazard_score: float,
+        exposure_priority: float,
+        disease_risk: float | None,
+        confidence: float,
+        severity: str,
+        reasons: list[str],
+    ) -> str:
+        """Insert a score row for a run. Returns the score_id."""
+        count = self._conn.execute("SELECT COUNT(*) FROM scores").fetchone()[0]
+        score_id = f"score-{count + 1:04d}"
+        self._conn.execute(
+            """INSERT INTO scores
+               (score_id, run_id, hazard_score, exposure_priority,
+                disease_risk, confidence, severity, reasons_json)
+               VALUES(?,?,?,?,?,?,?,?)""",
+            (
+                score_id, run_id, hazard_score, exposure_priority,
+                disease_risk, confidence, severity, json.dumps(reasons),
+            ),
+        )
+        self._audit(None, "pipeline", "score", {
+            "run_id": run_id, "score_id": score_id, "severity": severity,
+        })
+        self._conn.commit()
+        return score_id
+
+    def add_exposures(
+        self, run_id: str, exposures: list[dict[str, Any]]
+    ) -> None:
+        """Insert exposure rows for a run."""
+        for i, exp in enumerate(exposures):
+            exp_id = f"exp-{run_id}-{i + 1:03d}"
+            self._conn.execute(
+                """INSERT INTO exposures
+                   (exposure_id, run_id, asset_id, distance_m, buffer_m, inundated)
+                   VALUES(?,?,?,?,?,?)""",
+                (
+                    exp_id, run_id, exp["asset_id"],
+                    exp.get("distance_m"), exp.get("buffer_m"),
+                    bool(exp.get("inundated", False)),
+                ),
+            )
+        self._conn.commit()
+
     def list_runs(self) -> list[dict[str, Any]]:
         rows = self._conn.execute(
             "SELECT * FROM runs ORDER BY started_at DESC"
