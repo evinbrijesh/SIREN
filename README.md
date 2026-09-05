@@ -89,13 +89,44 @@ docs/
   UI_DESIGN.md     # Coordinator console design spec
   DEVIN_BRIEFS.md  # Devin task dispatch briefs (D1-D7)
   ADR-001..005     # Architecture decision records
+Dockerfile.backend  # Backend image (Python + GDAL + geospatial stack)
+Dockerfile.frontend # Frontend image (Node build → nginx serve)
+docker-compose.yml  # One-command orchestration
 ```
 
 ---
 
 ## Quick Start
 
-### Prerequisites
+### Option A: Docker (recommended for demo/presentation)
+
+**Prerequisites:** Docker + Docker Compose installed. The `data/` directory must exist locally with the demo datasets.
+
+```bash
+docker compose up --build
+```
+
+That's it. The app is at `http://localhost:5175`.
+
+- Backend: Python 3.12 + GDAL + rasterio + geopandas (port 8010)
+- Frontend: nginx serving the Vite production build (port 5175)
+- Data: `./data` is volume-mounted (rasters, assets, SQLite DB persistence)
+- nginx proxies `/api/*` and `/data/*` to the backend container
+
+```bash
+# Stop
+docker compose down
+
+# Rebuild after code changes
+docker compose up --build
+
+# View logs
+docker compose logs -f
+```
+
+### Option B: Local development
+
+**Prerequisites:**
 
 - Python 3.11+ (3.14 works but pyproject.toml restricts to `<3.13` for editable install; pytest runs directly)
 - Node.js 18+

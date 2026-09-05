@@ -1,0 +1,38 @@
+# SIREN Backend — Python + GDAL + geospatial stack
+# Debian bookworm has GDAL 3.6 which is compatible with rasterio >=1.3
+FROM python:3.12-slim-bookworm
+
+# Install geospatial system libraries (GDAL, GEOS, PROJ, spatialindex)
+# gcc/g++ needed to compile rasterio, shapely, pysheds from source
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gdal-bin \
+    libgdal-dev \
+    libgeos-dev \
+    libproj-dev \
+    libspatialindex-dev \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Tell rasterio/shapely where to find GDAL headers
+ENV CPLUS_INCLUDE_PATH=/usr/include/gdal
+ENV C_INCLUDE_PATH=/usr/include/gdal
+ENV GDAL_CONFIG=/usr/bin/gdal-config
+
+WORKDIR /app
+
+# Install Python dependencies first (better layer caching)
+COPY backend/pyproject.toml .
+COPY backend/siren/ siren/
+COPY backend/tests/ tests/
+
+RUN pip install --no-cache-dir -e ".[dev]"
+
+# DB will be at /app/data/siren.db (mounted volume)
+# Project root is /app so pipeline finds data at /app/data/
+ENV SIREN_DB_PATH=/app/data/siren.db
+ENV SIREN_PROJECT_ROOT=/app
+
+EXPOSE 8010
+
+CMD ["uvicorn", "siren.api:app", "--host", "0.0.0.0", "--port", "8010"]

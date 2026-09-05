@@ -43,8 +43,10 @@ from siren.risk.fusion import fuse as risk_fuse
 
 # ---------------------------------------------------------------------------
 # Configuration — paths to real data (offline demo)
+# SIREN_PROJECT_ROOT env var allows Docker/other deploy targets to override
+# the default path computation (which assumes repo/backend/siren/pipeline.py)
 # ---------------------------------------------------------------------------
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(os.environ.get("SIREN_PROJECT_ROOT", Path(__file__).resolve().parents[2]))
 DATA_DIR = PROJECT_ROOT / "data"
 PROCESSED_DIR = DATA_DIR / "processed"
 ASSETS_DIR = DATA_DIR / "assets"
