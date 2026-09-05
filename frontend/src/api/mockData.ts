@@ -20,6 +20,8 @@ const basin: BasinConfig = {
     coordinates: [[[86.65, 27.65], [87.0, 27.65], [87.0, 27.98], [86.65, 27.98], [86.65, 27.65]]],
   },
   crs: "EPSG:4326",
+  basemap_uri: null,
+  basemap_bounds: null,
 };
 
 const observations: ObservationList = {

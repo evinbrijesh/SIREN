@@ -12,6 +12,7 @@ Boot with:  uvicorn siren.api:app --port 8000
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 from typing import Any
@@ -80,6 +81,15 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
                 status_code=404,
                 detail={"error": "not_found", "detail": "no basin configured"},
             )
+        # Attach basemap if it exists on disk
+        basemap_json = _project_root() / "data" / "processed" / "basemap_bounds.json"
+        if basemap_json.exists():
+            try:
+                bounds_data = json.loads(basemap_json.read_text())
+                basin["basemap_uri"] = bounds_data.get("uri")
+                basin["basemap_bounds"] = bounds_data.get("bounds")
+            except Exception:
+                pass
         return basin
 
     # GET /observations

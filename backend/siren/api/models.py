@@ -71,6 +71,8 @@ class BasinConfig(BaseModel):
     name: str
     boundary_geojson: dict[str, Any]
     crs: str
+    basemap_uri: str | None = None
+    basemap_bounds: list[list[float]] | None = None
 
 
 class ObservationList(BaseModel):
