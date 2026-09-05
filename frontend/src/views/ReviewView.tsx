@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, apiOrMock, addToOutbox } from "../api/client";
 import { mockData } from "../api/mockData";
 import { useSimulation } from "../simulation/SimulationContext";
+import { sendNtfyAlert } from "../utils/ntfy";
 import type { Run, ExposureList, SarPriorityList, MlEvidence, ReviewResponse, DispatchResponse, ApiError } from "../api/types";
 
 interface Props {
@@ -41,6 +42,7 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
   const [selectedSector, setSelectedSector] = useState<string>("sector-b");
   const [selectedChannel, setSelectedChannel] = useState<"sms" | "lora" | "satellite">("sms");
   const [viewMode, setViewMode] = useState<"simple" | "advanced">("simple");
+  const [countdown, setCountdown] = useState(300); // 5-minute escalation timer (cosmetic)
 
   const score = run?.score;
   const runId = run?.run_id;
@@ -55,6 +57,21 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
       latchRunIdRef.current = runId;
     }
   }, [runId]);
+
+  // Escalation countdown — cosmetic only, no real network call
+  // Counts down from 5 minutes while review is pending (elevated/critical, no decision)
+  // When it hits 0, shows a toast about auto-escalation (simulated)
+  const currentDecision = run?.decision ?? sim.reviewDecision;
+  const isPendingReview = score && (score.severity === "elevated" || score.severity === "critical") && !currentDecision;
+  useEffect(() => {
+    if (!isPendingReview) return;
+    if (countdown <= 0) {
+      onToast?.({ msg: "Auto-escalation triggered — alert sent to all channels (no confirmation received)", type: "error" });
+      return;
+    }
+    const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [isPendingReview, countdown, onToast]);
 
   const { data: exposuresData, isLoading: expLoading } = useQuery({
     queryKey: ["exposures", runId],
@@ -85,15 +102,26 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
     mutationFn: (vars: { decision: "confirm" | "reject" | "postpone" | "escalate" }) =>
       api.createReview(runId!, "coordinator-01", vars.decision, "demo review") as Promise<ReviewResponse>,
     onSuccess: (_data, vars) => {
-      sim.setReviewDecision(vars.decision === "escalate" ? "confirm" : vars.decision);
+      const isConfirmLike = vars.decision === "confirm" || vars.decision === "escalate";
+      sim.setReviewDecision(isConfirmLike ? "confirm" : vars.decision as "reject" | "postpone");
       setConfirmStep(false);
       setError(null);
-      onToast?.({
-        msg: vars.decision === "escalate"
-          ? "Watch escalated to elevated — review now required"
-          : `Decision recorded: ${vars.decision}`,
-        type: "success",
-      });
+      if (isConfirmLike) {
+        // Auto-fire ntfy.sh alert on confirmation — human made the decision,
+        // the phone push is a side-effect, not an autonomous dispatch
+        const expansionPctLocal = (run?.change_stats_json?.expansion_percent as number) ?? 0;
+        sendNtfyAlert({ expansionPct: expansionPctLocal }, (success, _message) => {
+          onToast?.({
+            msg: success ? "Decision confirmed — SOS sent to phone" : "Decision confirmed — air-gap mode, SOS simulated",
+            type: "success",
+          });
+        });
+      } else {
+        onToast?.({
+          msg: `Decision recorded: ${vars.decision}`,
+          type: "success",
+        });
+      }
       qc.invalidateQueries({ queryKey: ["runs"] });
       qc.invalidateQueries({ queryKey: ["run", runId] });
     },
@@ -225,7 +253,6 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
     );
   }
 
-  const currentDecision = run.decision ?? sim.reviewDecision;
   const decisionLocked = currentDecision !== null;
   const sortedExposures = [...exposures].sort((a, b) => (a.distance_m ?? 9999) - (b.distance_m ?? 9999));
   const areaAfter = (run.change_stats_json?.water_area_km2 as number) ?? 4.1;
@@ -282,6 +309,21 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
           <span className="text-body-sm text-text-dim">{run.observation_id}</span>
         </div>
       </div>
+
+      {/* Escalation countdown — cosmetic only, no real network call */}
+      {isPendingReview && countdown > 0 && (
+        <div className="flex items-center gap-space-12 px-space-16 py-space-4 bg-status-warn/10 border-b border-status-warn/30">
+          <span className="data-val text-body-sm text-status-warn whitespace-nowrap">
+            AUTO-ESCALATION IN {Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, "0")}
+          </span>
+          <div className="flex-1 h-[2px] bg-border-subtle overflow-hidden">
+            <div className="h-full bg-status-warn transition-all duration-1000" style={{ width: `${(countdown / 300) * 100}%` }} />
+          </div>
+          <span className="text-caption text-text-dim whitespace-nowrap">
+            No confirmation → alert all channels
+          </span>
+        </div>
+      )}
 
       {viewMode === "simple" ? (
         <SimpleTriage
@@ -784,6 +826,14 @@ function SimpleTriage({
 
   return (
     <div className="flex-1 overflow-auto p-space-16 flex flex-col gap-space-16 max-w-4xl mx-auto w-full">
+      {/* Early warning banner — surfaces the trend lead time */}
+      <div className="flex items-center gap-space-8 px-space-16 py-space-6 bg-status-safe/10 border border-status-safe/30">
+        <span className="text-status-safe text-body-md">★</span>
+        <span className="text-body-md text-status-safe font-medium">Early warning</span>
+        <span className="data-val text-body-md text-status-safe">12 days</span>
+        <span className="text-body-sm text-text-dim">— trend flagged at obs-01 before critical threshold at obs-03</span>
+      </div>
+
       {/* Satellite Finding Strip — leads with the evidence */}
       <section className={`bg-surface-panel border ${isCritical ? "border-status-danger" : "border-status-elevated"} border-l-4 flex flex-col`}>
         <div className="flex items-center gap-space-12 px-space-16 py-space-8 border-b border-border-subtle">

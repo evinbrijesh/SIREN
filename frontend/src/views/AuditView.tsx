@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api, apiOrMock } from "../api/client";
 import { mockData } from "../api/mockData";
 import { useSimulation } from "../simulation/SimulationContext";
+import { sendNtfyAlert, NTFY_TOPIC } from "../utils/ntfy";
 import type { AuditList, AuditEntry, DispatchResponse, Run } from "../api/types";
 
 interface Props {
@@ -24,7 +25,7 @@ const CHANNEL_RF: Record<string, { freq: string; airtime: string; capacity: stri
   satellite: { freq: "1621 MHz L-Band", airtime: "12.4s", capacity: "340 bytes / SBD", detail: "Single Iridium SBD burst to LEO constellation" },
 };
 
-const NTFY_TOPIC = "siren-emergency-alert";
+const NTFY_TOPIC_LOCAL = NTFY_TOPIC;
 
 export default function AuditView({ run, onToast }: Props) {
   const sim = useSimulation();
@@ -114,28 +115,12 @@ export default function AuditView({ run, onToast }: Props) {
     }, 300);
   }, [sim.reviewDecision, onToast]);
 
-  // ntfy.sh live phone alert — gated behind online check (Hard Rule #2 compliance)
+  // ntfy.sh live phone alert — uses shared utility
   const sendLiveAlert = useCallback(() => {
-    if (typeof navigator !== "undefined" && navigator.onLine === false) {
-      onToast?.({ msg: "Air-gap mode: Simulated dispatch complete. Live broadcast skipped.", type: "info" });
-      return;
-    }
-    const body = decodedPayload
-      ? `SIREN GLOF EMERGENCY ALERT\nGlacial flood detected (+${expansionPct}%). Chhukung at risk. BOIL WATER IMMEDIATELY (Well 3 submerged).\nAlert: ${decodedPayload.alert_id} | Sector: ${decodedPayload.sector}`
-      : "SIREN GLOF EMERGENCY ALERT — Dispatch authorized. BOIL WATER IMMEDIATELY.";
-    fetch(`https://ntfy.sh/${NTFY_TOPIC}`, {
-      method: "POST",
-      body,
-      headers: {
-        "Title": "SIREN EMERGENCY ALERT",
-        "Tags": "warning,sos",
-        "Priority": "urgent",
-      },
-    }).then(
-      () => onToast?.({ msg: "Live alert sent to ntfy.sh — check your phone", type: "success" }),
-      () => onToast?.({ msg: "Live alert failed (network error) — simulated dispatch complete", type: "info" }),
-    );
-  }, [decodedPayload, onToast]);
+    sendNtfyAlert({ decoded: decodedPayload, expansionPct }, (success, message) => {
+      onToast?.({ msg: message, type: success ? "success" : "info" });
+    });
+  }, [decodedPayload, expansionPct, onToast]);
 
   // Export audit ledger as JSON
   const exportLedgerJson = useCallback(() => {
@@ -279,7 +264,7 @@ export default function AuditView({ run, onToast }: Props) {
   return (
     <div className="flex flex-col h-full overflow-auto">
       {/* Header bar — tactical bezel */}
-      <div className="relative flex items-center justify-between px-space-16 py-space-8 border-b border-border-subtle bg-surface-panel tactical-bezel tactical-reg" data-reg="AIR-GAP: VERIFIED">
+      <div className="relative flex items-center justify-between px-space-16 py-space-8 border-b border-border-subtle bg-surface-panel">
         <div className="flex items-center gap-space-12">
           <h1 className="label-caps">Audit</h1>
           <span className="text-caption text-status-safe border border-status-safe px-space-6 py-space-2">
@@ -437,7 +422,7 @@ export default function AuditView({ run, onToast }: Props) {
           </div>
           {/* ntfy.sh subscription info */}
           <div className="px-space-12 pb-space-12 data-val text-body-sm text-text-dim border-t border-border-subtle pt-space-8">
-            Live broadcast: ntfy.sh/{NTFY_TOPIC} — install ntfy app and subscribe to receive alerts on your phone
+            Live broadcast: ntfy.sh/{NTFY_TOPIC_LOCAL} — install ntfy app and subscribe to receive alerts on your phone
           </div>
           {(!sim.reviewDecision || sim.reviewDecision !== "confirm") && (
             <div className="px-space-12 pb-space-12 data-val text-body-sm text-status-warn">
@@ -469,6 +454,23 @@ export default function AuditView({ run, onToast }: Props) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-subtle data-val text-body-sm text-text-primary">
+                {/* First Responder Advisory — pre-confirmation, simulated (not a real dispatch) */}
+                {(!sim.reviewDecision || sim.reviewDecision !== "confirm") && (
+                  <tr className="bg-status-warn/5 border-l-2 border-status-warn">
+                    <td className="py-space-6 px-space-12 text-text-dim whitespace-nowrap">2026-08-12T12:04:00Z</td>
+                    <td className="py-space-6 px-space-12 text-status-warn whitespace-nowrap">system</td>
+                    <td className="py-space-6 px-space-12 whitespace-nowrap">
+                      <span className="border border-status-warn text-status-warn px-space-4 py-space-1">ADVISORY</span>
+                    </td>
+                    <td className="py-space-6 px-space-12 text-text-dim">
+                      <span className="text-status-warn">Pre-confirmation advisory →</span>{" "}
+                      <span className="text-text-primary">Hospitals, Firefighters, SAR teams notified (standby)</span>
+                    </td>
+                    <td className="py-space-6 px-space-12 text-text-muted whitespace-nowrap font-mono text-caption">
+                      simulated
+                    </td>
+                  </tr>
+                )}
                 {entries.map((e) => (
                   <tr key={e.entry_id} className="hover:bg-surface-container transition-colors">
                     <td className="py-space-6 px-space-12 text-text-dim whitespace-nowrap">{e.created_at}</td>
