@@ -331,10 +331,11 @@ def run_pipeline(
         ) as dst:
             dst.write(mask.astype(np.uint8), 1)
 
-    # 5. Compute change stats
+    # 5. Compute change stats + polygon for map rendering
     change_stats = _compute_change_stats(
         str(mask_path), obs_config["expansion_pct"]
     )
+    change_stats["change_polygon"] = _change_polygon_from_mask(str(mask_path))
 
     # 5b. ML evidence layer (optional — ADR-002)
     # The Siamese U-Net runs as an additional evidence source, NOT a replacement.

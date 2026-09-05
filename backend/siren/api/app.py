@@ -12,6 +12,7 @@ Boot with:  uvicorn siren.api:app --port 8000
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +20,26 @@ from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+
+
+def _project_root() -> Path:
+    """Resolve the project root directory.
+
+    In Docker, SIREN_PROJECT_ROOT is set to /app. In dev, we walk up from
+    this file (backend/siren/api/app.py → project root = parents[4]).
+    """
+    env = os.environ.get("SIREN_PROJECT_ROOT")
+    if env:
+        p = Path(env)
+        if p.exists():
+            return p
+    # Dev: backend/siren/api/app.py → parents[4] = project root
+    # Docker: /app/siren/api/__init__.py → parents[2] = /app
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        if (parent / "data" / "processed").is_dir() or (parent / "backend").is_dir():
+            return parent
+    return here.parents[4] if len(here.parents) > 4 else here.parent
 
 from siren.api import models
 from siren.db.repo import HumanGateError, NotFoundError, Repository, default_db_path
@@ -150,16 +171,23 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
             )
         stats = run["change_stats_json"]
         obs_id = run["observation_id"]
+        mask_uri = f"/data/processed/{obs_id}_expansion_mask.png"
+        heatmap_uri = stats.get("heatmap_uri", f"/data/processed/{obs_id}_change_heatmap.png")
+        baseline_uri = "/data/processed/baseline_water_mask.png"
         return {
             "run_id": run_id,
             "observation_id": obs_id,
             "ml_source": stats.get("ml_source", "deterministic_fallback"),
             "ml_confidence_mean": stats.get("ml_confidence_mean", 0.0),
             "ml_consensus_pixels": stats.get("ml_consensus_pixels", 0),
-            "heatmap_uri": stats.get("heatmap_uri", f"/data/processed/{obs_id}_change_heatmap.png"),
-            "mask_uri": f"/data/processed/{obs_id}_expansion_mask.png",
-            "baseline_mask_uri": "/data/processed/baseline_water_mask.png",
+            "heatmap_uri": heatmap_uri,
+            "heatmap_bounds": _image_bounds(heatmap_uri),
+            "mask_uri": mask_uri,
+            "mask_bounds": _image_bounds(mask_uri),
+            "baseline_mask_uri": baseline_uri,
+            "baseline_mask_bounds": _image_bounds(baseline_uri),
             "model_available": stats.get("ml_source", "deterministic_fallback") != "deterministic_fallback",
+            "change_polygon": stats.get("change_polygon"),
         }
 
     # POST /runs/{run_id}/review
@@ -219,11 +247,42 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
         return {"runs": runs, "count": len(runs)}
 
     # Mount data/processed/ as static files so the frontend can fetch rasters
-    data_processed = Path(__file__).resolve().parents[3] / "data" / "processed"
+    data_processed = _project_root() / "data" / "processed"
     if data_processed.exists():
         app.mount("/data/processed", StaticFiles(directory=str(data_processed)), name="processed")
 
     return app
+
+
+def _image_bounds(uri: str) -> list[list[float]] | None:
+    """Return [[top-left], [top-right], [bottom-right], [bottom-left]] in [lon,lat].
+
+    MapLibre image sources need the four corners in this order. The .png may not
+    be georeferenced, so we look for the matching .tif and read its bounds, then
+    convert to EPSG:4326 if necessary. For heatmaps (no matching .tif), fall back
+    to the obs-NNN_expansion_mask.tif which shares the same extent.
+    """
+    try:
+        import rasterio
+        from rasterio.warp import transform_bounds
+    except Exception:
+        return None
+
+    png = _project_root() / uri.lstrip("/")
+    tif = png.with_suffix(".tif")
+    # Heatmap PNGs don't have a matching TIF; use the expansion_mask TIF instead
+    if not tif.exists() and "change_heatmap" in png.name:
+        tif = png.parent / png.name.replace("change_heatmap", "expansion_mask").replace(".png", ".tif")
+    if not tif.exists():
+        return None
+    try:
+        with rasterio.open(tif) as src:
+            left, bottom, right, top = transform_bounds(
+                src.crs, "EPSG:4326", *src.bounds
+            )
+        return [[left, top], [right, top], [right, bottom], [left, bottom]]
+    except Exception:
+        return None
 
 
 # Module-level app so `uvicorn siren.api:app` boots.
