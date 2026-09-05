@@ -130,8 +130,8 @@
   .label-caps {
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    font-size: 11px;
-    line-height: 14px;
+    font-size: 13px;
+    line-height: 17px;
     color: var(--color-text-dim);
     font-weight: 500;
   }
@@ -158,7 +158,7 @@
     top: 3px;
     right: 8px;
     font-family: "JetBrains Mono", monospace;
-    font-size: 8px;
+    font-size: 10px;
     color: var(--color-text-muted);
     letter-spacing: 0.1em;
     pointer-events: none;
