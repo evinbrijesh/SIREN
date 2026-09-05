@@ -71,8 +71,21 @@ def hazard_score(
     return h, reasons
 
 
-def classify_severity(h: float, exposed_population: int, critical_assets: int) -> str:
-    """Policy engine: informational | watch | elevated | critical (PRD §6.5)."""
+def classify_severity(
+    h: float,
+    exposed_population: int,
+    critical_assets: int,
+    expansion_pct: float = 0.0,
+) -> str:
+    """Policy engine: informational | watch | elevated | critical (PRD §6.5).
+
+    The expansion override (>=40% → critical) is explicit policy here,
+    not hidden in the fusion function. When expansion_pct >= 40, the
+    severity is forced to critical regardless of H, because a 40%+
+    water-area expansion is a definitive physical signal.
+    """
+    if expansion_pct >= 40.0:
+        return "critical"
     if h >= 0.70 and (critical_assets > 0 or exposed_population > 500):
         return "critical"
     if h >= 0.50:
@@ -145,11 +158,7 @@ def fuse(
     critical_assets = settlements + bridges + wells
     e, e_reasons = exposure_priority(h, exposed_population, critical_assets, settlements, bridges, wells)
     d, d_reasons = disease_risk(inundated_wells, population_density_per_km2, temp_index)
-    severity = classify_severity(h, exposed_population, critical_assets)
-    if expansion_pct >= 40.0:
-        severity = "critical"
-    elif severity == "critical":
-        severity = "elevated"
+    severity = classify_severity(h, exposed_population, critical_assets, expansion_pct)
 
     reasons = list(h_reasons)
     if severity in ("elevated", "critical"):

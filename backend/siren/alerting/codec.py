@@ -30,13 +30,26 @@ __all__ = ["encode", "decode", "PayloadTooLargeError"]
 
 # Severity <-> integer level mapping (PRD §10.4: HIGH=3, MEDIUM=2, LOW=1,
 # CRITICAL=4).
+# Accepts both the internal severity names (informational/watch/elevated/critical)
+# and the legacy uppercase names (LOW/MEDIUM/HIGH/CRITICAL) for backward compat.
 SEVERITY_TO_LVL: dict[str, int] = {
+    # Internal names (from fusion.py classify_severity)
+    "informational": 1,
+    "watch": 2,
+    "elevated": 3,
+    "critical": 4,
+    # Legacy uppercase names (backward compat with older tests)
     "LOW": 1,
     "MEDIUM": 2,
     "HIGH": 3,
     "CRITICAL": 4,
 }
-LVL_TO_SEVERITY: dict[int, str] = {v: k for k, v in SEVERITY_TO_LVL.items()}
+LVL_TO_SEVERITY: dict[int, str] = {
+    1: "informational",
+    2: "watch",
+    3: "elevated",
+    4: "critical",
+}
 
 # Fixed key order for deterministic encoding (same alert -> same bytes).
 _KEY_ORDER = (
