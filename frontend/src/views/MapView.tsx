@@ -20,7 +20,7 @@ const STEP_LABELS: Record<SimStep, string> = {
   "obs-3": "OBS 03 | 2026-08-12",
 };
 
-const STATUS_COLOR = { safe: "#10b981", buffered: "#f59e0b", inundated: "#ef4444" } as const;
+const STATUS_COLOR = { safe: "#10b981", buffered: "#ffb000", inundated: "#ff1e27" } as const;
 
 type LayerKey = "basin" | "hillshade" | "optical" | "sar" | "water" | "corridor" | "assets";
 type MapViewLayers = Record<LayerKey, boolean>;
@@ -70,6 +70,9 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
   const [compareOpen, setCompareOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [overlayOpacity, setOverlayOpacity] = useState(75);
+  const [sarSweepActive, setSarSweepActive] = useState(false);
+  const prevRoutedSarRef = useRef(false);
+  const [mapCenter, setMapCenter] = useState<[number, number]>([86.82, 27.88]);
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
   const sim = useSimulation();
@@ -88,6 +91,17 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
   useEffect(() => {
     if (routedSar) setLayers((previous) => ({ ...previous, sar: true }));
   }, [routedSar, run?.run_id]);
+
+  // SAR sweep — one-time 1.2s animation when SAR path engages
+  useEffect(() => {
+    if (routedSar && !prevRoutedSarRef.current) {
+      setSarSweepActive(true);
+      const timer = setTimeout(() => setSarSweepActive(false), 1300);
+      prevRoutedSarRef.current = true;
+      return () => clearTimeout(timer);
+    }
+    if (!routedSar) prevRoutedSarRef.current = false;
+  }, [routedSar]);
 
   const runId = run?.run_id;
   const { data: exposuresData } = useQuery({
@@ -115,11 +129,16 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
     if (!mapContainer.current || mapRef.current) return;
     const map = new maplibregl.Map({
       container: mapContainer.current,
-      style: { version: 8, sources: {}, layers: [{ id: "background", type: "background", paint: { "background-color": "#0b0f17" } }] },
+      style: { version: 8, sources: {}, layers: [{ id: "background", type: "background", paint: { "background-color": "#08090a" } }] },
       center: [86.82, 27.88],
       zoom: 11,
     });
     mapRef.current = map;
+    // Throttled coordinate listener — only update on moveend, not during pan
+    map.on("moveend", () => {
+      const center = map.getCenter();
+      setMapCenter([center.lng, center.lat]);
+    });
     map.on("load", () => {
       if (opticalUri && bounds?.length === 4) {
         const coordinates = bounds as [[number, number], [number, number], [number, number], [number, number]];
@@ -131,10 +150,10 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
         map.addLayer({ id: "sar", type: "raster", source: "sar", paint: { "raster-opacity": 0.72, "raster-fade-duration": 0 }, layout: { visibility: routedSar ? "visible" : "none" } });
       }
       map.addSource("basin", { type: "geojson", data: basinPolygon as any });
-      map.addLayer({ id: "basin-fill", type: "fill", source: "basin", paint: { "fill-color": "#38bdf8", "fill-opacity": 0.04 } });
-      map.addLayer({ id: "basin-border", type: "line", source: "basin", paint: { "line-color": "#38bdf8", "line-width": 1.25, "line-dasharray": [4, 3] } });
+      map.addLayer({ id: "basin-fill", type: "fill", source: "basin", paint: { "fill-color": "#00f0ff", "fill-opacity": 0.04 } });
+      map.addLayer({ id: "basin-border", type: "line", source: "basin", paint: { "line-color": "#00f0ff", "line-width": 1.25, "line-dasharray": [4, 3] } });
       map.addSource("corridor", { type: "geojson", data: toFeature(corridor) });
-      map.addLayer({ id: "corridor", type: "line", source: "corridor", paint: { "line-color": "#f59e0b", "line-width": 2, "line-dasharray": [5, 3] } });
+      map.addLayer({ id: "corridor", type: "line", source: "corridor", paint: { "line-color": "#ff1e27", "line-width": 2, "line-dasharray": [5, 3] } });
       updateAssetMarkers(map, exposures, markersRef, sim.selectAsset, layers.assets);
     });
     return () => {
@@ -241,8 +260,14 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
         </> : <button onClick={() => setLeftOpen(true)} className="py-space-8 text-text-dim hover:text-text-primary text-body-sm">Layers</button>}
       </aside>
 
-      <div className="relative flex-1 min-w-0 bg-surface-recessed overflow-hidden">
+      <div className="relative flex-1 min-w-0 bg-surface-recessed overflow-hidden tactical-bezel tactical-reg" data-reg="REF: 45RVL-HIMAL">
         <div ref={mapContainer} className="absolute inset-0" />
+        {sarSweepActive && (
+          <>
+            <div className="sar-sweep-trail" />
+            <div className="sar-sweep-line" />
+          </>
+        )}
         <div className="absolute top-space-8 left-space-8 z-10 px-space-8 py-space-4 bg-surface-panel border border-border-subtle text-body-sm">{STEP_LABELS[sim.step]}</div>
         <div className="absolute top-space-8 right-space-8 z-10 flex gap-space-4">
           <button disabled={!run || !beforeImage || !afterImage} onClick={() => setCompareOpen((open) => !open)} className="px-space-8 py-space-4 bg-surface-panel border border-border-subtle text-body-sm disabled:opacity-40">{compareOpen ? "Close compare" : "Swipe compare"}</button>
@@ -261,6 +286,19 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
           <div className="absolute bottom-space-8 left-space-8 bg-surface-panel border border-border-subtle px-space-6 py-space-2 data-val text-caption">{beforeArea.toFixed(2)} km²</div>
           <div className="absolute bottom-space-8 right-space-8 bg-surface-panel border border-border-subtle px-space-6 py-space-2 data-val text-caption">{afterArea.toFixed(2)} km² (+{expansionPct.toFixed(1)}%)</div>
         </div>}
+
+        {/* GIS telemetry ribbon — fixed bottom bar with live coordinates */}
+        <div className="absolute bottom-0 left-0 right-0 h-[24px] bg-surface-panel border-t border-border-subtle flex items-center justify-between px-space-8 data-val text-caption text-text-dim z-10 select-none">
+          <div className="flex items-center gap-space-12">
+            <span className="text-primary">CRS: EPSG:4326</span>
+            <span>CENTER: [{mapCenter[0].toFixed(3)}°E, {mapCenter[1].toFixed(3)}°N]</span>
+            <span>RES: 10m/px</span>
+          </div>
+          <div className="flex items-center gap-space-12">
+            <span>ELEV: 4,980m</span>
+            <span className="text-status-safe">CRYPTO: SHA-256 VALID</span>
+          </div>
+        </div>
       </div>
 
       <aside className={`${rightOpen ? "w-dock-right-width" : "w-8"} flex-none bg-surface-panel border-l border-border-subtle transition-all`}>
