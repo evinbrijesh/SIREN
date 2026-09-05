@@ -122,6 +122,46 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
             )
         return {"exposures": repo.list_exposures(run_id)}
 
+    # GET /runs/{run_id}/sar-priority — Search & Rescue priority ranking (PRD §15)
+    @app.get("/runs/{run_id}/sar-priority", response_model=models.SarPriorityList)
+    def get_sar_priority(run_id: str) -> Any:
+        if not repo.run_exists(run_id):
+            raise HTTPException(
+                status_code=404,
+                detail={"error": "not_found", "detail": f"run {run_id} not found"},
+            )
+        from siren.risk.sar_priority import compute_sar_priority
+        exposures = repo.list_exposures(run_id)
+        return compute_sar_priority(exposures)
+
+    # GET /runs/{run_id}/ml-evidence — ML change detection evidence layer (ADR-002)
+    @app.get("/runs/{run_id}/ml-evidence")
+    def get_ml_evidence(run_id: str) -> Any:
+        if not repo.run_exists(run_id):
+            raise HTTPException(
+                status_code=404,
+                detail={"error": "not_found", "detail": f"run {run_id} not found"},
+            )
+        run = repo.get_run(run_id)
+        if run is None or run.get("change_stats_json") is None:
+            raise HTTPException(
+                status_code=404,
+                detail={"error": "not_found", "detail": f"no change stats for run {run_id}"},
+            )
+        stats = run["change_stats_json"]
+        obs_id = run["observation_id"]
+        return {
+            "run_id": run_id,
+            "observation_id": obs_id,
+            "ml_source": stats.get("ml_source", "deterministic_fallback"),
+            "ml_confidence_mean": stats.get("ml_confidence_mean", 0.0),
+            "ml_consensus_pixels": stats.get("ml_consensus_pixels", 0),
+            "heatmap_uri": stats.get("heatmap_uri", f"/data/processed/{obs_id}_change_heatmap.png"),
+            "mask_uri": f"/data/processed/{obs_id}_expansion_mask.png",
+            "baseline_mask_uri": "/data/processed/baseline_water_mask.png",
+            "model_available": stats.get("ml_source", "deterministic_fallback") != "deterministic_fallback",
+        }
+
     # POST /runs/{run_id}/review
     @app.post("/runs/{run_id}/review", response_model=models.ReviewResponse)
     def create_review(run_id: str, body: models.ReviewRequest) -> Any:

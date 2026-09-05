@@ -159,6 +159,24 @@ class AuditList(BaseModel):
     entries: list[AuditEntry]
 
 
+class SarSector(BaseModel):
+    sector_id: str
+    name: str
+    asset_type: str
+    population: int
+    access_loss: float
+    access_label: str  # CUT | AT_RISK | ACCESSIBLE
+    sar_priority: float
+    reason: str
+    assets: list[str]
+
+
+class SarPriorityList(BaseModel):
+    sectors: list[SarSector]
+    top_priority: SarSector | None = None
+    summary: str
+
+
 class ErrorResponse(BaseModel):
     error: str
     detail: str

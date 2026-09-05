@@ -143,3 +143,25 @@ def test_create_run(client: TestClient) -> None:
     assert body["status"] == "processed"
     assert body["observation_id"] == "obs-001"
     assert body["run_id"].startswith("run-")
+
+
+def test_sar_priority(client: TestClient) -> None:
+    """SAR Priority Layer endpoint (PRD §15 stretch goal)."""
+    resp = client.get("/runs/run-0001/sar-priority")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "sectors" in body
+    assert "summary" in body
+    assert len(body["sectors"]) > 0
+    # Sectors should be sorted by sar_priority descending
+    priorities = [s["sar_priority"] for s in body["sectors"]]
+    assert priorities == sorted(priorities, reverse=True)
+    # Top priority should be the first sector
+    if body["top_priority"]:
+        assert body["top_priority"]["sector_id"] == body["sectors"][0]["sector_id"]
+
+
+def test_sar_priority_run_not_found(client: TestClient) -> None:
+    resp = client.get("/runs/run-nonexistent/sar-priority")
+    assert resp.status_code == 404
+    assert resp.json()["error"] == "not_found"
