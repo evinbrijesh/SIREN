@@ -204,6 +204,8 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
   const sortedExposures = [...exposures].sort((a, b) => (a.distance_m ?? 9999) - (b.distance_m ?? 9999));
   const areaAfter = (run.change_stats_json?.water_area_km2 as number) ?? 4.1;
   const areaBefore = 3.0;
+  const corridorSource = (run.change_stats_json?.corridor_source as string) ?? "unknown";
+  const isFallbackCorridor = corridorSource === "fallback_seeded";
 
   return (
     <div className="flex flex-col h-full pb-[48px] overflow-auto">
@@ -214,6 +216,17 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
           <span className="data-val text-body-sm text-text-dim">RUN</span>
           <span className="data-val text-body-sm text-primary-container border border-border-subtle px-space-4 py-space-1">
             {runId}
+          </span>
+          {/* Provenance badge (O3) — shows whether corridor is real D8+OSM or fallback */}
+          <span
+            className={`data-val text-caption border px-space-4 py-space-1 ${
+              isFallbackCorridor
+                ? "border-status-warn text-status-warn"
+                : "border-status-safe text-status-safe"
+            }`}
+            title={isFallbackCorridor ? "Corridor from seeded demo data (D8 trace failed)" : "Corridor from D8 flow accumulation + OSM river buffering"}
+          >
+            {isFallbackCorridor ? "CORRIDOR: FALLBACK" : "CORRIDOR: D8+OSM"}
           </span>
         </div>
         <div className="flex items-center gap-space-8 data-val text-body-sm text-text-dim">
