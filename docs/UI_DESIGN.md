@@ -70,8 +70,8 @@
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│  RUN CONTROLLER (top strip)                                           │
-│  [▶ Run Monitoring]  ·  status: idle/running/done  ·  progress bar    │
+│  SIMULATION CONTROLLER (top strip)                                     │
+│  [▶ Run Simulation]  ·  status: before → disaster-day  ·  progress bar │
 ├────────────────────────────────────────────────────────────────────────┤
 │  WEATHER-ADAPTIVE ROUTER STRIP                                         │
 │  Obs 2: Optical cloud 95% → SWITCHED TO SAR PATH  [badge]             │
@@ -84,14 +84,15 @@
 │  │ rain 0  │ │ rain 18 │ │ rain 85 │ │ rain 60 │                      │
 │  │ area 3.0│ │ area 3.2│ │ area 4.1│ │ area 4.3│                      │
 │  │ +0%     │ │ +8%     │ │ +28%    │ │ +43%    │                      │
-│  │ ADVISORY│ │ ADVISORY│ │ELEVATED │ │CRITICAL │                      │
+│  │ SAFE    │ │ ADVISORY│ │ELEVATED │ │CRITICAL │                      │
 │  └─────────┘ └─────────┘ └─────────┘ └─────────┘                      │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **Run controller:** prominent primary button; sequential execution with progress.
+- **Simulation controller:** the demo's primary control. Starts in the **before** state (baseline only, all assets green). Clicking **Run Simulation** advances through the observations to the disaster day, revealing the +8% → +28% expansion and the escalating severity.
+- **Prevention callout:** after the run, a banner highlights "12 days of warning between Obs 1 (+8%) and Obs 2 (+28%)" — the retrospective prevention story.
 - **Router strip:** shows the optical→SAR switch (the demo's technical proof).
-- **Observation cards:** compact, each showing date, sensor badge, cloud %, 24h/7d rain, water area, % change, severity chip. Severity chip color-coded (advisory=amber, elevated=orange, critical=red).
+- **Observation cards:** compact, each showing date, sensor badge, cloud %, 24h/7d rain, water area, % change, severity chip. Severity chip color-coded (safe=green, advisory=amber, elevated=orange, critical=red).
 - **Trend arrow:** ▲/▼/→ per card.
 
 ---

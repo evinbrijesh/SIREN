@@ -449,18 +449,22 @@ All model outputs are advisory. The system displays uncertainty, data freshness,
 
 ---
 
-## 16. Demo Scenario (36-Hour Script)
+## 16. Demo Scenario (36-Hour Script) — Retrospective "What-If" Prevention
 
-1. **Baseline view:** Dudh Koshi basin loaded — clear skies, normal glacial-lake boundary, intact access roads.
-2. **Observation 1 (T+2 days):** Sentinel-1 SAR pass; small supraglacial pond expansion (+8% area); rainfall normal → **Low/Advisory**.
-3. **Observation 2 (T+6 days):** Heavy monsoon front, optical 95% cloud-blocked; SAR penetrates cover and reveals moraine shift and rapid water expansion (+28% area); 24h rainfall exceeds 80 mm.
-4. **Trigger & review:** System raises an **Elevated/Critical** review card, highlighting the combined D8 + OSM downstream corridor, 2 flagged villages (**Benkar**, **Jorsale**), 1 critical suspension bridge (**Hillary Bridge**), and 3 primary drinking wells along the Dudh Koshi corridor.
-5. **Coordinator action:** Presenter inspects the evidence panel and the Disease Prevention Action Sheet, then clicks **Confirm SOS**.
-6. **Dispatch & response:** System shows the simulated geofenced compressed-payload dispatch (Track 7.ii) alongside the water/medical distribution manifest (Track 7.iii); the audit panel records reviewer, decision, and timestamp.
+The demo is framed as a **retrospective reconstruction**: "what would SIREN have caught, and how could it have prevented the disaster?" The coordinator console starts in the **before** state, then a **Simulation** control advances the data to the disaster day, showing how the models would have flagged the warning signs.
+
+1. **Before state (baseline):** Dudh Koshi basin loaded in its normal state — clear post-monsoon optical baseline (2025-11-22), normal glacial-lake boundary, intact access roads, all assets green (safe).
+2. **Click "Simulation":** The console advances to the disaster window. The optical scene is 95% cloud-blocked (monsoon); the **Weather-Adaptive Router** switches to the Sentinel-1 SAR path, which penetrates the clouds.
+3. **Observation 1 (2026-07-23):** SAR pass reveals small supraglacial pond expansion (+8% area); rainfall normal → **Low/Advisory**. SIREN logs a watch.
+4. **Observation 2 (2026-08-04):** SAR reveals moraine shift and rapid water expansion (+28% area); 24h rainfall exceeds 80 mm → **Elevated/Critical**. *This is the disaster-day trigger.*
+5. **The prevention story:** The console shows that the +8% expansion on 07-23 was the early warning — had SIREN been monitoring in real time, the watch would have escalated to an elevated alert 12 days before the peak, buying lead time to evacuate.
+6. **Trigger & review:** System raises an **Elevated/Critical** review card, highlighting the combined D8 + OSM downstream corridor, 2 flagged villages (**Benkar**, **Jorsale**), 1 critical suspension bridge (**Hillary Bridge**), and 3 primary drinking wells along the Dudh Koshi corridor.
+7. **Coordinator action:** Presenter inspects the evidence panel and the Disease Prevention Action Sheet, then clicks **Confirm SOS**.
+8. **Dispatch & response:** System shows the simulated geofenced compressed-payload dispatch (Track 7.ii) alongside the water/medical distribution manifest (Track 7.iii); the audit panel records reviewer, decision, and timestamp.
 
 **Closing line for judges:**
 
-> "SIREN doesn't replace emergency authorities — it buys them the lead time to identify who to rescue, how to reach them when networks are down, and how to stop the outbreak that follows the flood."
+> "SIREN doesn't replace emergency authorities — it buys them the lead time to identify who to rescue, how to reach them when networks are down, and how to stop the outbreak that follows the flood. This demo shows the 12 days of warning we could have had."
 
 ---
 
