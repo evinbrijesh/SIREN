@@ -1,4 +1,4 @@
-// SIREN API types — match backend/siren/api/models.py and docs/API_CONTRACT.md exactly.
+// SIREN API types — match backend/siren/api/models.py and docs/spec/API_CONTRACT.md exactly.
 
 export type GeoJSONFeature = Record<string, any>;
 

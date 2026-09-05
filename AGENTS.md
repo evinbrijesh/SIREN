@@ -2,7 +2,7 @@
 
 **SIREN** — Satellite-Informed Risk & Emergency Network. Satellite-assisted early warning and disaster-response decision platform (Track 7: Area ii resilient alerting + Area iii disease prevention). 36-hour hackathon build.
 
-**Read before writing code:** `docs/PRD.md` (v4.3 — product spec, data contracts, scoring formulas) and `docs/BUILD_ROADMAP.md` (phase order, checkpoints, fallbacks). This file tells you *how to work*; those tell you *what to build*.
+**Read before writing code:** `docs/spec/PRD.md` (v4.3 — product spec, data contracts, scoring formulas) and `docs/spec/BUILD_ROADMAP.md` (phase order, checkpoints, fallbacks). This file tells you *how to work*; those tell you *what to build*.
 
 > **Build status:** Phases 0–6 complete. 104/104 tests passing (101 active + 3 torch-gated). DoD chain verified end-to-end. See `README.md` for the quick-start guide.
 
@@ -94,7 +94,7 @@ Authoritative schemas live in the PRD — implement exactly these, field names a
 
 ### Devin Tasks (dispatch all at hour 0, in this priority order)
 
-> **Archive note:** D1–D8 are the original dispatch briefs from the 36-hour build. They are completed and merged. New work on `ml/`, `risk/sar_priority.py`, `audit/hash_chain.py`, `api/map_assets.py`, and the Tailwind console redesign is **OpenCode-only** (requires local rasters and visual iteration). See `docs/DEVIN_BRIEFS.md` for the original briefs.
+> **Archive note:** D1–D8 are the original dispatch briefs from the 36-hour build. They are completed and merged. New work on `ml/`, `risk/sar_priority.py`, `audit/hash_chain.py`, `api/map_assets.py`, and the Tailwind console redesign is **OpenCode-only** (requires local rasters and visual iteration). See `docs/spec/DEVIN_BRIEFS.md` for the original briefs.
 
 Devin works from PRD sections alone — every task below has a complete spec in the docs. Each must land as a PR with passing tests against `tests/fixtures/`, never against real basin data.
 

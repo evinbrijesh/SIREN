@@ -1,6 +1,6 @@
 # SIREN — Known Limitations
 
-**Purpose:** One-page reference for judges on what is simulated, what is deterministic, and where the demo diverges from a production system. Read alongside `docs/PRD.md` §14 (Explicit Scope Boundaries) and §18 (Future Roadmap).
+**Purpose:** One-page reference for judges on what is simulated, what is deterministic, and where the demo diverges from a production system. Read alongside `docs/spec/PRD.md` §14 (Explicit Scope Boundaries) and §18 (Future Roadmap).
 
 ---
 

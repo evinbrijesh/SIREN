@@ -407,7 +407,7 @@ The public-facing message avoids false certainty:
 
 ## 12. User Interface Requirements
 
-The coordinator console has four primary views. **The authoritative layout, component hierarchy, and design system are specified in `docs/UI_DESIGN.md`** (dark ops-console theme, status colors, wireframes for each view). Functional requirements:
+The coordinator console has four primary views. **The authoritative layout, component hierarchy, and design system are specified in `docs/design/UI_DESIGN.md`** (dark ops-console theme, status colors, wireframes for each view). Functional requirements:
 
 1. **Monitoring map.** Basin boundary, baseline vs. current observation, detected-change overlay, D8 exposure corridor, settlements, roads, bridges, shelters, hospitals, water points. Layer toggles; swipe-compare for before/after.
 2. **Observation timeline.** Image dates, weather values, water-area measurements, quality scores, trend classification. A **Run Monitoring** button processes the prepared observation sequence sequentially. A weather-adaptive router strip shows the optical→SAR switch.

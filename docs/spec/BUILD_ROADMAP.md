@@ -1,6 +1,6 @@
 # SIREN — Build Roadmap
 
-**Companion to:** `docs/PRD.md` (v4.3) · **Window:** 36-hour hackathon + pre-event prep
+**Companion to:** `docs/spec/PRD.md` (v4.3) · **Window:** 36-hour hackathon + pre-event prep
 **Principle:** A complete evidence→review→dispatch loop with a rule-based change mask beats a sophisticated model that doesn't finish.
 
 > **Build status:** Phases 0–6 complete. DoD chain verified end-to-end (104/104 tests passing). Phase 7 (rehearsal) pending.
