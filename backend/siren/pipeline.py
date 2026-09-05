@@ -63,27 +63,39 @@ WEATHER_PATH = ASSETS_DIR / "weather_series.json"
 DEMO_OBSERVATIONS = {
     "obs-001": {
         "source": "sentinel-1-grd-nrt",
-        "cloud_fraction": 0.0,  # SAR = all-weather
+        "cloud_fraction": 0.0,
+        "optical_cloud_fraction": 0.0,
         "alignment_error": 0.2,
         "acquired_at": "2026-07-23T12:00:00Z",
+        "water_area_km2": 3.2,
         "expansion_pct": 8.0,
         "trend_class": "slowly",
+        "rainfall_24h_mm": 18.2,
+        "rainfall_7d_mm": 64.0,
     },
     "obs-002": {
         "source": "sentinel-1-grd-nrt",
-        "cloud_fraction": 0.0,  # SAR = all-weather
+        "cloud_fraction": 0.0,
+        "optical_cloud_fraction": 0.95,
         "alignment_error": 0.3,
         "acquired_at": "2026-08-04T12:00:00Z",
+        "water_area_km2": 4.1,
         "expansion_pct": 28.0,
         "trend_class": "rapidly",
+        "rainfall_24h_mm": 84.6,
+        "rainfall_7d_mm": 192.4,
     },
     "obs-003": {
-        "source": "sentinel-2-l2a",
-        "cloud_fraction": 0.11,
+        "source": "sentinel-1-grd-nrt",
+        "cloud_fraction": 0.0,
+        "optical_cloud_fraction": 0.90,
         "alignment_error": 0.2,
-        "acquired_at": "2026-09-04T12:00:00Z",
-        "expansion_pct": 14.3,
+        "acquired_at": "2026-08-12T12:00:00Z",
+        "water_area_km2": 4.3,
+        "expansion_pct": 43.0,
         "trend_class": "rapidly",
+        "rainfall_24h_mm": 60.0,
+        "rainfall_7d_mm": 160.0,
     },
 }
 
@@ -308,10 +320,19 @@ def run_pipeline(
     )
 
     # 3. Route to optical or SAR
+    optical_cloud = obs_config.get("optical_cloud_fraction", obs_config["cloud_fraction"])
     routing = route_observation(
-        cloud_fraction=obs_config["cloud_fraction"],
-        usable=quality["usable"],
+        cloud_fraction=optical_cloud,
+        usable=optical_cloud < 0.20,
     )
+    if obs_config["source"].startswith("sentinel-1") and not routing["sar_primary"]:
+        routing = {
+            "path": "sar",
+            "sar_primary": True,
+            "cloud_fraction_reported": optical_cloud,
+            "cloud_fraction_effective": 0.0,
+            "reason": "Sentinel-1 SAR acquisition selected as all-weather primary",
+        }
 
     # 4. Get change mask (scenario masks for demo)
     _ensure_scenario_masks()
@@ -335,6 +356,9 @@ def run_pipeline(
     change_stats = _compute_change_stats(
         str(mask_path), obs_config["expansion_pct"]
     )
+    change_stats["water_area_km2"] = obs_config["water_area_km2"]
+    change_stats["source"] = obs_config["source"]
+    change_stats["routing"] = routing
     change_stats["change_polygon"] = _change_polygon_from_mask(str(mask_path))
 
     # 5b. ML evidence layer (optional — ADR-002)
@@ -362,9 +386,11 @@ def run_pipeline(
     # 6. Build corridor + exposures
     weather = _load_weather()
     w = weather.get(observation_id, {})
-    rainfall_24h = w.get("rainfall_24h_mm", 0.0)
-    rainfall_7d = w.get("rainfall_7d_mm", 0.0)
+    rainfall_24h = w.get("rainfall_24h_mm", obs_config["rainfall_24h_mm"])
+    rainfall_7d = w.get("rainfall_7d_mm", obs_config["rainfall_7d_mm"])
     temp_index = w.get("temp_index", 0.5)
+    change_stats["rainfall_24h_mm"] = rainfall_24h
+    change_stats["rainfall_7d_mm"] = rainfall_7d
 
     change_polygon = _change_polygon_from_mask(str(mask_path))
 
