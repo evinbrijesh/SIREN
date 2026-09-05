@@ -42,7 +42,6 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
   const [selectedSector, setSelectedSector] = useState<string>("sector-b");
   const [selectedChannel, setSelectedChannel] = useState<"sms" | "lora" | "satellite">("sms");
   const [viewMode, setViewMode] = useState<"simple" | "advanced">("simple");
-  const [countdown, setCountdown] = useState(300); // 5-minute escalation timer (cosmetic)
 
   const score = run?.score;
   const runId = run?.run_id;
@@ -58,20 +57,7 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
     }
   }, [runId]);
 
-  // Escalation countdown — cosmetic only, no real network call
-  // Counts down from 5 minutes while review is pending (elevated/critical, no decision)
-  // When it hits 0, shows a toast about auto-escalation (simulated)
   const currentDecision = run?.decision ?? sim.reviewDecision;
-  const isPendingReview = score && (score.severity === "elevated" || score.severity === "critical") && !currentDecision;
-  useEffect(() => {
-    if (!isPendingReview) return;
-    if (countdown <= 0) {
-      onToast?.({ msg: "Auto-escalation triggered — alert sent to all channels (no confirmation received)", type: "error" });
-      return;
-    }
-    const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [isPendingReview, countdown, onToast]);
 
   const { data: exposuresData, isLoading: expLoading } = useQuery({
     queryKey: ["exposures", runId],
@@ -310,17 +296,14 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
         </div>
       </div>
 
-      {/* Escalation countdown — cosmetic only, no real network call */}
-      {isPendingReview && countdown > 0 && (
-        <div className="flex items-center gap-space-12 px-space-16 py-space-4 bg-status-warn/10 border-b border-status-warn/30">
-          <span className="data-val text-body-sm text-status-warn whitespace-nowrap">
-            AUTO-ESCALATION IN {Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, "0")}
+      {/* Escalation policy badge — shows the two-tier routing concept without a confusing countdown */}
+      {(!currentDecision) && score && (score.severity === "elevated" || score.severity === "critical") && (
+        <div className="flex items-center gap-space-8 px-space-16 py-space-4 bg-surface-recessed border-b border-border-subtle">
+          <span className="text-caption text-status-warn border border-status-warn px-space-6 py-space-2 whitespace-nowrap">
+            ESCALATION POLICY
           </span>
-          <div className="flex-1 h-[2px] bg-border-subtle overflow-hidden">
-            <div className="h-full bg-status-warn transition-all duration-1000" style={{ width: `${(countdown / 300) * 100}%` }} />
-          </div>
-          <span className="text-caption text-text-dim whitespace-nowrap">
-            No confirmation → alert all channels
+          <span className="text-body-sm text-text-dim">
+            Advisory auto-routed to First Responders (Chhukung Health Post / SAR). Public broadcast held for Human Gate confirmation.
           </span>
         </div>
       )}
