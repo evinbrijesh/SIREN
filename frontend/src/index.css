@@ -129,11 +129,11 @@
   /* Section label — small caps tracking for operational headers */
   .label-caps {
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    font-size: 13px;
-    line-height: 17px;
+    letter-spacing: 0.08em;
+    font-size: 14px;
+    line-height: 18px;
     color: var(--color-text-dim);
-    font-weight: 500;
+    font-weight: 600;
   }
   /* Data value — monospace with explicit units */
   .data-val {
