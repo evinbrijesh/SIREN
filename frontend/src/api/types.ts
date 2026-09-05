@@ -58,6 +58,8 @@ export interface BasinConfig {
   name: string;
   boundary_geojson: GeoJSONFeature;
   crs: string;
+  basemap_uri: string | null;
+  basemap_bounds: number[][] | null;
 }
 
 export interface Run {
