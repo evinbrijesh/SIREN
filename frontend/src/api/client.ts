@@ -20,15 +20,28 @@ import { mockData } from "./mockData";
 
 const BASE = "/api";
 
+export class ApiRequestError extends Error implements ApiError {
+  status: number;
+  error: string;
+  detail: string;
+
+  constructor(status: number, body: ApiError) {
+    super(body.detail);
+    this.name = "ApiRequestError";
+    this.status = status;
+    this.error = body.error;
+    this.detail = body.detail;
+  }
+}
+
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   const resp = await fetch(`${BASE}${path}`, {
     headers: { "Content-Type": "application/json" },
     ...init,
   });
   if (!resp.ok) {
-    const body = await resp.json().catch(() => ({ error: "network", detail: resp.statusText }));
-    const err: ApiError = body;
-    throw err;
+    const body = await resp.json().catch(() => ({ error: "http_error", detail: resp.statusText }));
+    throw new ApiRequestError(resp.status, body);
   }
   return resp.json() as Promise<T>;
 }
@@ -38,6 +51,7 @@ export const api = {
   listObservations: () => fetchJson<ObservationList>("/observations"),
   getObservation: (id: string) => fetchJson<Observation>(`/observations/${id}`),
   listRuns: () => fetchJson<RunList>("/runs"),
+  getRun: (runId: string) => fetchJson<Run>(`/runs/${runId}`),
   createRun: (observationId: string) =>
     fetchJson<{ run_id: string; observation_id: string; status: string; started_at: string }>(
       "/runs",
@@ -62,12 +76,16 @@ export const api = {
     fetchJson<{ runs: Run[]; count: number }>("/runs/process-all", { method: "POST" }),
 };
 
-// Offline-safe wrapper: if the backend is down, return mock data so the
-// frontend renders for demo purposes.
+// Offline-safe wrapper: HTTP errors remain operational errors; only a genuine
+// network failure may use deterministic local demo data.
 export async function apiOrMock<T>(call: () => Promise<T>, mockKey: keyof typeof mockData): Promise<T> {
   try {
     return await call();
-  } catch {
-    return mockData[mockKey] as T;
+  } catch (error) {
+    const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+    if (error instanceof TypeError || offline) {
+      return mockData[mockKey] as T;
+    }
+    throw error;
   }
 }

@@ -1,16 +1,17 @@
-// SimulationContext — single source of truth for the demo cursor.
-// Backend is source of truth for run data; this context is only a cursor + selection.
-// When advancing, calls POST /runs to trigger the real pipeline.
-// Falls back to mock advancement if the backend is unreachable (offline-safe).
-
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from "react";
 import { api } from "../api/client";
 
 export type SimStep = "before" | "obs-1" | "obs-2" | "obs-3";
 export type SimStatus = "idle" | "running" | "complete";
+type ObservationStep = Exclude<SimStep, "before">;
 
-// Map sim steps to observation IDs (obs-001, obs-002, obs-003)
-const STEP_TO_OBS: Record<Exclude<SimStep, "before">, string> = {
+const RUN_SEQUENCE: { step: ObservationStep; observationId: string }[] = [
+  { step: "obs-1", observationId: "obs-001" },
+  { step: "obs-2", observationId: "obs-002" },
+  { step: "obs-3", observationId: "obs-003" },
+];
+
+const STEP_TO_OBS: Record<ObservationStep, string> = {
   "obs-1": "obs-001",
   "obs-2": "obs-002",
   "obs-3": "obs-003",
@@ -19,18 +20,16 @@ const STEP_TO_OBS: Record<Exclude<SimStep, "before">, string> = {
 export interface SimulationState {
   step: SimStep;
   status: SimStatus;
-  progress: number; // 0..4 (number of steps advanced)
+  progress: number;
   selectedAssetId: string | null;
-  // run IDs populated as simulation advances
-  runIds: Record<Exclude<SimStep, "before">, string | null>;
-  // review decision for current run
+  runIds: Record<ObservationStep, string | null>;
   reviewDecision: "confirm" | "reject" | "postpone" | null;
-  // dispatch result
   dispatchResult: import("../api/types").DispatchResponse | null;
 }
 
 interface SimulationContextValue extends SimulationState {
   advance: () => Promise<void>;
+  runAll: () => Promise<void>;
   reset: () => void;
   scrubTo: (step: SimStep) => void;
   selectAsset: (assetId: string | null) => void;
@@ -52,45 +51,81 @@ const initialState: SimulationState = {
 
 const SimulationContext = createContext<SimulationContextValue | null>(null);
 
+async function waitForProcessed(runId: string): Promise<void> {
+  const deadline = Date.now() + 10_000;
+  while (Date.now() <= deadline) {
+    const run = await api.getRun(runId);
+    if (run.status === "processed") return;
+    if (run.status === "failed") throw new Error(`Pipeline run ${runId} failed`);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+  throw new Error(`Pipeline run ${runId} did not complete within 10 seconds`);
+}
+
 export function SimulationProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<SimulationState>(initialState);
+  const runningRef = useRef(false);
 
-  const advance = useCallback(async () => {
-    const currentIdx = STEPS.indexOf(state.step);
-    if (currentIdx >= STEPS.length - 1) return;
-
-    const nextStep = STEPS[currentIdx + 1] as Exclude<SimStep, "before">;
-    const nextIdx = currentIdx + 1;
-
-    // Mark as running
+  const processObservation = useCallback(async (step: ObservationStep, observationId: string, index: number) => {
     setState((prev) => ({
       ...prev,
-      step: nextStep,
-      progress: nextIdx,
+      step,
+      progress: index,
       status: "running",
       reviewDecision: null,
       dispatchResult: null,
+      selectedAssetId: null,
     }));
+    const result = await api.createRun(observationId);
+    await waitForProcessed(result.run_id);
+    setState((prev) => ({
+      ...prev,
+      step,
+      progress: index,
+      runIds: { ...prev.runIds, [step]: result.run_id },
+    }));
+  }, []);
 
-    // Call the real backend to trigger the pipeline
+  const advance = useCallback(async () => {
+    if (runningRef.current) return;
+    const currentIndex = STEPS.indexOf(state.step);
+    if (currentIndex >= RUN_SEQUENCE.length) return;
+    const next = RUN_SEQUENCE[currentIndex];
+    runningRef.current = true;
     try {
-      const obsId = STEP_TO_OBS[nextStep];
-      const result = await api.createRun(obsId);
+      await processObservation(next.step, next.observationId, currentIndex + 1);
       setState((prev) => ({
         ...prev,
-        runIds: { ...prev.runIds, [nextStep]: result.run_id },
-        status: nextIdx === STEPS.length - 1 ? "complete" : "running",
+        status: currentIndex + 1 === RUN_SEQUENCE.length ? "complete" : "idle",
       }));
-    } catch {
-      // Backend unreachable — still advance the cursor (offline demo-safe)
-      setState((prev) => ({
-        ...prev,
-        status: nextIdx === STEPS.length - 1 ? "complete" : "running",
-      }));
+    } catch (error) {
+      setState((prev) => ({ ...prev, status: "idle" }));
+      throw error;
+    } finally {
+      runningRef.current = false;
     }
-  }, [state.step]);
+  }, [processObservation, state.step]);
+
+  const runAll = useCallback(async () => {
+    if (runningRef.current) return;
+    runningRef.current = true;
+    setState({ ...initialState, status: "running" });
+    try {
+      for (let index = 0; index < RUN_SEQUENCE.length; index += 1) {
+        const item = RUN_SEQUENCE[index];
+        await processObservation(item.step, item.observationId, index + 1);
+      }
+      setState((prev) => ({ ...prev, step: "obs-3", progress: 3, status: "complete" }));
+    } catch (error) {
+      setState((prev) => ({ ...prev, status: "idle" }));
+      throw error;
+    } finally {
+      runningRef.current = false;
+    }
+  }, [processObservation]);
 
   const reset = useCallback(() => {
+    runningRef.current = false;
     setState({ ...initialState });
   }, []);
 
@@ -99,7 +134,8 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
       ...prev,
       step,
       progress: STEPS.indexOf(step),
-      status: step === "before" ? "idle" : prev.status === "complete" ? "complete" : "running",
+      reviewDecision: null,
+      dispatchResult: null,
     }));
   }, []);
 
@@ -117,7 +153,7 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
 
   return (
     <SimulationContext.Provider
-      value={{ ...state, advance, reset, scrubTo, selectAsset, setReviewDecision, setDispatchResult }}
+      value={{ ...state, advance, runAll, reset, scrubTo, selectAsset, setReviewDecision, setDispatchResult }}
     >
       {children}
     </SimulationContext.Provider>
@@ -130,4 +166,4 @@ export function useSimulation(): SimulationContextValue {
   return ctx;
 }
 
-export { STEPS };
+export { STEPS, RUN_SEQUENCE, STEP_TO_OBS };
