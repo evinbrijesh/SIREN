@@ -161,7 +161,7 @@ export default function App() {
         )}
 
         {/* View container — full-bleed, no padding */}
-        <main className="flex-1 min-h-0 overflow-auto">
+        <main key={view} className="flex-1 min-h-0 overflow-auto view-fade">
           {view === "map" && <MapView basin={basin ?? undefined} run={activeRun ?? undefined} onJumpToReview={() => setView("review")} />}
           {view === "timeline" && <TimelineView />}
           {view === "review" && (
@@ -176,7 +176,7 @@ export default function App() {
             Sentinel-2 / Sentinel-1 / SRTM / Open-Meteo / OSM
           </span>
           <span className="ml-auto data-val text-caption text-text-muted">
-            v0.1.0
+            build a5a1751
           </span>
         </footer>
 

@@ -223,4 +223,13 @@
   .safety-lift {
     animation: safety-lift 0.3s ease-out forwards;
   }
+
+  /* View fade-in — 100ms opacity transition on tab switch */
+  @keyframes view-fade-in {
+    0%   { opacity: 0; }
+    100% { opacity: 1; }
+  }
+  .view-fade {
+    animation: view-fade-in 100ms ease-out;
+  }
 }
