@@ -20,12 +20,28 @@ const ASSET_MARKERS = [
 ];
 
 const STATUS_COLOR: Record<string, string> = { green: "#22C55E", amber: "#F59E0B", red: "#EF4444" };
+const STATUS_LABEL: Record<string, string> = { green: "Safe", amber: "Buffered", red: "Inundated" };
+const STATUS_BADGE: Record<string, string> = { green: "badge-safe", amber: "badge-warn", red: "badge-danger" };
 
 const STEP_LABELS: Record<SimStep, string> = {
-  before: "Baseline — 2025-11-22",
-  "obs-1": "Obs 1 — 2026-08-23",
-  "obs-2": "Obs 2 — 2026-08-29",
-  "obs-3": "Obs 3 — 2026-09-04",
+  before: "Baseline — Nov 22, 2025",
+  "obs-1": "Obs 1 — Aug 23, 2026",
+  "obs-2": "Obs 2 — Aug 29, 2026",
+  "obs-3": "Obs 3 — Sep 4, 2026",
+};
+
+const LAYER_LABELS: { key: keyof MapViewLayers; label: string }[] = [
+  { key: "basin", label: "Basin boundary" },
+  { key: "optical", label: "Optical satellite" },
+  { key: "sar", label: "Radar (SAR)" },
+  { key: "water", label: "Water expansion" },
+  { key: "corridor", label: "Flow path" },
+  { key: "assets", label: "Infrastructure" },
+];
+
+type MapViewLayers = {
+  basin: boolean; optical: boolean; sar: boolean;
+  water: boolean; corridor: boolean; assets: boolean;
 };
 
 interface MapViewProps {
@@ -39,15 +55,12 @@ export default function MapView({ onJumpToReview }: MapViewProps = {}) {
   const [swipePct, setSwipePct] = useState(50);
   const sim = useSimulation();
 
-  const [layers, setLayers] = useState({
-    basin: true, dem: false, optical: true, sar: false,
+  const [layers, setLayers] = useState<MapViewLayers>({
+    basin: true, optical: true, sar: false,
     water: true, corridor: true, assets: true,
   });
 
-  // SAR layer reveals after router fires (step >= obs-2)
   const sarRevealed = sim.step === "obs-2" || sim.step === "obs-3";
-
-  // Find selected asset from context
   const selectedAsset = ASSET_MARKERS.find((a) => a.id === sim.selectedAssetId) ?? null;
 
   useEffect(() => {
@@ -74,14 +87,12 @@ export default function MapView({ onJumpToReview }: MapViewProps = {}) {
       });
       map.addLayer({ id: "water-fill", type: "fill", source: "water", paint: { "fill-color": "#3B82F6", "fill-opacity": 0.4 }, layout: { visibility: layers.water ? "visible" : "none" } });
 
-      // D8 corridor (mock line)
       map.addSource("corridor", {
         type: "geojson",
         data: { type: "Feature", geometry: { type: "LineString", coordinates: [[86.82, 27.88], [86.85, 27.91]] }, properties: {} } as any,
       });
       map.addLayer({ id: "corridor-line", type: "line", source: "corridor", paint: { "line-color": "#F59E0B", "line-width": 3, "line-dasharray": [2, 1] }, layout: { visibility: layers.corridor ? "visible" : "none" } });
 
-      // Asset markers
       ASSET_MARKERS.forEach((asset) => {
         const el = document.createElement("div");
         el.style.cssText = `width: 14px; height: 14px; border-radius: 50%; background: ${STATUS_COLOR[asset.status]}; border: 2px solid #0F172A; cursor: pointer;`;
@@ -95,14 +106,13 @@ export default function MapView({ onJumpToReview }: MapViewProps = {}) {
     return () => { map.remove(); mapRef.current = null; markersRef.current = []; };
   }, []);
 
-  // flyTo when selectedAssetId changes
   useEffect(() => {
     if (selectedAsset && mapRef.current) {
       mapRef.current.flyTo({ center: [selectedAsset.lon, selectedAsset.lat], zoom: 13, duration: 1000 });
     }
   }, [sim.selectedAssetId]);
 
-  const toggleLayer = (key: keyof typeof layers) => {
+  const toggleLayer = (key: keyof MapViewLayers) => {
     setLayers((prev) => {
       const next = { ...prev, [key]: !prev[key] };
       const map = mapRef.current;
@@ -124,51 +134,59 @@ export default function MapView({ onJumpToReview }: MapViewProps = {}) {
 
   return (
     <div style={{ display: "flex", gap: 12, height: "100%" }}>
-      {/* Left dock — 7 layer toggles */}
-      <div className="card" style={{ width: 220, flexShrink: 0 }}>
+      {/* Left dock — layer toggles */}
+      <div className="card" style={{ width: 200, flexShrink: 0, display: "flex", flexDirection: "column" }}>
         <div className="card-title">Layers</div>
-        {([
-          ["basin", "Basin AOI"], ["dem", "DEM hillshade"], ["optical", "Optical baseline"],
-          ["sar", "SAR backscatter"], ["water", "Water expansion"], ["corridor", "D8 + OSM corridor"],
-          ["assets", "OSM assets"],
-        ] as [keyof typeof layers, string][]).map(([key, label]) => (
-          <label key={key} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, cursor: "pointer", fontSize: 13 }}>
-            <input
-              type="checkbox"
-              checked={key === "sar" ? (layers.sar && sarRevealed) : layers[key]}
-              onChange={() => toggleLayer(key)}
-              disabled={key === "sar" && !sarRevealed}
-            />
-            {label}
-            {key === "sar" && sarRevealed && <span style={{ color: "var(--accent)", fontSize: 10 }}>⚡ revealed</span>}
-            {key === "sar" && !sarRevealed && <span style={{ color: "var(--text-dim)", fontSize: 10 }}>(locked)</span>}
-          </label>
-        ))}
-        <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--panel-2)" }}>
-          <div style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 4 }}>Opacity fallback</div>
-          <input type="range" min="0" max="100" defaultValue="100" style={{ width: "100%" }} />
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {LAYER_LABELS.map(({ key, label }) => {
+            const isLocked = key === "sar" && !sarRevealed;
+            const checked = key === "sar" ? (layers.sar && sarRevealed) : layers[key];
+            return (
+              <label
+                key={key}
+                style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  cursor: isLocked ? "not-allowed" : "pointer",
+                  fontSize: 14, opacity: isLocked ? 0.5 : 1,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => !isLocked && toggleLayer(key)}
+                  disabled={isLocked}
+                  style={{ width: 16, height: 16, accentColor: "var(--accent)" }}
+                />
+                <span>{label}</span>
+                {isLocked && <span style={{ color: "var(--text-dim)", fontSize: 12 }}>(locked)</span>}
+              </label>
+            );
+          })}
+        </div>
+        <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--panel-2)" }}>
+          <div style={{ fontSize: 13, color: "var(--text-dim)", marginBottom: 6 }}>Opacity</div>
+          <input type="range" min="0" max="100" defaultValue="100" style={{ width: "100%", accentColor: "var(--accent)" }} />
         </div>
       </div>
 
-      {/* Map canvas + step badge */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12 }}>
+      {/* Map canvas + swipe compare */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
         <div style={{ flex: 1, position: "relative", borderRadius: 8, overflow: "hidden" }}>
           <div ref={mapContainer} className="map-container" />
-          {/* Step badge overlay */}
-          <div style={{ position: "absolute", top: 12, left: 12, zIndex: 1, padding: "6px 12px", borderRadius: 4, background: "rgba(15,23,42,0.85)", border: "1px solid var(--panel-2)", fontSize: 12, color: "var(--accent)", fontWeight: 600 }}>
-            {STEP_LABELS[sim.step]}
-          </div>
+          <div className="map-step-label">{STEP_LABELS[sim.step]}</div>
         </div>
 
-        {/* Swipe compare */}
         <div className="card" style={{ flexShrink: 0 }}>
-          <div className="card-title">Before / After Swipe — water expansion</div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <span className="card-title" style={{ margin: 0 }}>Before / After</span>
+            <span style={{ fontSize: 12, color: "var(--text-dim)" }}>Drag to compare</span>
+          </div>
           <div className="swipe-container" onMouseMove={handleSwipe} onTouchMove={handleSwipe}>
-            <div className="swipe-layer" style={{ background: "linear-gradient(135deg, #1a2a4a, #0a0f1e)" }}>
-              <div style={{ position: "absolute", top: 8, left: 8, fontSize: 11, color: "#94A3B8" }}>BEFORE (baseline)</div>
+            <div className="swipe-before" style={{ width: `${swipePct}%` }}>
+              <span style={{ fontSize: 13, color: "var(--text-dim)" }}>Before — 3.0 km²</span>
             </div>
-            <div className="swipe-layer" style={{ background: "linear-gradient(135deg, #1a3a5a, #0a1f3e)", clipPath: `inset(0 0 0 ${swipePct}%)` }}>
-              <div style={{ position: "absolute", top: 8, right: 8, fontSize: 11, color: "#3B82F6" }}>AFTER</div>
+            <div className="swipe-after">
+              <span style={{ fontSize: 13, color: "var(--accent)" }}>After — 4.1 km² (+14.3%)</span>
             </div>
             <div className="swipe-handle" style={{ left: `${swipePct}%` }} />
           </div>
@@ -176,32 +194,44 @@ export default function MapView({ onJumpToReview }: MapViewProps = {}) {
       </div>
 
       {/* Right dock — legend + asset detail */}
-      <div style={{ width: 280, flexShrink: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ width: 240, flexShrink: 0, display: "flex", flexDirection: "column", gap: 12 }}>
         <div className="card">
-          <div className="card-title">Asset Legend</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, fontSize: 13 }}><span style={{ width: 10, height: 10, borderRadius: "50%", background: "#22C55E" }} /> Safe</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, fontSize: 13 }}><span style={{ width: 10, height: 10, borderRadius: "50%", background: "#F59E0B" }} /> Buffered (within 100m)</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}><span style={{ width: 10, height: 10, borderRadius: "50%", background: "#EF4444" }} /> Inundated</div>
+          <div className="card-title">Legend</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 14 }}>
+            {(["green", "amber", "red"] as const).map((s) => (
+              <div key={s} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ width: 12, height: 12, borderRadius: "50%", background: STATUS_COLOR[s], border: "2px solid var(--recessed)" }} />
+                <span>{STATUS_LABEL[s]}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
         {selectedAsset && (
           <div className="card">
-            <div className="card-title">{selectedAsset.name}</div>
-            <div style={{ fontSize: 13, color: "var(--text-dim)", marginBottom: 4 }}>Type: {selectedAsset.type}</div>
-            <div style={{ fontSize: 13, color: "var(--text-dim)", marginBottom: 4 }}>Buffer: ±{selectedAsset.buffer} m</div>
-            <div style={{ fontSize: 13, color: "var(--text-dim)", marginBottom: 4 }}>{selectedAsset.distance} m from corridor</div>
-            {selectedAsset.pop > 0 && <div style={{ fontSize: 13, color: "var(--text-dim)", marginBottom: 4 }}>Population: {selectedAsset.pop}</div>}
-            <div style={{ fontSize: 13, marginBottom: 12 }}>
-              Status: <span className={`badge ${selectedAsset.status === "green" ? "badge-safe" : selectedAsset.status === "amber" ? "badge-warn" : "badge-danger"}`}>
+            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 10 }}>{selectedAsset.name}</div>
+            <div style={{ fontSize: 14, color: "var(--text-dim)", marginBottom: 4 }}>Type: {selectedAsset.type}</div>
+            <div style={{ fontSize: 14, color: "var(--text-dim)", marginBottom: 4 }}>{selectedAsset.distance}m from flow path</div>
+            {selectedAsset.pop > 0 && <div style={{ fontSize: 14, color: "var(--text-dim)", marginBottom: 4 }}>Population: {selectedAsset.pop}</div>}
+            <div style={{ margin: "10px 0" }}>
+              <span className={`badge ${STATUS_BADGE[selectedAsset.status]}`}>
                 {selectedAsset.status === "green" ? "SAFE" : selectedAsset.status === "amber" ? "BUFFERED" : "INUNDATED"}
               </span>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
-              <button className="btn btn-ghost" style={{ fontSize: 12, padding: "4px 10px" }} onClick={() => mapRef.current?.flyTo({ center: [selectedAsset.lon, selectedAsset.lat], zoom: 14, duration: 1000 })}>
+              <button
+                className="btn btn-ghost"
+                style={{ fontSize: 13, padding: "6px 12px" }}
+                onClick={() => mapRef.current?.flyTo({ center: [selectedAsset.lon, selectedAsset.lat], zoom: 14, duration: 1000 })}
+              >
                 Fly to
               </button>
               {onJumpToReview && (
-                <button className="btn btn-ghost" style={{ fontSize: 12, padding: "4px 10px" }} onClick={onJumpToReview}>
+                <button
+                  className="btn btn-ghost"
+                  style={{ fontSize: 13, padding: "6px 12px", color: "var(--accent)", borderColor: "var(--accent)" }}
+                  onClick={onJumpToReview}
+                >
                   Review →
                 </button>
               )}

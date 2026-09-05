@@ -11,8 +11,23 @@ interface Props {
   onJumpToMap?: () => void;
 }
 
-const SEV_COLOR: Record<string, string> = {
-  informational: "#3B82F6", watch: "#F59E0B", elevated: "#F97316", critical: "#EF4444",
+const SEV_BADGE: Record<string, string> = {
+  elevated: "badge-elevated",
+  critical: "badge-danger",
+};
+
+const GAUGE_COLORS = {
+  H: "var(--danger)",
+  E: "var(--warn)",
+  D: "var(--info)",
+  C: "var(--safe)",
+};
+
+const GAUGE_LABELS = {
+  H: "Hazard",
+  E: "Exposure",
+  D: "Disease risk",
+  C: "Confidence",
 };
 
 export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
@@ -32,6 +47,7 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
   const exposures = exposuresData?.exposures ?? mockData.exposures.exposures;
   const wells = exposures.filter((e) => e.asset_type === "well");
   const villages = exposures.filter((e) => e.asset_type === "village");
+  const totalPop = villages.reduce((s, v) => s + (v.population ?? 0), 0);
 
   const reviewMut = useMutation({
     mutationFn: (vars: { decision: "confirm" | "reject" | "postpone" }) =>
@@ -40,7 +56,7 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
       sim.setReviewDecision(vars.decision);
       setConfirmStep(false);
       setError(null);
-      onToast?.({ msg: `Review recorded: ${vars.decision}`, type: "success" });
+      onToast?.({ msg: `Decision recorded: ${vars.decision}`, type: "success" });
       qc.invalidateQueries({ queryKey: ["runs"] });
     },
     onError: (e: ApiError) => { setError(e.detail); onToast?.({ msg: e.detail, type: "error" }); },
@@ -48,15 +64,13 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
 
   const dispatchMut = useMutation({
     mutationFn: () => apiOrMock(() => api.createDispatch(runId, "sms", "sector-b"), "dispatch") as Promise<DispatchResponse>,
-    onSuccess: (data) => { sim.setDispatchResult(data); setError(null); onToast?.({ msg: `Dispatch sent: ${data.payload_bytes} bytes`, type: "success" }); },
+    onSuccess: (data) => { sim.setDispatchResult(data); setError(null); onToast?.({ msg: `Dispatch sent (${data.payload_bytes} bytes)`, type: "success" }); },
     onError: (e: ApiError) => { setError(e.detail); onToast?.({ msg: e.detail, type: "error" }); },
   });
 
-  // Empty state — no elevated run
   if (!score || (score.severity !== "elevated" && score.severity !== "critical")) {
     return (
       <div className="empty-state">
-        <div className="icon">✓</div>
         <div className="msg">No alerts requiring review</div>
         <div className="hint">Run the simulation from the Timeline tab to generate observations.</div>
       </div>
@@ -66,133 +80,184 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
   if (expLoading) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        <div className="view-title">Review — Loading...</div>
+        <h1 className="view-title">Review</h1>
         <div className="card"><div className="skeleton skeleton-row" /><div className="skeleton skeleton-row" /><div className="skeleton skeleton-row" /></div>
       </div>
     );
   }
 
-  const sevColor = SEV_COLOR[score.severity] ?? "#94A3B8";
   const decisionLocked = sim.reviewDecision !== null;
+  const sortedExposures = [...exposures].sort((a, b) => (a.distance_m ?? 9999) - (b.distance_m ?? 9999));
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <div className="view-title">Review — Run {runId}</div>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+        <h1 className="view-title" style={{ margin: 0 }}>
+          Review — Run <span style={{ fontFamily: "JetBrains Mono, monospace", color: "var(--accent)" }}>{runId}</span>
+        </h1>
+        <span className={`badge ${SEV_BADGE[score.severity]}`}>{score.severity}</span>
+      </div>
 
-      <div style={{ display: "flex", gap: 16, flex: 1, overflow: "auto" }}>
-        {/* Evidence panel (left, 40%) */}
-        <div className="card" style={{ flex: "0 0 40%" }}>
-          <div className="card-title">Evidence — Before / After</div>
-          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-            <div style={{ flex: 1, height: 160, borderRadius: 6, background: "linear-gradient(135deg, #1a2a4a, #0a0f1e)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-dim)", fontSize: 12 }}>BEFORE</div>
-            <div style={{ flex: 1, height: 160, borderRadius: 6, background: "linear-gradient(135deg, #1a3a5a, #0a1f3e)", display: "flex", alignItems: "center", justifyContent: "center", color: "#3B82F6", fontSize: 12 }}>AFTER (+14.3%)</div>
+      {/* Top row: Evidence (left) + Risk & Reasons (right) */}
+      <div style={{ display: "flex", gap: 16, flex: 1, overflow: "auto", minHeight: 0 }}>
+        {/* Evidence panel */}
+        <div className="card" style={{ flex: "0 0 45%", display: "flex", flexDirection: "column" }}>
+          <div className="card-title">Evidence</div>
+          <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+            <div style={{
+              flex: 1, height: 140, borderRadius: 8,
+              background: "var(--recessed)", border: "1px solid var(--panel-2)",
+              display: "flex", flexDirection: "column", justifyContent: "space-between", padding: 12,
+            }}>
+              <span style={{ fontSize: 13, color: "var(--text-dim)" }}>Before</span>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 600 }}>3.0 km²</div>
+                <div style={{ fontSize: 12, color: "var(--text-dim)" }}>Reference extent</div>
+              </div>
+            </div>
+            <div style={{
+              flex: 1, height: 140, borderRadius: 8,
+              background: "rgba(0,66,79,0.3)", border: "1px solid rgba(6,182,212,0.3)",
+              display: "flex", flexDirection: "column", justifyContent: "space-between", padding: 12,
+            }}>
+              <span style={{ fontSize: 13, color: "var(--accent)" }}>After</span>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 600, color: "var(--accent)" }}>4.1 km²</div>
+                <div style={{ fontSize: 12, color: "var(--accent)", opacity: 0.8 }}>+14.3% expansion</div>
+              </div>
+            </div>
           </div>
-          <div style={{ fontSize: 13, color: "var(--text-dim)" }}>Change mask: {run.change_mask_uri ?? "data/processed/obs-003_expansion_mask.tif"}</div>
+          <div style={{ marginTop: "auto", fontSize: 12, color: "var(--text-dim)", fontFamily: "JetBrains Mono, monospace", wordBreak: "break-all" }}>
+            {run.change_mask_uri ?? "data/processed/obs-003_expansion_mask.tif"}
+          </div>
         </div>
 
-        {/* Risk gauge + reasons (center) */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 16 }}>
+        {/* Risk scores + reasons */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
           <div className="card">
             <div className="card-title">Risk Scores</div>
-            <GaugeRow label="H" value={score.hazard_score} color="#EF4444" title="Hazard: water expansion + rainfall" />
-            <GaugeRow label="E" value={score.exposure_priority} color="#F59E0B" title="Exposure: villages + infrastructure in corridor" />
-            {score.disease_risk !== null && <GaugeRow label="D" value={score.disease_risk} color="#3B82F6" title="Disease: wells submerged → water contamination" />}
-            <GaugeRow label="conf" value={score.confidence} color="#22C55E" title="Confidence: quality-weighted sensor fusion" />
-            <div style={{ marginTop: 12 }}>
-              <span className="badge" style={{ background: `${sevColor}22`, color: sevColor, border: `1px solid ${sevColor}` }}>{score.severity.toUpperCase()}</span>
-            </div>
+            <GaugeRow label="H" value={score.hazard_score} />
+            <GaugeRow label="E" value={score.exposure_priority} />
+            {score.disease_risk !== null && <GaugeRow label="D" value={score.disease_risk} />}
+            <GaugeRow label="C" value={score.confidence} />
           </div>
 
-          {/* Reasons panel (≥3) */}
           <div className="card">
             <div className="card-title">Evidence Reasons ({score.reasons.length})</div>
-            {score.reasons.map((r, i) => (
-              <div key={i} style={{ display: "flex", gap: 8, marginBottom: 8, fontSize: 13 }}>
-                <span style={{ color: "var(--accent)", fontWeight: 700 }}>{i + 1}.</span>
-                <span>{r}</span>
-              </div>
-            ))}
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {score.reasons.map((r, i) => (
+                <div key={i} style={{ display: "flex", gap: 8, fontSize: 14 }}>
+                  <span style={{ color: "var(--accent)", fontWeight: 600, flexShrink: 0 }}>{i + 1}.</span>
+                  <span>{r}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom row: Disease actions + Exposed assets */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 16 }}>
+        <div className="card">
+          <div className="card-title">Disease Prevention</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {wells.map((w) => {
+              const isSubmerged = w.inundated;
+              return (
+                <div key={w.asset_id}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: isSubmerged ? "var(--danger)" : "var(--warn)", marginBottom: 4 }}>
+                    {w.name ?? w.asset_id} — {isSubmerged ? "submerged" : "encircled"}
+                  </div>
+                  <div style={{ paddingLeft: 12, fontSize: 14, color: "var(--text)", display: "flex", flexDirection: "column", gap: 2 }}>
+                    {isSubmerged ? (
+                      <>
+                        <span>→ chlorine ×200 tablets</span>
+                        <span>→ boil water notice</span>
+                      </>
+                    ) : (
+                      <span>→ monitor for contamination</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            <div style={{ borderTop: "1px solid var(--panel-2)", paddingTop: 12, display: "flex", flexDirection: "column", gap: 4, fontSize: 14 }}>
+              <span>→ 7-day diarrheal surveillance</span>
+              <span>→ alternate water supply for {totalPop} people</span>
+            </div>
           </div>
         </div>
 
-        {/* Right dock — disease action sheet + assets table */}
-        <div style={{ width: 320, flexShrink: 0, display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* Disease action sheet — per-well actions */}
-          <div className="card">
-            <div className="card-title">Disease Prevention Actions</div>
-            <div className="action-sheet">
-              {wells.map((w) => {
-                const isSubmerged = w.inundated;
-                return (
-                  <div key={w.asset_id} style={{ marginBottom: 12, padding: 8, borderRadius: 4, background: isSubmerged ? "rgba(239,68,68,0.08)" : "rgba(245,158,11,0.08)" }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
-                      {w.name ?? w.asset_id}: {isSubmerged ? "submerged" : "encircled"}
-                    </div>
-                    {isSubmerged ? (
-                      <>
-                        <div className="action-item"><span className="dot" style={{ background: "#EF4444" }} /><div>→ chlorine ×200 tablets</div></div>
-                        <div className="action-item"><span className="dot" style={{ background: "#EF4444" }} /><div>→ BOIL WATER NOW notice</div></div>
-                      </>
-                    ) : (
-                      <div className="action-item"><span className="dot" style={{ background: "#F59E0B" }} /><div>→ monitor for contamination</div></div>
-                    )}
-                  </div>
-                );
-              })}
-              <div className="action-item"><span className="dot" style={{ background: "#3B82F6" }} /><div>7-day diarrheal disease surveillance window</div></div>
-              <div className="action-item"><span className="dot" style={{ background: "#22C55E" }} /><div>Safe water sources: identify alternate supply for {villages.reduce((s, v) => s + (v.population ?? 0), 0)} people</div></div>
-            </div>
-          </div>
-
-          {/* Exposed assets table — row click → map flyTo */}
-          <div className="card">
-            <div className="card-title">Exposed Assets (ranked by distance)</div>
-            <table className="table">
-              <thead><tr><th>#</th><th>Asset</th><th>Type</th><th>Dist</th><th>Status</th></tr></thead>
-              <tbody>
-                {[...exposures].sort((a, b) => (a.distance_m ?? 9999) - (b.distance_m ?? 9999)).map((e, i) => (
-                  <tr
-                    key={e.asset_id}
-                    style={{ cursor: "pointer" }}
-                    onClick={() => { sim.selectAsset(e.asset_id); onJumpToMap?.(); }}
-                  >
-                    <td style={{ color: "var(--text-dim)" }}>{i + 1}</td>
-                    <td>{e.name ?? e.asset_id}</td>
-                    <td>{e.asset_type}</td>
-                    <td>{e.distance_m?.toFixed(0)}m</td>
-                    <td><span className={`badge ${e.inundated ? "badge-danger" : "badge-warn"}`}>{e.inundated ? "INUNDATED" : "BUFFERED"}</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <div className="card">
+          <div className="card-title">Exposed Assets</div>
+          <table className="table">
+            <thead>
+              <tr><th>#</th><th>Asset</th><th>Type</th><th>Dist</th><th style={{ textAlign: "right" }}>Status</th></tr>
+            </thead>
+            <tbody>
+              {sortedExposures.map((e, i) => (
+                <tr
+                  key={e.asset_id}
+                  onClick={() => { sim.selectAsset(e.asset_id); onJumpToMap?.(); }}
+                >
+                  <td style={{ color: "var(--text-dim)" }}>{i + 1}</td>
+                  <td style={{ fontWeight: 500 }}>{e.name ?? e.asset_id}</td>
+                  <td style={{ color: "var(--text-dim)" }}>{e.asset_type}</td>
+                  <td>{e.distance_m?.toFixed(0)}m</td>
+                  <td style={{ textAlign: "right" }}>
+                    <span className={`badge ${e.inundated ? "badge-danger" : "badge-warn"}`}>
+                      {e.inundated ? "INUNDATED" : "BUFFERED"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
       {error && <div className="error-msg" style={{ marginTop: 8 }}>{error}</div>}
 
-      {/* Decision bar — two-step confirm + decision lock */}
-      <div className="decision-bar">
+      {/* Decision bar */}
+      <div className="decision-bar" style={{ marginTop: 16 }}>
         {decisionLocked ? (
           <div className={`decision-locked ${sim.reviewDecision}`}>
-            ✓ Decision recorded: {sim.reviewDecision?.toUpperCase()}
+            <span>
+              {sim.reviewDecision === "confirm" && "✓ Confirmed"}
+              {sim.reviewDecision === "reject" && "✗ Rejected"}
+              {sim.reviewDecision === "postpone" && "⏸ Postponed"}
+            </span>
             {sim.reviewDecision === "confirm" && (
-              <button className="btn btn-ghost" style={{ marginLeft: 12, fontSize: 12, padding: "4px 10px" }} disabled={dispatchMut.isPending} onClick={() => dispatchMut.mutate()}>
-                📤 Send Dispatch
+              <button
+                className="btn btn-primary"
+                style={{ marginLeft: 12, fontSize: 13, padding: "6px 14px" }}
+                disabled={dispatchMut.isPending}
+                onClick={() => dispatchMut.mutate()}
+              >
+                {dispatchMut.isPending ? "Sending..." : "Send Dispatch"}
               </button>
             )}
           </div>
         ) : confirmStep ? (
           <div className="confirm-step">
             <span style={{ fontWeight: 600, color: "var(--danger)" }}>Confirm SOS dispatch?</span>
-            <button className="btn btn-primary" disabled={reviewMut.isPending} onClick={() => reviewMut.mutate({ decision: "confirm" })}>Yes, confirm</button>
+            <button className="btn btn-safe" disabled={reviewMut.isPending} onClick={() => reviewMut.mutate({ decision: "confirm" })}>
+              Yes, confirm
+            </button>
             <button className="btn btn-ghost" onClick={() => setConfirmStep(false)}>Cancel</button>
           </div>
         ) : (
           <>
-            <button className="btn btn-primary" disabled={reviewMut.isPending} onClick={() => setConfirmStep(true)}>✓ Confirm SOS</button>
-            <button className="btn btn-danger" disabled={reviewMut.isPending} onClick={() => reviewMut.mutate({ decision: "reject" })}>✗ Reject</button>
-            <button className="btn btn-warn" disabled={reviewMut.isPending} onClick={() => reviewMut.mutate({ decision: "postpone" })}>⏸ Postpone</button>
+            <button className="btn btn-safe" disabled={reviewMut.isPending} onClick={() => setConfirmStep(true)}>
+              ✓ Confirm
+            </button>
+            <button className="btn btn-danger" disabled={reviewMut.isPending} onClick={() => reviewMut.mutate({ decision: "reject" })}>
+              ✗ Reject
+            </button>
+            <button className="btn btn-warn" disabled={reviewMut.isPending} onClick={() => reviewMut.mutate({ decision: "postpone" })}>
+              ⏸ Postpone
+            </button>
           </>
         )}
         <span className="reviewer">reviewer: coordinator-01</span>
@@ -201,11 +266,14 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
   );
 }
 
-function GaugeRow({ label, value, color, title }: { label: string; value: number; color: string; title?: string }) {
+function GaugeRow({ label, value }: { label: keyof typeof GAUGE_LABELS; value: number }) {
+  const color = GAUGE_COLORS[label];
   return (
-    <div className="gauge-row" title={title}>
-      <span className="gauge-label">{label}</span>
-      <div className="gauge-bar"><div className="gauge-fill" style={{ width: `${value * 100}%`, background: color }} /></div>
+    <div className="gauge-row">
+      <span className="gauge-label" style={{ color }} title={GAUGE_LABELS[label]}>{label}</span>
+      <div className="gauge-bar">
+        <div className="gauge-fill" style={{ width: `${value * 100}%`, background: color }} />
+      </div>
       <span className="gauge-value">{value.toFixed(2)}</span>
     </div>
   );

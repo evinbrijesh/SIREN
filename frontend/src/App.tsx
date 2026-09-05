@@ -11,11 +11,16 @@ import AuditView from "./views/AuditView";
 
 type ViewName = "map" | "timeline" | "review" | "audit";
 const TAB_KEYS: ViewName[] = ["map", "timeline", "review", "audit"];
+const TAB_LABELS: Record<ViewName, string> = {
+  map: "Map",
+  timeline: "Timeline",
+  review: "Review",
+  audit: "Audit",
+};
 
 export default function App() {
   const [view, setView] = useState<ViewName>("map");
   const [toast, setToast] = useState<{ msg: string; type: "error" | "info" | "success" } | null>(null);
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const sim = useSimulation();
 
   const { data: basin } = useQuery({
@@ -29,7 +34,6 @@ export default function App() {
     refetchInterval: sim.status === "running" ? 1000 : false,
   });
 
-  // Find the run for the current sim step (from runIds), or fall back to latest
   const currentRunId = sim.step !== "before" ? sim.runIds[sim.step] : null;
   const runs = runsData?.runs ?? mockData.runs.runs;
   const latestRun = (currentRunId ? runs.find((r) => r.run_id === currentRunId) : undefined) ?? runs[0] ?? mockData.runs.runs[0];
@@ -37,22 +41,11 @@ export default function App() {
   const showBanner = (severity === "elevated" || severity === "critical") && !sim.reviewDecision;
   const expansionPct = (latestRun?.change_stats_json?.expansion_percent as number) ?? 0;
 
-  // Online/offline listener
-  useEffect(() => {
-    const on = () => setIsOnline(true);
-    const off = () => setIsOnline(false);
-    window.addEventListener("online", on);
-    window.addEventListener("offline", off);
-    return () => { window.removeEventListener("online", on); window.removeEventListener("offline", off); };
-  }, []);
-
-  // Keyboard shortcuts: 1-4 tabs, R run simulation, Esc close toast
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key >= "1" && e.key <= "4") {
         setView(TAB_KEYS[parseInt(e.key) - 1]);
       } else if (e.key.toLowerCase() === "r" && view === "timeline") {
-        // R triggers run simulation from timeline view
         sim.advance();
       } else if (e.key === "Escape") {
         setToast(null);
@@ -62,7 +55,6 @@ export default function App() {
     return () => window.removeEventListener("keydown", handler);
   }, [view]);
 
-  // Auto-dismiss toast
   useEffect(() => {
     if (toast) {
       const t = setTimeout(() => setToast(null), 4000);
@@ -73,42 +65,45 @@ export default function App() {
   const handleReset = useCallback(() => {
     sim.reset();
     setView("map");
-    setToast({ msg: "Console reset to before state", type: "info" });
+    setToast({ msg: "Reset to baseline", type: "info" });
   }, [sim]);
+
+  const basinName = basin?.name ?? "Dudh Koshi / Imja";
 
   return (
     <div className="app-shell">
-      {/* NavBar */}
       <nav className="nav-bar">
         <span className="nav-brand">SIREN</span>
-        <span className="nav-basin">Dudh Koshi/Imja</span>
-        <span className="nav-live">LIVE</span>
+        <span className="nav-basin">{basinName}</span>
         <div className="nav-tabs">
-          {TAB_KEYS.map((v, i) => (
+          {TAB_KEYS.map((v) => (
             <button
               key={v}
               className={`nav-tab ${view === v ? "active" : ""}`}
               onClick={() => setView(v)}
             >
-              {v.charAt(0).toUpperCase() + v.slice(1)}
-              <span style={{ marginLeft: 4, opacity: 0.4, fontSize: 10 }}>{i + 1}</span>
+              {TAB_LABELS[v]}
             </button>
           ))}
         </div>
-        {!isOnline && <span className="offline-badge">● OFFLINE — ALL SYSTEMS LOCAL</span>}
-        <button className="nav-reset" onClick={handleReset} title="Reset console to before state">RESET ⟲</button>
+        <button className="btn btn-ghost" onClick={handleReset} style={{ padding: "6px 12px", fontSize: 13 }}>
+          Reset
+        </button>
       </nav>
 
-      {/* Alert banner */}
       {showBanner && (
-        <div className="alert-banner" onClick={() => setView("review")}>
-          <span className="icon">⚠</span>
-          <span className="sev">{severity?.toUpperCase()}</span>
-          <span>— +{expansionPct.toFixed(1)}% water expansion → Review</span>
+        <div
+          className={`alert-banner ${severity === "critical" ? "critical" : ""}`}
+          onClick={() => setView("review")}
+        >
+          <span className={`sev-text ${severity === "critical" ? "critical" : "elevated"}`}>
+            {severity === "elevated" ? "Elevated" : "Critical"}
+          </span>
+          <span>— water expansion +{expansionPct.toFixed(1)}% detected</span>
+          <span className="review-link">Review →</span>
         </div>
       )}
 
-      {/* Active view */}
       <div className="view-container">
         {view === "map" && <MapView />}
         {view === "timeline" && <TimelineView />}
@@ -116,17 +111,15 @@ export default function App() {
         {view === "audit" && <AuditView onToast={setToast} />}
       </div>
 
-      {/* Provenance strip */}
-      <footer className="provenance-strip">
+      <footer className="app-footer">
         <span>Sentinel-2</span><span className="sep">·</span>
         <span>Sentinel-1</span><span className="sep">·</span>
         <span>SRTM</span><span className="sep">·</span>
         <span>Open-Meteo</span><span className="sep">·</span>
         <span>© OSM</span><span className="sep">·</span>
-        <span>pipeline v0.1.0</span>
+        <span>v0.1.0</span>
       </footer>
 
-      {/* Toast */}
       {toast && (
         <div className={`toast ${toast.type}`} onClick={() => setToast(null)}>
           {toast.type === "error" && "⚠ "}{toast.type === "success" && "✓ "}{toast.msg}
