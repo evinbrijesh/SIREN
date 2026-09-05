@@ -2,7 +2,7 @@
 
 Routes are thin and delegate to the SQLite repository (siren.db.repo) and
 the pipeline orchestrator (siren.pipeline). Implements the endpoints
-defined in docs/API_CONTRACT.md exactly — field names/types are not renamed.
+defined in docs/spec/API_CONTRACT.md exactly — field names/types are not renamed.
 
 POST /runs triggers the full pipeline (quality→route→detect→corridor→risk→DB)
 synchronously and returns the completed run with scores and exposures.

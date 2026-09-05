@@ -1,6 +1,6 @@
 """Pydantic models for the SIREN API surface.
 
-Field names and types match docs/API_CONTRACT.md and docs/PRD.md §10 exactly.
+Field names and types match docs/spec/API_CONTRACT.md and docs/spec/PRD.md §10 exactly.
 Never rename a field to "make it nicer" (CLAUDE.md / Hard Rules).
 """
 

@@ -1,4 +1,4 @@
-// SIREN typed API client — matches docs/API_CONTRACT.md.
+// SIREN typed API client — matches docs/spec/API_CONTRACT.md.
 // Uses /api proxy in dev (vite.config.ts), falls back to mock data when the
 // backend is not reachable (offline demo-safe).
 

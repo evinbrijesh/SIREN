@@ -1,6 +1,6 @@
 # SIREN — API Contract
 
-Authoritative HTTP surface. Implemented in `backend/siren/api/app.py`. Field names/types match `docs/PRD.md` §10 and `backend/siren/db/schema.sql` exactly.
+Authoritative HTTP surface. Implemented in `backend/siren/api/app.py`. Field names/types match `docs/spec/PRD.md` §10 and `backend/siren/db/schema.sql` exactly.
 
 Base URL: `http://localhost:8010` · Frontend proxy: `/api` → `http://localhost:8010`
 

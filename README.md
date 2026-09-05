@@ -204,7 +204,7 @@ npm run build                    # tsc + vite build
 | GET | `/data/map-assets/sar-backscatter.png` | SAR backscatter raster |
 | GET | `/data/map-assets/{obs_id}/baseline-optical.png` | Per-observation baseline optical crop |
 
-See `docs/API_CONTRACT.md` for full request/response schemas.
+See `docs/spec/API_CONTRACT.md` for full request/response schemas.
 
 ---
 
@@ -259,12 +259,12 @@ pytest                           # 104 tests, ~20s
 
 ## Documentation
 
-- [`docs/PRD.md`](docs/PRD.md) — Product Requirements Document (v4.3)
-- [`docs/BUILD_ROADMAP.md`](docs/BUILD_ROADMAP.md) — 36-hour build plan
-- [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md) — HTTP API surface
-- [`docs/UI_DESIGN.md`](docs/UI_DESIGN.md) — Coordinator console design spec
-- [`docs/DEVIN_BRIEFS.md`](docs/DEVIN_BRIEFS.md) — Devin task briefs
-- [`docs/ADR-*.md`](docs/) — Architecture decision records
+- [`docs/spec/PRD.md`](docs/spec/PRD.md) — Product Requirements Document (v4.3)
+- [`docs/spec/BUILD_ROADMAP.md`](docs/spec/BUILD_ROADMAP.md) — 36-hour build plan
+- [`docs/spec/API_CONTRACT.md`](docs/spec/API_CONTRACT.md) — HTTP API surface
+- [`docs/design/UI_DESIGN.md`](docs/design/UI_DESIGN.md) — Coordinator console design spec
+- [`docs/spec/DEVIN_BRIEFS.md`](docs/spec/DEVIN_BRIEFS.md) — Devin task briefs
+- [`docs/adr/`](docs/adr/) — Architecture decision records (ADR-001 → ADR-005)
 
 ---
 

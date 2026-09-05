@@ -1,6 +1,6 @@
 # CLAUDE.md — SIREN
 
-Companion to `AGENTS.md` (agent routing + hard rules) and `docs/PRD.md` (spec). Read all three before writing code.
+Companion to `AGENTS.md` (agent routing + hard rules) and `docs/spec/PRD.md` (spec). Read all three before writing code.
 
 **SIREN** — Satellite-Informed Risk & Emergency Network. Satellite-assisted early warning and disaster-response platform for Himalayan basins. Track 7 (resilient alerting + disease prevention). 36-hour hackathon build.
 

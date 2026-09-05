@@ -1,6 +1,6 @@
 # SIREN — UI Design Layout
 
-**Companion to:** `docs/PRD.md` §12, `docs/API_CONTRACT.md`, `docs/DEVIN_BRIEFS.md` (D7).
+**Companion to:** `docs/spec/PRD.md` §12, `docs/spec/API_CONTRACT.md`, `docs/spec/DEVIN_BRIEFS.md` (D7).
 **Purpose:** Defines the visual layout, component hierarchy, and design system for the coordinator console. The frontend scaffold (D7) builds against this.
 
 ---
