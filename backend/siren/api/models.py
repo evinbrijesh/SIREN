@@ -29,6 +29,7 @@ class Observation(BaseModel):
     crs: str
     quality_score: float | None = None
     cloud_fraction: float | None = None
+    optical_cloud_fraction: float | None = None
     alignment_ok: bool | None = None
     usable: bool | None = None
     confidence_adjustment: float | None = None
@@ -98,6 +99,12 @@ class Run(BaseModel):
     corridor_geojson: dict[str, Any] | None = None
     change_stats_json: dict[str, Any] | None = None
     score: Score | None = None
+    status: str
+    started_at: str
+    finished_at: str | None = None
+    decision: str | None = None
+    reviewer: str | None = None
+    decided_at: str | None = None
 
 
 class RunList(BaseModel):
@@ -112,6 +119,7 @@ class Exposure(BaseModel):
     buffer_m: float | None = None
     inundated: bool
     population: int | None = None
+    geometry_geojson: dict[str, Any] | None = None
 
 
 class ExposureList(BaseModel):
@@ -155,6 +163,8 @@ class AuditEntry(BaseModel):
     action: str
     detail_json: str
     created_at: str
+    prev_hash: str
+    event_hash: str
 
 
 class AuditList(BaseModel):

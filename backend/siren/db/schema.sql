@@ -31,7 +31,8 @@ CREATE TABLE IF NOT EXISTS observations (
     raster_uri              TEXT NOT NULL,     -- path under data/processed/
     crs                     TEXT NOT NULL DEFAULT 'EPSG:4326',
     quality_score           REAL,              -- 0..1
-    cloud_fraction          REAL,              -- 0..1
+    cloud_fraction          REAL,              -- 0..1 effective sensor cloud
+    optical_cloud_fraction  REAL,              -- 0..1 source optical scene before SAR routing
     alignment_ok            INTEGER,           -- 0/1
     usable                  INTEGER,           -- 0/1 (routing flag)
     confidence_adjustment   REAL,              -- 0..1 multiplier
@@ -137,7 +138,9 @@ CREATE TABLE IF NOT EXISTS audit_log (
     actor           TEXT NOT NULL,
     action          TEXT NOT NULL,             -- run|score|review|dispatch|reject
     detail_json     TEXT NOT NULL,             -- full snapshot of the event
-    created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+    created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+    prev_hash       TEXT NOT NULL,
+    event_hash      TEXT NOT NULL
 );
 
 -- Append-only enforcement (Hard Rule 3 / PRD §7.8 / D6): enforced at the
