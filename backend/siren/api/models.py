@@ -128,7 +128,7 @@ class ExposureList(BaseModel):
 
 class ReviewRequest(BaseModel):
     reviewer: str
-    decision: str  # confirm | reject | postpone
+    decision: str  # confirm | reject | postpone | escalate
     note: str | None = None
 
 

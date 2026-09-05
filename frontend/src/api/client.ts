@@ -60,7 +60,7 @@ export const api = {
   listExposures: (runId: string) => fetchJson<ExposureList>(`/runs/${runId}/exposures`),
   getSarPriority: (runId: string) => fetchJson<SarPriorityList>(`/runs/${runId}/sar-priority`),
   getMlEvidence: (runId: string) => fetchJson<MlEvidence>(`/runs/${runId}/ml-evidence`),
-  createReview: (runId: string, reviewer: string, decision: "confirm" | "reject" | "postpone", note?: string) =>
+  createReview: (runId: string, reviewer: string, decision: "confirm" | "reject" | "postpone" | "escalate", note?: string) =>
     fetchJson<ReviewResponse>(`/runs/${runId}/review`, {
       method: "POST",
       body: JSON.stringify({ reviewer, decision, note }),
