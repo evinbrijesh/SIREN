@@ -132,6 +132,7 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
       style: { version: 8, sources: {}, layers: [{ id: "background", type: "background", paint: { "background-color": "#08090a" } }] },
       center: [86.82, 27.88],
       zoom: 11,
+      attributionControl: { compact: true },
     });
     mapRef.current = map;
     // Throttled coordinate listener — only update on moveend, not during pan
@@ -150,8 +151,8 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
         map.addLayer({ id: "sar", type: "raster", source: "sar", paint: { "raster-opacity": 0.72, "raster-fade-duration": 0 }, layout: { visibility: routedSar ? "visible" : "none" } });
       }
       map.addSource("basin", { type: "geojson", data: basinPolygon as any });
-      map.addLayer({ id: "basin-fill", type: "fill", source: "basin", paint: { "fill-color": "#00f0ff", "fill-opacity": 0.04 } });
-      map.addLayer({ id: "basin-border", type: "line", source: "basin", paint: { "line-color": "#00f0ff", "line-width": 1.25, "line-dasharray": [4, 3] } });
+      map.addLayer({ id: "basin-fill", type: "fill", source: "basin", paint: { "fill-color": "#ffb000", "fill-opacity": 0.03 } });
+      map.addLayer({ id: "basin-border", type: "line", source: "basin", paint: { "line-color": "#ffb000", "line-width": 1, "line-opacity": 0.5 } });
       map.addSource("corridor", { type: "geojson", data: toFeature(corridor) });
       map.addLayer({ id: "corridor", type: "line", source: "corridor", paint: { "line-color": "#ff1e27", "line-width": 2, "line-dasharray": [5, 3] } });
       updateAssetMarkers(map, exposures, markersRef, sim.selectAsset, layers.assets);
@@ -268,7 +269,7 @@ export default function MapView({ basin, run, onJumpToReview }: MapViewProps = {
             <div className="sar-sweep-line" />
           </>
         )}
-        <div className="absolute top-space-8 left-space-8 z-10 px-space-8 py-space-4 bg-surface-panel border border-border-subtle text-body-sm">{STEP_LABELS[sim.step]}</div>
+        <div className="absolute top-space-8 left-space-8 z-10 px-space-8 py-space-4 bg-surface-panel/80 backdrop-blur-sm border border-border-subtle text-body-sm">{STEP_LABELS[sim.step]}</div>
         <div className="absolute top-space-8 right-space-8 z-10 flex gap-space-4">
           <button disabled={!run || !beforeImage || !afterImage} onClick={() => setCompareOpen((open) => !open)} className="px-space-8 py-space-4 bg-surface-panel border border-border-subtle text-body-sm disabled:opacity-40">{compareOpen ? "Close compare" : "Swipe compare"}</button>
         </div>
