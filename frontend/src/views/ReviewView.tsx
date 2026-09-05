@@ -382,12 +382,15 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
               </div>
               <div className="border-t border-border-subtle pt-space-12">
                 <h3 className="label-caps mb-space-8">Evidence Reasons ({score.reasons.length})</h3>
-                <div className="flex flex-col gap-space-4 text-body-md text-text-primary">
+                <div className="flex flex-col gap-space-6 text-body-md text-text-primary leading-relaxed">
                   {score.reasons.map((r, i) => (
-                    <div key={i} className="flex items-baseline gap-space-8">
-                      <span className="data-val text-body-sm text-text-dim w-4 shrink-0">{String(i + 1).padStart(2, "0")}</span>
-                      <span>{r}</span>
-                    </div>
+                    <>
+                      {i === 5 && <div className="border-t border-border-subtle my-space-4" />}
+                      <div key={i} className="flex items-baseline gap-space-8">
+                        <span className="data-val text-body-sm text-text-dim w-5 shrink-0">{String(i + 1).padStart(2, "0")}</span>
+                        <span>{r}</span>
+                      </div>
+                    </>
                   ))}
                 </div>
               </div>
@@ -396,7 +399,7 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
         </div>
 
         {/* Bottom row: Disease + Assets */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-space-8 mt-space-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-space-8 mt-space-16">
           {/* Disease Prevention */}
           <section className="bg-surface-panel border border-border-subtle flex flex-col">
             <div className="flex items-center justify-between px-space-12 py-space-8 border-b border-border-subtle">
@@ -489,7 +492,7 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
 
         {/* SAR Priority */}
         {sarPriority.sectors.length > 0 && (
-          <section className="bg-surface-panel border border-border-subtle mt-space-8 flex flex-col">
+          <section className="bg-surface-panel border border-border-subtle mt-space-16 flex flex-col">
             <div className="flex items-center justify-between px-space-12 py-space-8 border-b border-border-subtle">
               <h2 className="label-caps">Search &amp; Rescue Priority</h2>
               <div className="flex items-center gap-space-8 text-body-sm">
@@ -503,7 +506,6 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
               </div>
             </div>
             <div className="p-space-12">
-              <p className="data-val text-body-sm text-text-dim mb-space-12">{sarPriority.summary}</p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-space-8">
                 {sarPriority.sectors.map((sector, i) => {
                   const isTop = i === 0;
@@ -711,7 +713,7 @@ function GaugeRow({ label, value, summary }: { label: string; value: number; sum
       </div>
       <div className="text-right data-val text-metric-display text-text-primary leading-none">{value.toFixed(2)}</div>
       <div />
-      <div className="data-val text-caption text-text-dim">{summary}</div>
+      <div className="data-val text-body-sm text-text-dim">{summary}</div>
     </div>
   );
 }

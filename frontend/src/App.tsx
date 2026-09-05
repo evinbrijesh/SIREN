@@ -97,7 +97,7 @@ export default function App() {
           {/* Brand + basin */}
           <div className="flex items-center gap-space-8 px-space-12 border-r border-border-subtle">
             <span className="text-headline-md font-headline text-text-primary tracking-wide">SIREN</span>
-            <span className="text-body-sm text-text-dim hidden sm:inline">{basinName}</span>
+            <span className="text-body-md text-text-dim hidden sm:inline">{basinName}</span>
           </div>
 
           {/* Tabs */}
