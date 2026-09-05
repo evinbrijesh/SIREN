@@ -16,6 +16,7 @@ dist/
 # --- Data (never commit rasters or downloaded scenes) ---
 data/raw/*
 data/processed/*
+data/*.db
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 

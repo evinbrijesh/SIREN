@@ -1,0 +1,37 @@
+# Keep build context small — exclude everything not needed for the images
+
+# Data (4.4GB+ — mounted as volume at runtime, never baked into image)
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile.*
+docker-compose.yml
+.dockerignore
+
+# Docs (not needed in images)
+docs/
+
+# Editor
+*.swp
+*.swo
+*~
+.DS_Store

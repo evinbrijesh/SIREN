@@ -1,0 +1,29 @@
+# SIREN — Docker Compose
+# One command: docker compose up --build
+# Frontend: http://localhost:5175
+# Backend:  http://localhost:8010
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8010:8010"
+    volumes:
+      # Mount the local data directory (rasters + assets + DB persistence)
+      - ./data:/app/data
+    environment:
+      - SIREN_DB_PATH=/app/data/siren.db
+      - SIREN_PROJECT_ROOT=/app
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "5175:5175"
+    depends_on:
+      - backend
+    restart: unless-stopped
