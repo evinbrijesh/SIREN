@@ -108,7 +108,7 @@ CREATE TABLE IF NOT EXISTS reviews (
     review_id       TEXT PRIMARY KEY,
     score_id        TEXT NOT NULL REFERENCES scores(score_id),
     reviewer        TEXT NOT NULL,             -- authenticated actor
-    decision        TEXT NOT NULL,             -- confirm|reject|postpone
+    decision        TEXT NOT NULL,             -- confirm|reject|postpone|escalate
     note            TEXT,
     decided_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
 );

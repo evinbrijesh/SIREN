@@ -67,13 +67,18 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
   const totalPop = villages.reduce((s, v) => s + (v.population ?? 0), 0);
 
   const reviewMut = useMutation({
-    mutationFn: (vars: { decision: "confirm" | "reject" | "postpone" }) =>
+    mutationFn: (vars: { decision: "confirm" | "reject" | "postpone" | "escalate" }) =>
       api.createReview(runId!, "coordinator-01", vars.decision, "demo review") as Promise<ReviewResponse>,
     onSuccess: (_data, vars) => {
-      sim.setReviewDecision(vars.decision);
+      sim.setReviewDecision(vars.decision === "escalate" ? "confirm" : vars.decision);
       setConfirmStep(false);
       setError(null);
-      onToast?.({ msg: `Decision recorded: ${vars.decision}`, type: "success" });
+      onToast?.({
+        msg: vars.decision === "escalate"
+          ? "Watch escalated to elevated — review now required"
+          : `Decision recorded: ${vars.decision}`,
+        type: "success",
+      });
       qc.invalidateQueries({ queryKey: ["runs"] });
       qc.invalidateQueries({ queryKey: ["run", runId] });
     },
@@ -108,11 +113,73 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
     return () => window.removeEventListener("siren:escape", disarm);
   }, [confirmStep, dispatchArmed]);
 
-  if (!run || !score || (score.severity !== "elevated" && score.severity !== "critical")) {
+  if (!run || !score) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-text-dim text-center gap-space-8">
         <div className="data-val text-body-md">NO ALERTS REQUIRING REVIEW</div>
         <div className="data-val text-body-sm text-text-muted">Run the simulation from Timeline to generate observations.</div>
+      </div>
+    );
+  }
+
+  // Watch severity: show an escalate card instead of the full review panel.
+  // In production, a watch is monitoring-level — the coordinator can escalate
+  // it to elevated, which then triggers the normal confirm/reject/dispatch flow.
+  if (score.severity === "watch" && !sim.reviewDecision) {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex items-center justify-between px-space-16 py-space-8 border-b border-border-subtle bg-surface-panel">
+          <h1 className="label-caps">Review</h1>
+          <span className="data-val text-body-sm text-status-warn border border-status-warn px-space-4 py-space-1">
+            WATCH
+          </span>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center gap-space-12 px-space-16">
+          <div className="text-center max-w-md">
+            <div className="data-val text-headline-sm text-text-primary mb-space-4">
+              Monitoring — Escalation Available
+            </div>
+            <div className="data-val text-body-sm text-text-dim">
+              Observation {run.observation_id} shows early warning signs
+              (expansion {run.change_stats_json?.expansion_percent ?? "+"}%, hazard H={score.hazard_score.toFixed(2)}).
+              Escalate to elevated to trigger the full review and dispatch workflow,
+              or continue monitoring.
+            </div>
+          </div>
+          <div className="flex gap-space-8">
+            <button
+              className="px-space-12 py-space-6 border border-status-warn text-status-warn data-val text-body-sm hover:bg-status-warn/10 transition-colors"
+              onClick={() => reviewMut.mutate({ decision: "escalate" })}
+              disabled={reviewMut.isPending}
+            >
+              {reviewMut.isPending ? "ESCALATING..." : "ESCALATE TO ELEVATED"}
+            </button>
+            <button
+              className="px-space-12 py-space-6 border border-border-subtle text-text-dim data-val text-body-sm hover:bg-surface-recessed transition-colors"
+              onClick={() => reviewMut.mutate({ decision: "postpone" })}
+              disabled={reviewMut.isPending}
+            >
+              CONTINUE MONITORING
+            </button>
+          </div>
+          {error && (
+            <div className="data-val text-body-sm text-status-danger">{error}</div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // After escalation or for informational severity, show the no-review state
+  if (score.severity === "informational" || (score.severity === "watch" && sim.reviewDecision)) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-text-dim text-center gap-space-8">
+        <div className="data-val text-body-md">NO ALERTS REQUIRING REVIEW</div>
+        <div className="data-val text-body-sm text-text-muted">
+          {sim.reviewDecision === "confirm" && score.severity === "watch"
+            ? "Watch escalated — switch to Timeline and process the next observation."
+            : "Run the simulation from Timeline to generate observations."}
+        </div>
       </div>
     );
   }

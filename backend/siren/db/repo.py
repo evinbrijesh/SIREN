@@ -619,6 +619,14 @@ class Repository:
             VALUES(?,?,?,?,?)""",
             (review_id, score["score_id"], reviewer, decision, note),
         )
+        # Escalate: promote a watch score to elevated so it enters the
+        # review/dispatch workflow. This is the prevention-story action —
+        # the coordinator sees the +8% watch and escalates it.
+        if decision == "escalate":
+            self._conn.execute(
+                "UPDATE scores SET severity = 'elevated' WHERE score_id = ?",
+                (score["score_id"],),
+            )
         self._audit(None, reviewer, "review", {"run_id": run_id, "decision": decision, "note": note})
         self._conn.commit()
         return {
