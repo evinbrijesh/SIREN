@@ -5,6 +5,7 @@ import { mockData } from "./api/mockData";
 import { useSimulation } from "./simulation/SimulationContext";
 import { ThemeProvider } from "./theme/ThemeContext";
 import ThemeToggle from "./theme/ThemeToggle";
+import OfflineBadge from "./components/OfflineBadge";
 import type { BasinConfig, RunList, Run } from "./api/types";
 import MapView from "./views/MapView";
 import TimelineView from "./views/TimelineView";
@@ -37,28 +38,41 @@ export default function App() {
 
   const currentRunId = sim.step !== "before" ? sim.runIds[sim.step] : null;
   const runs = runsData?.runs ?? mockData.runs.runs;
-  const latestRun =
-    (currentRunId ? runs.find((r) => r.run_id === currentRunId) : undefined) ??
-    runs[0] ??
-    mockData.runs.runs[0];
-
-  const severity = latestRun?.score?.severity;
-  const showBanner = (severity === "elevated" || severity === "critical") && !sim.reviewDecision;
-  const expansionPct = (latestRun?.change_stats_json?.expansion_percent as number) ?? 0;
+  const { data: activeRunData } = useQuery({
+    queryKey: ["run", currentRunId],
+    queryFn: () => api.getRun(currentRunId!),
+    enabled: currentRunId !== null,
+    refetchInterval: sim.status === "running" ? 1000 : false,
+  });
+  const activeRun = sim.step === "before"
+    ? null
+    : activeRunData ?? (currentRunId ? runs.find((run) => run.run_id === currentRunId) : undefined) ?? null;
+  const severity = activeRun?.score?.severity;
+  const decision = activeRun?.decision ?? sim.reviewDecision;
+  const showBanner = sim.step !== "before" && activeRun !== null &&
+    (severity === "elevated" || severity === "critical") && !decision;
+  const expansionPct = (activeRun?.change_stats_json?.expansion_percent as number) ?? 0;
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key >= "1" && e.key <= "4") {
+      const target = e.target as HTMLElement | null;
+      const typing = target?.tagName === "INPUT" || target?.tagName === "TEXTAREA";
+      if (!typing && e.key >= "1" && e.key <= "4") {
         setView(TABS[parseInt(e.key, 10) - 1].key);
-      } else if (e.key.toLowerCase() === "r" && view === "timeline") {
-        sim.advance();
+      } else if (!typing && e.key.toLowerCase() === "r") {
+        sim.runAll().catch((error) => setToast({ msg: error.message, type: "error" }));
       } else if (e.key === "Escape") {
+        const escapeEvent = new CustomEvent("siren:escape", { cancelable: true });
+        window.dispatchEvent(escapeEvent);
+        if (!escapeEvent.defaultPrevented && sim.selectedAssetId) {
+          sim.selectAsset(null);
+        }
         setToast(null);
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [view, sim]);
+  }, [sim]);
 
   useEffect(() => {
     if (!toast) return;
@@ -105,9 +119,10 @@ export default function App() {
 
           {/* Status chips — system-level indicators */}
           <div className="flex items-center gap-space-8 px-space-12 ml-auto">
+            <span className={`w-1.5 h-1.5 ${sim.status === "running" ? "bg-status-safe animate-pulse" : "bg-text-muted"}`} />
             <span className="data-val text-body-sm text-text-dim">{pipelineStatus}</span>
             <span className="text-border-subtle">|</span>
-            <span className="data-val text-body-sm text-status-safe">OFFLINE: LOCAL CACHE</span>
+            <OfflineBadge />
           </div>
 
           <div className="flex items-center gap-space-8 px-space-12 border-l border-border-subtle">
@@ -145,12 +160,12 @@ export default function App() {
 
         {/* View container — full-bleed, no padding */}
         <main className="flex-1 min-h-0 overflow-auto">
-          {view === "map" && <MapView basin={basin ?? undefined} run={latestRun ?? undefined} onJumpToReview={() => setView("review")} />}
+          {view === "map" && <MapView basin={basin ?? undefined} run={activeRun ?? undefined} onJumpToReview={() => setView("review")} />}
           {view === "timeline" && <TimelineView />}
           {view === "review" && (
-            <ReviewView run={latestRun} onToast={setToast} onJumpToMap={() => setView("map")} />
+            <ReviewView run={activeRun ?? undefined} onToast={setToast} onJumpToMap={() => setView("map")} />
           )}
-          {view === "audit" && <AuditView onToast={setToast} />}
+          {view === "audit" && <AuditView run={activeRun} onToast={setToast} />}
         </main>
 
         {/* Footer — compact status bar */}
