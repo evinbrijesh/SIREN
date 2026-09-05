@@ -283,7 +283,7 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
                   <img
                     src={mlEvidence.baseline_mask_uri}
                     alt="Baseline water mask"
-                    className="absolute inset-0 w-full h-full object-cover opacity-80"
+                    className="absolute inset-0 w-full h-full object-contain opacity-80"
                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                   />
                   <div className="relative z-10 flex items-center justify-between px-space-8 py-space-4 bg-surface-panel border-b border-border-subtle">
@@ -298,7 +298,7 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
                   <img
                     src={mlEvidence.mask_uri}
                     alt="Current change mask"
-                    className="absolute inset-0 w-full h-full object-cover opacity-90"
+                    className="absolute inset-0 w-full h-full object-contain opacity-90"
                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                   />
                   <div className="relative z-10 flex items-center justify-between px-space-8 py-space-4 bg-surface-panel border-b border-border-subtle">
@@ -316,7 +316,7 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
                 <img
                   src={mlEvidence.heatmap_uri}
                   alt="ML change detection heatmap"
-                  className="absolute inset-0 w-full h-full object-cover"
+                  className="absolute inset-0 w-full h-full object-contain"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
                 <div className="relative z-10 flex items-center justify-between px-space-8 py-space-4 bg-surface-panel border-b border-border-subtle">
@@ -355,15 +355,13 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
               </div>
             </div>
 
-            <div className="border-t border-border-subtle px-space-12 py-space-8 grid grid-cols-2 gap-space-8 text-body-sm text-text-dim">
-              <div>
+            <div className="border-t border-border-subtle px-space-12 py-space-8 flex items-center justify-between text-body-sm text-text-dim">
+              <span>
                 Confidence: <span className="data-val text-text-primary">{(score.confidence * 100).toFixed(1)}%</span>
-              </div>
-              <div>
-                <span className={mlEvidence.model_available ? "text-primary-container" : "text-status-warn"}>
-                  {mlEvidence.model_available ? "ML + rules" : "Rules only"}
-                </span>
-              </div>
+              </span>
+              <span className="data-val text-caption">
+                {mlEvidence.model_available ? "ML + rules fusion" : "Rule-based detection"}
+              </span>
             </div>
           </section>
 
@@ -380,7 +378,7 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
                 <GaugeRow label="H" value={score.hazard_score} summary="0.30 trend + 0.25 expansion + 0.20 rainfall + 0.15 slope + 0.10 drainage proximity" />
                 <GaugeRow label="E" value={score.exposure_priority} summary="Hazard × population vulnerability × critical-infrastructure weight" />
                 {score.disease_risk !== null && <GaugeRow label="D" value={score.disease_risk} summary="Inundated water points × population density × temperature index" />}
-                <GaugeRow label="C" value={score.confidence} summary="Quality-gate confidence after cloud and co-registration checks" />
+                <GaugeRow label="C" value={score.confidence} summary="Quality-gate confidence (higher = better) after cloud and co-registration checks" />
               </div>
               <div className="border-t border-border-subtle pt-space-12">
                 <h3 className="label-caps mb-space-8">Evidence Reasons ({score.reasons.length})</h3>
@@ -494,9 +492,15 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
           <section className="bg-surface-panel border border-border-subtle mt-space-8 flex flex-col">
             <div className="flex items-center justify-between px-space-12 py-space-8 border-b border-border-subtle">
               <h2 className="label-caps">Search &amp; Rescue Priority</h2>
-              <span className="text-body-sm text-text-dim">
-                {sarPriority.sectors.length} sectors
-              </span>
+              <div className="flex items-center gap-space-8 text-body-sm">
+                <span className="text-text-dim">{sarPriority.sectors.length} sectors ranked</span>
+                {sarPriority.sectors[0] && (
+                  <>
+                    <span className="text-border-subtle">|</span>
+                    <span className="text-text-dim">Top: <span className="text-primary">{sarPriority.sectors[0].name}</span> <span className="data-val">({sarPriority.sectors[0].sar_priority.toFixed(2)})</span></span>
+                  </>
+                )}
+              </div>
             </div>
             <div className="p-space-12">
               <p className="data-val text-body-sm text-text-dim mb-space-12">{sarPriority.summary}</p>
@@ -707,7 +711,7 @@ function GaugeRow({ label, value, summary }: { label: string; value: number; sum
       </div>
       <div className="text-right data-val text-metric-display text-text-primary leading-none">{value.toFixed(2)}</div>
       <div />
-      <div className="data-val text-caption text-text-muted">{summary}</div>
+      <div className="data-val text-caption text-text-dim">{summary}</div>
     </div>
   );
 }
