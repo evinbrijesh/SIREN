@@ -220,8 +220,8 @@ class SegFormerEngine:
         vv = crop[0] if crop.shape[0] >= 1 else crop.mean()
         vh = crop[1] if crop.shape[0] >= 2 else vv
 
-        # Denormalize if needed
-        if vv.max() <= 1.0:
+        # Denormalize if needed (training normalizes [-50, 20] dB → [0, 1])
+        if float(np.abs(vv).max()) <= 1.0:
             vv_db = vv * 70 - 50
             vh_db = vh * 70 - 50
         else:
@@ -229,13 +229,14 @@ class SegFormerEngine:
 
         vv_mean = float(np.mean(vv_db))
 
-        if vv_mean < -22:
-            return "water", 0.7
-        elif vv_mean < -25:
+        # Order matters: check shadow (darkest) first, then water, then rock
+        if vv_mean < -25:
             return "shadow", 0.6
+        elif vv_mean < -22:
+            return "water", 0.7
         elif vv_mean > -8:
             return "bare_rock", 0.65
-        elif -15 < vv_mean < -8:
+        elif -15 < vv_mean <= -8:
             return "debris", 0.55
         else:
             return "snowmelt", 0.5
