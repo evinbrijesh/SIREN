@@ -255,8 +255,28 @@ def _try_ml_evidence_layer(
         n_ch = engine.in_channels
         ml_mask = engine.predict_change_mask(t0[:n_ch], t1[:n_ch])
 
-        # Compute consensus
-        result = compute_consensus_mask(ml_mask, rule_mask)
+        # Compute DEM slope for physical consensus gating (Stage 3)
+        # Floodwaters cannot collect on steep terrain — slope gating
+        # eliminates ML false positives on mountain ridges
+        dem_slope_arr = None
+        if DEM_PATH.exists():
+            try:
+                from scipy.ndimage import zoom
+                from siren.detect.sar import dem_slope as compute_dem_slope
+                slope_full, ds = compute_dem_slope(str(DEM_PATH))
+                ds.close()
+                # Resize slope to match the mask shape
+                h, w = rule_mask.shape
+                if slope_full.shape != (h, w):
+                    zh, zw = h / slope_full.shape[0], w / slope_full.shape[1]
+                    dem_slope_arr = zoom(slope_full, (zh, zw), order=0).astype(np.float32)
+                else:
+                    dem_slope_arr = slope_full.astype(np.float32)
+            except Exception as exc:
+                logger.warning(f"DEM slope computation failed: {exc} — consensus without slope gating")
+
+        # Compute consensus (with DEM slope if available)
+        result = compute_consensus_mask(ml_mask, rule_mask, dem_slope=dem_slope_arr)
         consensus_mask = result["consensus"]
         # ML-derived water area (from consensus mask, using same pixel area as rule mask)
         with rasterio.open(rule_mask_path) as src:
@@ -405,6 +425,31 @@ def run_pipeline(
         except Exception:
             pass  # heatmap is a visual nicety, not critical
 
+    # 5c. Stage 2: SegFormer land-cover classification (PRD §9.2)
+    # Classifies changed regions into water/debris/snowmelt/shadow/bare_rock
+    # and filters false alarms (shadow, snowmelt) from the change mask
+    try:
+        from siren.ml.segformer_engine import SegFormerEngine
+
+        segformer = SegFormerEngine()
+        if ml_evidence is not None and "consensus_mask" in ml_evidence:
+            # Use the consensus mask for region extraction
+            with rasterio.open(str(mask_path)) as src:
+                t1_raster = src.read()
+            t1_norm = np.clip(t1_raster.astype(np.float32) / 255.0, 0, 1) if t1_raster.max() > 1 else t1_raster
+            seg_result = segformer.classify_change_crops(
+                t1_norm, ml_evidence["consensus_mask"]
+            )
+            change_stats["segformer_source"] = seg_result["source"]
+            change_stats["segformer_class_distribution"] = seg_result["class_distribution"]
+            change_stats["segformer_false_alarms"] = seg_result["false_alarm_count"]
+            change_stats["segformer_classifications"] = seg_result["classifications"][:5]  # top 5 for display
+    except ImportError:
+        pass  # torch not installed
+    except Exception as exc:
+        logger.warning(f"SegFormer classification failed: {exc}")
+        change_stats["segformer_source"] = "unavailable"
+
     # 6. Build corridor + exposures
     weather = _load_weather()
     w = weather.get(observation_id, {})
@@ -483,8 +528,32 @@ def run_pipeline(
     # ML confidence from the evidence layer (0.5 = deterministic fallback)
     ml_confidence = change_stats.get("ml_confidence_mean", 0.5)
 
+    # Trend classification: use ConvLSTM if available, fall back to config
+    # The ConvLSTM classifies the temporal trend across all observations
+    # processed so far (including this one). This makes Stage 4 load-bearing.
+    trend_class = obs_config["trend_class"]  # deterministic fallback
+    trend_source = "config"
+    trend_confidence = 0.0
+    try:
+        # Build the observation sequence up to and including this one
+        obs_sequence = []
+        for oid in DEMO_OBSERVATIONS:
+            obs_sequence.append(oid)
+            if oid == observation_id:
+                break
+        trend_result = classify_temporal_trend(
+            observation_ids=obs_sequence, repo=repo
+        )
+        trend_class = trend_result["trend_class"]
+        trend_source = trend_result["source"]
+        trend_confidence = trend_result["confidence"]
+    except Exception as exc:
+        logger.warning(f"ConvLSTM trend classification failed: {exc} — using config fallback")
+    change_stats["trend_source"] = trend_source
+    change_stats["trend_confidence"] = trend_confidence
+
     score = risk_fuse(
-        trend_class=obs_config["trend_class"],
+        trend_class=trend_class,
         expansion_pct=obs_config["expansion_pct"],
         rainfall_24h_mm=rainfall_24h,
         rainfall_7d_mm=rainfall_7d,
