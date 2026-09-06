@@ -37,6 +37,7 @@ frontend/
     simulation/   # SimulationContext (shared demo state)
     components/   # OfflineBadge (online/offline event listener)
     theme/        # ThemeProvider + ThemeToggle (Ops Dark / Light / Satellite)
+    utils/        # ntfy.ts — shared ntfy.sh live alert utility
 data/
   raw/            # downloaded scenes (gitignored)
   processed/      # aligned rasters, masks (gitignored)

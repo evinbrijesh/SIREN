@@ -4,7 +4,7 @@
 
 **Read before writing code:** `docs/spec/PRD.md` (v4.3 — product spec, data contracts, scoring formulas) and `docs/spec/BUILD_ROADMAP.md` (phase order, checkpoints, fallbacks). This file tells you *how to work*; those tell you *what to build*.
 
-> **Build status:** Phases 0–6 complete. 104/104 tests passing (101 active + 3 torch-gated). DoD chain verified end-to-end. See `README.md` for the quick-start guide.
+> **Build status:** Phases 0–6 complete. 104/104 tests passing (101 active + 3 torch-gated). DoD chain verified end-to-end. Post-build enhancements: auto-SOS on CONFIRM (ntfy.sh), Simple/Advanced ReviewView modes, AuditView exports + Web Crypto verification, First Responder Advisory, escalation policy badge, projector-ready UI polish. See `README.md` for the quick-start guide.
 
 ---
 
@@ -40,6 +40,7 @@ frontend/
     simulation/   # SimulationContext (shared demo state)
     components/   # OfflineBadge (online/offline event listener)
     theme/        # ThemeProvider + ThemeToggle (Ops Dark / Light / Satellite)
+    utils/        # ntfy.ts — shared ntfy.sh live alert utility
 data/
   raw/            # downloaded scenes — gitignored, never hand-edited
   processed/      # aligned rasters, masks — gitignored, written only by pipeline

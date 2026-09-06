@@ -124,9 +124,45 @@ Do this at home. Every hour saved here is an hour of judging-visible work later.
 
 - [ ] **Full offline rehearsal:** airplane mode on, run the entire demo script (PRD §16) twice
 - [ ] **Backup video:** screen-record the complete demo; save locally + USB + cloud
-- [ ] Known-limitations doc (1 page): what's simulated, what's deterministic, latency realities
+- [x] Known-limitations doc (1 page): what's simulated, what's deterministic, latency realities — `docs/reference/KNOWN_LIMITATIONS.md`
 - [ ] Pitch pass: 60-second narrative (overview doc §5), closing line, Q&A prep on scope questions ("Why no Area i?" → PRD §2 answer)
 - [ ] Freeze: tag the demo commit. No new features after this point.
+
+---
+
+## Post-Build Enhancements (after Phase 6, before Phase 7)
+
+The following enhancements were added after the core build was complete and the DoD chain was verified. None of these change the spine — they enhance the demo experience and communication of the two-tier alert routing concept.
+
+### Alert Routing & Live Notifications
+
+- [x] **Auto-SOS on CONFIRM:** Clicking CONFIRM in ReviewView fires a real ntfy.sh push notification automatically. Shared utility in `frontend/src/utils/ntfy.ts`. Toast confirms "Decision confirmed — SOS sent to phone". Does not violate Hard Rule #3 — human made the decision.
+- [x] **ntfy.sh live phone alerts:** SMS channel sends real push notifications when online (gated by `navigator.onLine`). Topic: `siren-emergency-alert`. Urgent priority for sound + vibration.
+- [x] **Secondary SEND TO PHONE:** AuditView retains a manual ntfy.sh send button for judges who want to see the FSM animation.
+- [x] **First Responder Advisory row:** AuditView shows a pre-confirmation advisory row (amber border, "simulated" hash) when severity is elevated/critical and no decision yet. Communicates the two-tier routing concept. Disappears after confirmation.
+- [x] **Escalation policy badge:** ReviewView header shows a static badge: "Advisory auto-routed to First Responders. Public broadcast held for Human Gate confirmation." Informational only — no auto-escalation dispatch.
+- [x] **Early warning banner:** SimpleTriage mode shows "★ Early warning 12 days — trend flagged at obs-01 before critical threshold at obs-03".
+
+### ReviewView Enhancements
+
+- [x] **Simple/Advanced mode toggle:** Simple (Triage) mode shows satellite-first triage card with heatmap, chlorine logistics formula, and SOS checklist. Advanced (Analyst) mode shows full evidence panel, gauges, and reasons.
+- [x] **Evidence thumbnails object-cover:** Before/after rasters and heatmap use `object-cover` (no letterboxing voids).
+
+### AuditView Enhancements
+
+- [x] **Real SHA-256 mock hashes:** Computed using the backend formula (`SHA256(prev_hash + timestamp + payload)`), not placeholders.
+- [x] **Ledger JSON export:** Export the full audit ledger as a machine-readable JSON file.
+- [x] **SitRep TXT export:** Export a field situation report as plain text.
+- [x] **Web Crypto verification modal:** In-browser SHA-256 chain verification using `crypto.subtle.digest`. Shows "ALL 3 BLOCKS CRYPTOGRAPHICALLY LINKED" + "0 TAMPERING DETECTED".
+- [x] **RF telemetry specs:** LoRa (868.1 MHz ISM, SF9, 125 kHz, 222 bytes max) and Iridium SBD (1621 MHz L-Band, 340 bytes/SBD).
+
+### UI Polish Pass
+
+- [x] **MapView:** Circular asset markers (border-radius:50%) + circular legend dots. Initial camera uses `jumpTo` (centered on Imja Lake) instead of `fitBounds`. Solid 3px corridor line (was thin dashed). Swipe compare uses absolute-positioned object-cover.
+- [x] **TimelineView:** Single legend in chart header (removed duplicate SVG labels). Axis font sizes bumped (Y 11px, X 12px). Thumbnails use `object-cover`.
+- [x] **Projector-ready typography:** Centralized type tokens in `tailwind.config.js` + `index.css`. Nav height 54px, banner 46px, label-caps 14px/600 weight.
+- [x] **Nav tabs font-semibold:** All nav tabs use `font-semibold` baseline (not just active tab) for projector legibility.
+- [x] **Removed tactical-bezel/tactical-reg from ReviewView header:** clip-path was clipping dropdowns; ::after pseudo-element was rendering floating ghost text.
 
 ---
 

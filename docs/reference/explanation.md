@@ -245,6 +245,7 @@ project/
 │       ├── simulation/       # SimulationContext (shared demo state)
 │       ├── components/       # OfflineBadge (online/offline event listener)
 │       ├── theme/            # ThemeProvider + ThemeToggle (Ops Dark / Light / Satellite)
+│       ├── utils/            # ntfy.ts — shared ntfy.sh live alert utility
 │       └── index.css         # Tailwind base + design tokens
 ├── data/
 │   ├── raw/                  # Downloaded scenes (gitignored, never hand-edited)
@@ -571,6 +572,9 @@ The Disease Prevention Action Sheet is rendered in **ReviewView** (right dock, 3
 ```
 Pipeline produces elevated/critical alert
     → ReviewView card appears with evidence panel
+    → Escalation policy badge shows: "Advisory auto-routed to First Responders.
+       Public broadcast held for Human Gate confirmation."
+    → Early warning banner shows: "★ Early warning 12 days"
     → Coordinator inspects:
         - Before/after rasters (swipe compare)
         - Change overlay
@@ -578,10 +582,23 @@ Pipeline produces elevated/critical alert
         - Exposure list (assets, population, status)
         - Disease action sheet
     → Coordinator decides:
-        ✓ Confirm SOS  →  Dispatch proceeds
+        ✓ Confirm SOS  →  Dispatch proceeds + ntfy.sh push fires automatically
         ✗ Reject        →  Alert suppressed, no dispatch
         ⏸ Postpone      →  Request local verification, alert held
 ```
+
+### Auto-SOS on CONFIRM
+
+When the coordinator clicks **Confirm SOS**, the system:
+
+1. Records the review decision in the database (`POST /runs/{id}/review` with `decision=confirm`)
+2. **Automatically fires an ntfy.sh push notification** to the coordinator's phone (when online)
+3. Shows a toast: "Decision confirmed — SOS sent to phone" (or "air-gap mode, SOS simulated" when offline)
+4. Invalidates React Query caches to refresh the Audit trail
+
+This does **not** violate Hard Rule #3 — the human made the decision. The ntfy.sh call is a side-effect of the confirm action, not an autonomous dispatch. The Audit tab's SEND TO PHONE button remains as a secondary manual send.
+
+The ntfy.sh utility is shared between ReviewView and AuditView in `frontend/src/utils/ntfy.ts`.
 
 ### Decision states
 
@@ -843,21 +860,28 @@ Observation sequence & run controller:
 
 ### View 3: ReviewView
 
-Human-in-the-loop coordinator console:
+Human-in-the-loop coordinator console with Simple/Advanced mode toggle:
 
-- **Evidence panel (left, ~40%):** Before/after rasters + change overlay + swipe compare.
-- **Risk gauge (center):** H / E / D_risk / confidence as gauge bars. Each score shows its value + a mini reason.
-- **Reasons panel:** ≥3 deterministic reasons (never a bare number).
-- **Right dock (320px):** Disease Prevention Action Sheet + ranked exposed-infrastructure table.
+- **Simple (Triage) mode:** Satellite-first triage card with early warning banner ("★ Early warning 12 days"), heatmap, contamination event details, chlorine logistics formula (1,240 × 2 tablets/day × 14 days = 34,720 tablets), and read-only SOS protocol checklist.
+- **Advanced (Analyst) mode:** Full evidence panel (before/after rasters with object-cover, change overlay, swipe compare), risk gauges (H / E / D_risk / confidence), ≥3 deterministic reasons, disease prevention action sheet, and exposed-infrastructure table.
+- **Escalation policy badge:** Shows when review is pending (elevated/critical, no decision). Communicates two-tier routing: first responders get advisory, public broadcast held for human gate.
+- **Early warning banner:** Surfaces the 12-day lead time from the satellite timeline (obs-001 → obs-003).
 - **Decision bar (sticky bottom):** [✓ Confirm SOS] (green, primary) / [✗ Reject] (red) / [⏸ Postpone] (amber). Requires a confirmation state before Confirm fires.
+- **Auto-SOS on CONFIRM:** Clicking CONFIRM fires a real ntfy.sh push notification automatically (when online). Toast confirms "Decision confirmed — SOS sent to phone".
 
 ### View 4: AuditView
 
 Lineage & resilient alerting:
 
+- **AIR-GAP VERIFIED badge:** Green badge in header indicating offline-first operation.
+- **Export dropdown:** Ledger JSON export + SitRep TXT export (field situation report).
 - **Payload box:** Raw compressed JSON + byte counter (must show ≤250). Green badge when compliant.
-- **Channel simulator:** SMS / LoRa Mesh / Satellite with live status badges (QUEUED → TRANSMITTING → DELIVERED).
-- **Audit trail:** Append-only table — timestamp, actor, action, JSON detail. Monospace for JSON.
+- **Channel simulator:** SMS / LoRa Mesh / Satellite with live status badges (QUEUED → TRANSMITTING → DELIVERED). SMS fires a real ntfy.sh push when online. LoRa and Satellite are simulated state machines.
+- **RF telemetry specs:** LoRa (868.1 MHz ISM, SF9, 125 kHz, 222 bytes max) and Iridium SBD (1621 MHz L-Band, 340 bytes/SBD).
+- **First Responder Advisory row:** Pre-confirmation advisory row (amber border, "simulated" hash) showing "Hospitals, Firefighters, SAR teams notified (standby)". Disappears after confirmation.
+- **Audit trail:** Append-only table — timestamp, actor, action, JSON detail, hash. Real SHA-256 hashes (not placeholders).
+- **Verify Chain:** Web Crypto API verification modal. Recomputes SHA-256 for each entry and checks the chain. Shows "ALL 3 BLOCKS CRYPTOGRAPHICALLY LINKED" + "0 TAMPERING DETECTED".
+- **Secondary SEND TO PHONE:** Manual ntfy.sh send button (in addition to auto-fire on CONFIRM in ReviewView).
 
 ### Keyboard shortcuts
 
@@ -895,8 +919,8 @@ The +8% expansion on 07-23 was the **early warning**. Had SIREN been monitoring 
 5. **Observation 3 (2026-08-12):** SAR reveals continued peak expansion (+43% area); 24h rainfall 60.0 mm → **Critical**. *This is the peak.*
 6. **The prevention story:** The console shows that the +8% expansion on 07-23 was the early warning — had SIREN been monitoring in real time, the watch would have escalated to a critical alert 20 days before the peak (08-12), buying lead time to evacuate.
 7. **Trigger & review:** System raises an **Elevated/Critical** review card, highlighting the combined D8 + OSM downstream corridor, 2 flagged villages (**Benkar**, **Jorsale**), 1 critical suspension bridge (**Hillary Bridge**), and 3 primary drinking wells along the Dudh Koshi corridor.
-8. **Coordinator action:** Presenter inspects the evidence panel and the Disease Prevention Action Sheet, then clicks **Confirm SOS**.
-9. **Dispatch & response:** System shows the simulated geofenced compressed-payload dispatch (Track 7.ii) alongside the water/medical distribution manifest (Track 7.iii); the audit panel records reviewer, decision, and timestamp.
+8. **Coordinator action:** Presenter inspects the evidence panel and the Disease Prevention Action Sheet, then clicks **Confirm SOS** — **the coordinator's phone receives an SOS push notification automatically via ntfy.sh**.
+9. **Dispatch & response:** System shows the simulated geofenced compressed-payload dispatch (Track 7.ii) alongside the water/medical distribution manifest (Track 7.iii); the audit panel records reviewer, decision, and timestamp. The SHA-256 hash chain can be verified in-browser via the Verify Chain modal.
 
 ### Closing line for judges
 
@@ -1226,8 +1250,11 @@ The MVP is done when, **offline**, in one click-chain:
 
 ### What's simulated (not real at runtime)
 
-- Alert channels: SMS, LoRa, Satellite dispatch are simulated.
-- Live satellite ingestion: All scenes pre-downloaded. Zero network calls at runtime.
+- Alert channels — LoRa and Satellite: Simulated state machines (QUEUED → TRANSMITTING → DELIVERED). No real radio or Iridium modem transmission.
+- Alert channel — SMS (partially live): SMS is the only live integration via ntfy.sh. Clicking CONFIRM in ReviewView or SEND TO PHONE in AuditView fires a real push notification when online. When offline, the dispatch is simulated.
+- First Responder Advisory: Simulated visual in AuditView. No real pre-confirmation notification is sent to hospitals or fire crews.
+- Escalation policy badge: Informational only. No auto-escalation dispatch fires without human confirmation.
+- Live satellite ingestion: All scenes pre-downloaded. Zero network calls for pipeline data at runtime.
 - Weather data: Prepared JSON file, not live API call.
 - Synchronous pipeline: Full chain runs in the request. No background task queue.
 - Single reviewer: Hardcoded `coordinator-01`. No authentication or RBAC.
@@ -1242,7 +1269,7 @@ The MVP is done when, **offline**, in one click-chain:
 
 - Pipeline processing: ~2–4 seconds per observation (Docker, single core). Production target: <30 seconds.
 - Dispatch latency: Simulated as instant. Real LoRa: 30–120s; satellite SBD: 1–5 min; SMS: depends on tower availability.
-- Review latency: Depends on the human coordinator. No auto-escalation on timeout.
+- Review latency: Depends on the human coordinator. The escalation policy badge communicates the two-tier concept, but no auto-escalation dispatch fires without human confirmation (Hard Rule #3). The ntfy.sh push on CONFIRM is a side-effect of the human decision.
 
 ### What SIREN does NOT do (PRD §14)
 
@@ -1351,8 +1378,8 @@ npm run dev  # serves on http://localhost:5175, proxies /api → :8010
 6. Watch three observations process through the pipeline.
 7. An alert banner appears — click it to open the **Review** tab.
 8. Inspect the evidence, scores, and disease-prevention actions.
-9. Click **Confirm SOS** → **Yes, confirm**.
-10. Go to the **Audit** tab to see the dispatch payload and audit trail.
+9. Click **Confirm SOS** → **Yes, confirm** — **your phone receives an SOS push notification automatically** (install the ntfy app and subscribe to topic `siren-emergency-alert`).
+10. Go to the **Audit** tab to see the dispatch payload, audit trail, and verify the SHA-256 hash chain.
 
 ---
 
@@ -1389,6 +1416,7 @@ npm run dev  # serves on http://localhost:5175, proxies /api → :8010
 | **Siamese U-Net** | Shared-encoder neural network for change detection |
 | **ChangeFormer** | Transformer-based change detection model |
 | **SegFormer** | Segmentation Transformer (land-cover classification) |
+| **ntfy.sh** | Free push notification service used for live SOS alerts (topic: `siren-emergency-alert`) |
 
 ---
 

@@ -6,7 +6,7 @@
 
 | | |
 |---|---|
-| **Version** | 4.3 (Canonical — consolidates drafts v1.0–v3.0; v4.1 renames SafeBasin → SIREN; v4.2 adds combined D8+OSM corridor, UI design spec, verified demo assets; v4.3 reflects implemented state with pipeline orchestrator, 104 passing tests, verified DoD chain, ML evidence layer, SAR priority, SHA-256 audit hash chain) |
+| **Version** | 4.4 (Canonical — consolidates drafts v1.0–v3.0; v4.1 renames SafeBasin → SIREN; v4.2 adds combined D8+OSM corridor, UI design spec, verified demo assets; v4.3 reflects implemented state with pipeline orchestrator, 104 passing tests, verified DoD chain, ML evidence layer, SAR priority, SHA-256 audit hash chain; v4.4 adds auto-SOS on CONFIRM via ntfy.sh, Simple/Advanced ReviewView modes, AuditView exports + Web Crypto verification, First Responder Advisory, escalation policy badge, projector-ready UI polish) |
 | **Target track** | Track 7 — *Living with Uncertainties, Building with Resilience* |
 | **Track areas** | Area ii: Communication Systems During Disasters for Effective Response · Area iii: Curbing Diseases That Arise During Disasters |
 | **Demo geography** | Dudh Koshi / Imja glacial basin, Nepal Himalaya (swap-ready to Chorabari/Kedarnath or South Lhonak if Indian terrain resonates better with judges; pipeline is basin-agnostic) |

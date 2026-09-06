@@ -400,3 +400,17 @@ class AuditList(BaseModel):
 - `optical_cloud_fraction` ≥ 0.20 routes to SAR-primary; `cloud_fraction` is set to 0.0 on the SAR path.
 - Severity thresholds: expansion ≥40% → critical, ≥20% → elevated, ≥5% → watch, <5% → informational.
 - ML evidence endpoint always returns a result — deterministic fallback when torch is unavailable.
+
+---
+
+## Frontend-Only Alert Integration (ntfy.sh)
+
+The backend API does not handle phone notifications. The ntfy.sh integration is entirely frontend-side:
+
+- **Shared utility:** `frontend/src/utils/ntfy.ts` — sends POST to `https://ntfy.sh/siren-emergency-alert` with urgent priority.
+- **Auto-fire on CONFIRM:** When the admin clicks CONFIRM in ReviewView, the ntfy push fires automatically as a side-effect of the human decision.
+- **Manual send:** AuditView has a secondary SEND TO PHONE button that calls the same utility.
+- **Offline gating:** All ntfy calls check `navigator.onLine` first. When offline, the dispatch is simulated and no network request is made.
+- **Topic:** `siren-emergency-alert` — install the [ntfy app](https://ntfy.sh) and subscribe to receive alerts on your phone.
+
+This does not violate Hard Rule #3 (human gate) — the ntfy push is a side-effect of a recorded `confirm` review, not an autonomous dispatch.
