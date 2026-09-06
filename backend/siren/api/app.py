@@ -302,6 +302,12 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
         obs_list = observation_ids.split(",") if observation_ids else None
         return classify_temporal_trend(observation_ids=obs_list, repo=repo)
 
+    # GET /models/status — report all ML models' status and metadata
+    @app.get("/models/status")
+    def get_model_status() -> Any:
+        from siren.ml.registry import get_model_status
+        return {"models": get_model_status()}
+
     # Mount data/processed/ as static files so the frontend can fetch rasters
     data_processed = _project_root() / "data" / "processed"
     if data_processed.exists():

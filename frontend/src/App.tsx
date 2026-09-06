@@ -6,18 +6,20 @@ import { useSimulation } from "./simulation/SimulationContext";
 import { ThemeProvider } from "./theme/ThemeContext";
 import ThemeToggle from "./theme/ThemeToggle";
 import OfflineBadge from "./components/OfflineBadge";
+import { MlPanel } from "./components/MlPanel";
 import type { BasinConfig, RunList, Run } from "./api/types";
 import MapView from "./views/MapView";
 import TimelineView from "./views/TimelineView";
 import ReviewView from "./views/ReviewView";
 import AuditView from "./views/AuditView";
 
-type ViewName = "map" | "timeline" | "review" | "audit";
+type ViewName = "map" | "timeline" | "review" | "audit" | "models";
 const TABS: { key: ViewName; label: string }[] = [
   { key: "map", label: "Map" },
   { key: "timeline", label: "Timeline" },
   { key: "review", label: "Review" },
   { key: "audit", label: "Audit" },
+  { key: "models", label: "Models" },
 ];
 
 export default function App() {
@@ -57,7 +59,7 @@ export default function App() {
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       const typing = target?.tagName === "INPUT" || target?.tagName === "TEXTAREA";
-      if (!typing && e.key >= "1" && e.key <= "4") {
+      if (!typing && e.key >= "1" && e.key <= "5") {
         setView(TABS[parseInt(e.key, 10) - 1].key);
       } else if (!typing && e.key.toLowerCase() === "r") {
         sim.runAll().catch((error) => setToast({ msg: error.message, type: "error" }));
@@ -168,6 +170,11 @@ export default function App() {
             <ReviewView run={activeRun ?? undefined} onToast={setToast} onJumpToMap={() => setView("map")} />
           )}
           {view === "audit" && <AuditView run={activeRun} onToast={setToast} />}
+          {view === "models" && (
+            <div className="max-w-4xl mx-auto p-space-24">
+              <MlPanel />
+            </div>
+          )}
         </main>
 
         {/* Footer — compact status bar */}

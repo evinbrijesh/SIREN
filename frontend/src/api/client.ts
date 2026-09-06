@@ -14,6 +14,8 @@ import type {
   AuditList,
   SarPriorityList,
   MlEvidence,
+  ModelStatusResponse,
+  TrendClassification,
   ApiError,
 } from "./types";
 import { mockData } from "./mockData";
@@ -74,6 +76,11 @@ export const api = {
   listAuditByRun: (runId: string) => fetchJson<AuditList>(`/audit?run_id=${runId}`),
   processAll: () =>
     fetchJson<{ runs: Run[]; count: number }>("/runs/process-all", { method: "POST" }),
+  getTrend: (observationIds?: string[]) =>
+    fetchJson<TrendClassification>(
+      `/trend${observationIds ? `?observation_ids=${observationIds.join(",")}` : ""}`,
+    ),
+  getModelStatus: () => fetchJson<ModelStatusResponse>("/models/status"),
 };
 
 // --- Offline cache + staleness + outbox (O6) ---

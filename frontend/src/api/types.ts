@@ -166,3 +166,44 @@ export interface ApiError {
   error: string;
   detail: string;
 }
+
+// --- ML model status and temporal trend ---
+
+export interface ModelMetadata {
+  epoch?: number;
+  loss?: number;
+  accuracy?: number;
+  in_channels?: number;
+  num_classes?: number;
+  seq_len?: number;
+  dataset?: string;
+  class_names?: string[];
+  [key: string]: any;
+}
+
+export interface ModelStatus {
+  stage: number;
+  name: string;
+  loaded: boolean;
+  weights_path: string | null;
+  weights_exists: boolean;
+  weights_size_mb: number;
+  metadata: ModelMetadata | null;
+  description: string;
+  architecture: string;
+  training_data: string | null;
+}
+
+export interface ModelStatusResponse {
+  models: Record<string, ModelStatus>;
+}
+
+export interface TrendClassification {
+  trend_class: "stable" | "slowly" | "rapidly" | "uncertain";
+  confidence: number;
+  source: string;
+  ml_model_available: boolean;
+  sequence_length: number;
+  water_areas: number[];
+  expansion_pcts: number[];
+}
