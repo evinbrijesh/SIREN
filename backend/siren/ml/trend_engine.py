@@ -215,11 +215,12 @@ class TrendEngine:
         # Compute expansion percentages
         expansions = [(a - areas[0]) / areas[0] * 100 for a in areas]
 
-        # Check monotonicity
+        # Check monotonicity (allow 1% tolerance for noise)
         is_increasing = all(expansions[i] <= expansions[i + 1] + 1 for i in range(len(expansions) - 1))
         total_expansion = expansions[-1]
 
-        if not is_increasing and abs(total_expansion) < 5:
+        # Non-monotonic (e.g. increase then decrease) = uncertain
+        if not is_increasing:
             return "uncertain", 0.6
 
         if abs(total_expansion) < 3:

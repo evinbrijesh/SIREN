@@ -278,7 +278,39 @@ def _try_ml_evidence_layer(
         # Compute consensus (with DEM slope if available)
         result = compute_consensus_mask(ml_mask, rule_mask, dem_slope=dem_slope_arr)
         consensus_mask = result["consensus"]
-        # ML-derived water area (from consensus mask, using same pixel area as rule mask)
+
+        # Stage 2: SegFormer false-alarm filtering (PRD §9.2)
+        # Classifies changed regions and removes shadow/snowmelt false alarms
+        # from the consensus mask. This is load-bearing — the filtered mask
+        # replaces the raw consensus for all downstream stats.
+        segformer_class_distribution = {}
+        segformer_false_alarms = 0
+        segformer_source = "unavailable"
+        segformer_classifications: list = []
+        try:
+            from siren.ml.segformer_engine import SegFormerEngine
+
+            segformer = SegFormerEngine()
+            seg_result = segformer.classify_change_crops(t1, consensus_mask)
+            segformer_source = seg_result["source"]
+            segformer_class_distribution = seg_result["class_distribution"]
+            segformer_false_alarms = seg_result["false_alarm_count"]
+            segformer_classifications = seg_result["classifications"][:5]
+            # Replace consensus with filtered mask (false alarms removed)
+            pre_filter_pixels = int(consensus_mask.sum())
+            consensus_mask = seg_result["filtered_mask"]
+            post_filter_pixels = int(consensus_mask.sum())
+            if pre_filter_pixels != post_filter_pixels:
+                logger.info(
+                    f"SegFormer filtered {pre_filter_pixels - post_filter_pixels} "
+                    f"false-alarm pixels ({segformer_false_alarms} regions)"
+                )
+        except ImportError:
+            pass  # torch not installed
+        except Exception as exc:
+            logger.warning(f"SegFormer classification failed: {exc}")
+
+        # ML-derived water area (from filtered consensus mask)
         with rasterio.open(rule_mask_path) as src:
             px_area_m2 = abs(src.transform[0]) * abs(src.transform[4])
             if src.crs and src.crs.is_geographic:
@@ -298,6 +330,10 @@ def _try_ml_evidence_layer(
             "ml_rule_agreement_pct": float(
                 result["agreement"].sum() / max(rule_mask.sum(), 1) * 100
             ),
+            "segformer_source": segformer_source,
+            "segformer_class_distribution": segformer_class_distribution,
+            "segformer_false_alarms": segformer_false_alarms,
+            "segformer_classifications": segformer_classifications,
         }
     except ImportError:
         # torch not installed — silent fallback to deterministic
@@ -425,30 +461,14 @@ def run_pipeline(
         except Exception:
             pass  # heatmap is a visual nicety, not critical
 
-    # 5c. Stage 2: SegFormer land-cover classification (PRD §9.2)
-    # Classifies changed regions into water/debris/snowmelt/shadow/bare_rock
-    # and filters false alarms (shadow, snowmelt) from the change mask
-    try:
-        from siren.ml.segformer_engine import SegFormerEngine
-
-        segformer = SegFormerEngine()
-        if ml_evidence is not None and "consensus_mask" in ml_evidence:
-            # Use the consensus mask for region extraction
-            with rasterio.open(str(mask_path)) as src:
-                t1_raster = src.read()
-            t1_norm = np.clip(t1_raster.astype(np.float32) / 255.0, 0, 1) if t1_raster.max() > 1 else t1_raster
-            seg_result = segformer.classify_change_crops(
-                t1_norm, ml_evidence["consensus_mask"]
-            )
-            change_stats["segformer_source"] = seg_result["source"]
-            change_stats["segformer_class_distribution"] = seg_result["class_distribution"]
-            change_stats["segformer_false_alarms"] = seg_result["false_alarm_count"]
-            change_stats["segformer_classifications"] = seg_result["classifications"][:5]  # top 5 for display
-    except ImportError:
-        pass  # torch not installed
-    except Exception as exc:
-        logger.warning(f"SegFormer classification failed: {exc}")
-        change_stats["segformer_source"] = "unavailable"
+    # 5c. SegFormer results are already integrated into the consensus mask
+    # (Stage 2 runs inside _try_ml_evidence_layer and filters false alarms).
+    # Report the classification metadata for the UI.
+    if ml_evidence is not None:
+        change_stats["segformer_source"] = ml_evidence.get("segformer_source", "unavailable")
+        change_stats["segformer_class_distribution"] = ml_evidence.get("segformer_class_distribution", {})
+        change_stats["segformer_false_alarms"] = ml_evidence.get("segformer_false_alarms", 0)
+        change_stats["segformer_classifications"] = ml_evidence.get("segformer_classifications", [])
 
     # 6. Build corridor + exposures
     weather = _load_weather()
