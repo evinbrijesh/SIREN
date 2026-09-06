@@ -131,12 +131,24 @@ class ChangeDetectionEngine:
         if t1_raster.shape[0] != n_ch:
             t1_raster = self._adjust_channels(t1_raster, n_ch)
 
+        # Pad to nearest multiple of 32 (U-Net skip connections require it)
+        h, w = t0_raster.shape[1], t0_raster.shape[2]
+        pad_h = (32 - h % 32) % 32
+        pad_w = (32 - w % 32) % 32
+        if pad_h or pad_w:
+            t0_raster = np.pad(t0_raster, ((0, 0), (0, pad_h), (0, pad_w)), mode="reflect")
+            t1_raster = np.pad(t1_raster, ((0, 0), (0, pad_h), (0, pad_w)), mode="reflect")
+
         with torch.no_grad():
             t0_t = torch.from_numpy(t0_raster).float().unsqueeze(0).to(self.device)
             t1_t = torch.from_numpy(t1_raster).float().unsqueeze(0).to(self.device)
 
             logits = self.model(t0_t, t1_t)
             probs = torch.sigmoid(logits).squeeze().cpu().numpy()
+
+        # Crop back to original dimensions
+        if pad_h or pad_w:
+            probs = probs[:h, :w]
 
         return (probs >= threshold).astype(np.uint8)
 
@@ -174,8 +186,9 @@ class ChangeDetectionEngine:
             return arr
         if c > target:
             return arr[:target]
-        # Replicate first channel
-        reps = [target // c] + [1] * (target - (target // c) * c)
-        return np.concatenate(
-            [np.repeat(arr, reps[0], axis=0)] + [arr[:1]] * reps[1], axis=0
-        )
+        # Replicate channels to reach target count
+        if c == 1:
+            return np.repeat(arr, target, axis=0)
+        # General case: tile then truncate
+        repeats = (target + c - 1) // c  # ceil division
+        return np.concatenate([arr] * repeats, axis=0)[:target]

@@ -6,12 +6,12 @@ import { useSimulation } from "./simulation/SimulationContext";
 import { ThemeProvider } from "./theme/ThemeContext";
 import ThemeToggle from "./theme/ThemeToggle";
 import OfflineBadge from "./components/OfflineBadge";
-import { MlPanel } from "./components/MlPanel";
 import type { BasinConfig, RunList, Run } from "./api/types";
 import MapView from "./views/MapView";
 import TimelineView from "./views/TimelineView";
 import ReviewView from "./views/ReviewView";
 import AuditView from "./views/AuditView";
+import ModelsView from "./views/ModelsView";
 
 type ViewName = "map" | "timeline" | "review" | "audit" | "models";
 const TABS: { key: ViewName; label: string }[] = [
@@ -170,11 +170,7 @@ export default function App() {
             <ReviewView run={activeRun ?? undefined} onToast={setToast} onJumpToMap={() => setView("map")} />
           )}
           {view === "audit" && <AuditView run={activeRun} onToast={setToast} />}
-          {view === "models" && (
-            <div className="max-w-4xl mx-auto p-space-24">
-              <MlPanel />
-            </div>
-          )}
+          {view === "models" && <ModelsView activeRun={activeRun} />}
         </main>
 
         {/* Footer — compact status bar */}

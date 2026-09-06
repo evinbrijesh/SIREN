@@ -367,7 +367,7 @@ def train(
 def smoke_test(epochs: int = 2, device: str = "cpu") -> Path:
     """Quick smoke test on synthetic data."""
     import torch
-    from torch.utils.data import DataLoader, TensorDataset
+    from torch.utils.data import DataLoader
 
     from siren.ml.model import SegFormerHead
 
