@@ -155,7 +155,7 @@ def _change_polygon_from_mask(mask_path: str) -> dict:
     geom = geom.simplify(0.0005)
     return {
         "type": "Polygon",
-        "coordinates": list(geom.exterior.coords),
+        "coordinates": [list(geom.exterior.coords)],
     }
 
 
@@ -204,6 +204,26 @@ def _ensure_obs003_mask() -> None:
             dst.write(mask.astype(np.uint8), 1)
 
 
+# Module-level cache for ML engines (avoids reloading weights per observation)
+_ml_engine_cache: dict[str, Any] = {}
+
+
+def _get_ml_engine() -> Any:
+    """Get or create a cached ChangeDetectionEngine."""
+    if "engine" not in _ml_engine_cache:
+        from siren.ml.engine import ChangeDetectionEngine
+        _ml_engine_cache["engine"] = ChangeDetectionEngine()
+    return _ml_engine_cache["engine"]
+
+
+def _get_segformer_engine() -> Any:
+    """Get or create a cached SegFormerEngine."""
+    if "segformer" not in _ml_engine_cache:
+        from siren.ml.segformer_engine import SegFormerEngine
+        _ml_engine_cache["segformer"] = SegFormerEngine()
+    return _ml_engine_cache["segformer"]
+
+
 def _try_ml_evidence_layer(
     observation_id: str, rule_mask_path: str
 ) -> dict[str, Any] | None:
@@ -217,10 +237,9 @@ def _try_ml_evidence_layer(
     the UI heatmap visualization.
     """
     try:
-        from siren.ml.engine import ChangeDetectionEngine
         from siren.ml.consensus import compute_consensus_mask
 
-        engine = ChangeDetectionEngine()
+        engine = _get_ml_engine()
         if not engine.is_ready:
             # No trained weights — use deterministic mask with synthetic confidence
             with rasterio.open(rule_mask_path) as src:
@@ -247,13 +266,34 @@ def _try_ml_evidence_layer(
             t1 = src.read()
             rule_mask = src.read(1)
 
+        # Resize t0 to match t1's spatial dimensions if they differ
+        # (baseline mask may be full-res, obs mask is 200x200)
+        if t0.shape[1:] != t1.shape[1:]:
+            from scipy.ndimage import zoom
+            target_h, target_w = t1.shape[1], t1.shape[2]
+            zh, zw = target_h / t0.shape[1], target_w / t0.shape[2]
+            t0_resized = np.zeros((t0.shape[0], target_h, target_w), dtype=np.float32)
+            for c_idx in range(t0.shape[0]):
+                zoomed = zoom(t0[c_idx], (zh, zw), order=0)
+                # Crop or pad to exact target dimensions
+                zh_act, zw_act = zoomed.shape
+                if zh_act > target_h:
+                    zoomed = zoomed[:target_h]
+                elif zh_act < target_h:
+                    zoomed = np.pad(zoomed, ((0, target_h - zh_act), (0, 0)), mode="edge")
+                if zw_act > target_w:
+                    zoomed = zoomed[:, :target_w]
+                elif zw_act < target_w:
+                    zoomed = np.pad(zoomed, ((0, 0), (0, target_w - zw_act)), mode="edge")
+                t0_resized[c_idx] = zoomed
+            t0 = t0_resized
+
         # Normalize to [0, 1]
         t0 = np.clip(t0.astype(np.float32) / 255.0, 0, 1) if t0.max() > 1 else t0
         t1 = np.clip(t1.astype(np.float32) / 255.0, 0, 1) if t1.max() > 1 else t1
 
-        # Run ML inference (use engine's expected channel count)
-        n_ch = engine.in_channels
-        ml_mask = engine.predict_change_mask(t0[:n_ch], t1[:n_ch])
+        # Run ML inference (engine handles channel adjustment internally)
+        ml_mask = engine.predict_change_mask(t0, t1)
 
         # Compute DEM slope for physical consensus gating (Stage 3)
         # Floodwaters cannot collect on steep terrain — slope gating
@@ -288,9 +328,7 @@ def _try_ml_evidence_layer(
         segformer_source = "unavailable"
         segformer_classifications: list = []
         try:
-            from siren.ml.segformer_engine import SegFormerEngine
-
-            segformer = SegFormerEngine()
+            segformer = _get_segformer_engine()
             seg_result = segformer.classify_change_crops(t1, consensus_mask)
             segformer_source = seg_result["source"]
             segformer_class_distribution = seg_result["class_distribution"]

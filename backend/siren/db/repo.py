@@ -236,6 +236,10 @@ class Repository:
         )
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA foreign_keys = ON")  # per-connection (schema W7)
+        # WAL mode allows concurrent readers + one writer (prevents "database is locked")
+        if self.db_path != ":memory:":
+            self._conn.execute("PRAGMA journal_mode = WAL")
+            self._conn.execute("PRAGMA busy_timeout = 5000")
         self._init_schema_and_seed()
 
     def close(self) -> None:
@@ -499,15 +503,39 @@ class Repository:
     def add_exposures(
         self, run_id: str, exposures: list[dict[str, Any]]
     ) -> None:
-        """Insert exposure rows for a run."""
+        """Insert exposure rows for a run.
+
+        If an exposure references an asset_id not in the assets table,
+        insert a minimal asset record first (FK constraint).
+        """
         for i, exp in enumerate(exposures):
             exp_id = f"exp-{run_id}-{i + 1:03d}"
+            asset_id = exp["asset_id"]
+
+            # Ensure the asset exists (FK constraint)
+            exists = self._conn.execute(
+                "SELECT 1 FROM assets WHERE asset_id=?", (asset_id,)
+            ).fetchone()
+            if not exists:
+                self._conn.execute(
+                    """INSERT INTO assets
+                       (asset_id, basin_id, asset_type, name, geometry_geojson, population, weight)
+                       VALUES(?,?,?,?,?,?,?)""",
+                    (
+                        asset_id, DEMO_BASIN["basin_id"],
+                        exp.get("asset_type", "other"),
+                        exp.get("name", ""),
+                        json.dumps({"type": "Point", "coordinates": [0, 0]}),
+                        None, 1.0,
+                    ),
+                )
+
             self._conn.execute(
                 """INSERT INTO exposures
                    (exposure_id, run_id, asset_id, distance_m, buffer_m, inundated)
                    VALUES(?,?,?,?,?,?)""",
                 (
-                    exp_id, run_id, exp["asset_id"],
+                    exp_id, run_id, asset_id,
                     exp.get("distance_m"), exp.get("buffer_m"),
                     bool(exp.get("inundated", False)),
                 ),

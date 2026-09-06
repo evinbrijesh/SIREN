@@ -60,6 +60,11 @@ REACHABILITY_RADIUS_M = 500.0
 UTM_CRS = "EPSG:32645"
 
 
+# Cache flow accumulation results — the DEM is the same across all observations,
+# so fill_depressions (6+ seconds) only needs to run once per process.
+_flow_acc_cache: dict[str, tuple] = {}
+
+
 def flow_accumulation(dem_path: str) -> tuple[Grid, np.ndarray, np.ndarray]:
     """Compute D8 flow direction + accumulation from a DEM raster.
 
@@ -67,14 +72,23 @@ def flow_accumulation(dem_path: str) -> tuple[Grid, np.ndarray, np.ndarray]:
     accumulation. resolve_flats is REQUIRED: without it, filled flats (e.g.,
     a glacial lake surface) carry fdir=-1 and every trace across them
     terminates immediately.
+
+    Results are cached per DEM path — the expensive fill_depressions step
+    (6+ seconds) only runs once per process.
     """
+    cache_key = str(dem_path)
+    if cache_key in _flow_acc_cache:
+        return _flow_acc_cache[cache_key]
+
     grid = Grid.from_raster(dem_path)
     dem = grid.read_raster(dem_path)
     filled = grid.fill_depressions(dem=dem)
     resolved = grid.resolve_flats(dem=filled)
     fdir = grid.flowdir(dem=resolved, dirmap=DIRMAP)
     acc = grid.accumulation(fdir, dirmap=DIRMAP)
-    return grid, fdir, acc
+    result = (grid, fdir, acc)
+    _flow_acc_cache[cache_key] = result
+    return result
 
 
 def d8_flow_path(dem_path: str, change_polygon_geojson: dict, channel_threshold: float = 500.0) -> list[list[float]]:

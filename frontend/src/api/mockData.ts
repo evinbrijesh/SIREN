@@ -7,6 +7,8 @@ import type {
   DispatchResponse,
   SarPriorityList,
   MlEvidence,
+  ModelStatusResponse,
+  TrendClassification,
 } from "./types";
 
 const basin: BasinConfig = {
@@ -128,6 +130,101 @@ const mlEvidence: MlEvidence = {
   change_polygon: { type: "Polygon", coordinates: [[[86.8945, 27.8681], [86.9555, 27.8681], [86.9555, 27.9219], [86.8945, 27.9219], [86.8945, 27.8681]]] },
 };
 
+const modelStatus: ModelStatusResponse = {
+  models: {
+    siamese_unet: {
+      stage: 1,
+      name: "Siamese U-Net Change Detector",
+      loaded: true,
+      weights_path: "data/processed/siamese_unet_weights.pt",
+      weights_exists: true,
+      weights_size_mb: 85.3,
+      metadata: {
+        epoch: 40,
+        loss: 0.0842,
+        accuracy: 0.941,
+        in_channels: 3,
+        backbone: "ResNet-34",
+        input_resolution: "512x512 @ 10m GSD",
+        dataset: "Sen1Floods11 (252 hand-labeled SAR/Optical chips)",
+      },
+      description:
+        "Bi-temporal change detection using shared ResNet-34 encoder. Produces pixel-level change probability maps from satellite image pairs.",
+      architecture: "SiameseUNet(ResNet-34, U-Net decoder)",
+      training_data: "Sen1Floods11 (252 hand-labeled SAR chips)",
+    },
+    segformer: {
+      stage: 2,
+      name: "SegFormer Land-Cover Classifier",
+      loaded: true,
+      weights_path: "data/processed/segformer_classifier_weights.pt",
+      weights_exists: true,
+      weights_size_mb: 14.8,
+      metadata: {
+        epoch: 25,
+        loss: 0.128,
+        accuracy: 0.912,
+        num_classes: 5,
+        class_names: ["Water (Flood)", "Debris Flow", "Snowmelt (Benign)", "Cloud/Shadow", "Bare Rock"],
+        dataset: "Sen1Floods11 weak-labeled (2580 crops, 5 classes)",
+      },
+      description:
+        "Classifies changed pixels into functional categories: water, debris, snowmelt, shadow, bare rock. Filters false alarms from cloud shadows and snowmelt.",
+      architecture: "SegFormerHead(MiT-B0 patch attention, 5-class)",
+      training_data: "Sen1Floods11 weak-labeled (2580 crops, 5 classes)",
+    },
+    consensus_gating: {
+      stage: 3,
+      name: "Multi-Sensor Consensus Gating",
+      loaded: true,
+      weights_path: null,
+      weights_exists: true,
+      weights_size_mb: 0,
+      metadata: {
+        slope_threshold_deg: 35.0,
+        ml_weight: 0.6,
+        rule_weight: 0.4,
+        engine: "Vectorized NumPy / C++ array operator",
+      },
+      description:
+        "Fuses ML mask with rule-based mask and DEM slope gating. Eliminates ML false positives on steep terrain (>35°). Weighted fusion: 0.6×ML + 0.4×rule-based.",
+      architecture: "Deterministic (consensus.py)",
+      training_data: null,
+    },
+    convlstm_trend: {
+      stage: 4,
+      name: "ConvLSTM Temporal Trend Classifier",
+      loaded: true,
+      weights_path: "data/processed/convlstm_trend_weights.pt",
+      weights_exists: true,
+      weights_size_mb: 5.6,
+      metadata: {
+        epoch: 50,
+        loss: 0.194,
+        accuracy: 0.884,
+        seq_len: 3,
+        num_classes: 4,
+        hybrid_cutoff: 0.75,
+        dataset: "Synthetic sequences from Sen1Floods11 (840 sequences, 4 trend classes)",
+      },
+      description:
+        "Classifies temporal trend from satellite sequences: stable, slowly expanding, rapidly expanding, or uncertain. Uses ConvLSTM cells over a CNN encoder. Hybrid inference — defers to deterministic thresholds when ML confidence < 0.75.",
+      architecture: "ConvLSTMTrendClassifier(CNN encoder, ConvLSTM cells, 4-class)",
+      training_data: "Synthetic sequences from Sen1Floods11 (840 sequences, 4 trend classes)",
+    },
+  },
+};
+
+const trend: TrendClassification = {
+  trend_class: "rapidly",
+  confidence: 0.82,
+  source: "hybrid_inference",
+  ml_model_available: true,
+  sequence_length: 3,
+  water_areas: [3.0, 3.32, 4.10, 4.30],
+  expansion_pcts: [0.0, 10.5, 28.0, 43.3],
+};
+
 export const canonicalBaseline = {
   acquired_at: "2025-11-22T12:00:00Z",
   source: "sentinel-2-l2a",
@@ -137,4 +234,4 @@ export const canonicalBaseline = {
   water_area_change_percent: 0.0,
 };
 
-export const mockData = { basin, observations, runs, exposures, audit, dispatch, sarPriority, mlEvidence };
+export const mockData = { basin, observations, runs, exposures, audit, dispatch, sarPriority, mlEvidence, modelStatus, trend };
