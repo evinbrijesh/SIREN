@@ -293,6 +293,15 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
             )
         return {"runs": runs, "count": len(runs)}
 
+    # GET /trend — ConvLSTM temporal trend classification (Stage 4, PRD §9.3)
+    # Classifies the temporal trend across all demo observations using the
+    # trained ConvLSTM. Falls back to deterministic thresholds when unavailable.
+    @app.get("/trend")
+    def get_temporal_trend(observation_ids: str | None = None) -> Any:
+        from siren.pipeline import classify_temporal_trend
+        obs_list = observation_ids.split(",") if observation_ids else None
+        return classify_temporal_trend(observation_ids=obs_list, repo=repo)
+
     # Mount data/processed/ as static files so the frontend can fetch rasters
     data_processed = _project_root() / "data" / "processed"
     if data_processed.exists():
