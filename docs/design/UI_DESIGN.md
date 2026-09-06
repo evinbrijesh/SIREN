@@ -100,7 +100,11 @@
 ## 5. ReviewView — Human-in-the-Loop Coordinator Console
 
 ```
-┌──────────────────────────────┬──────────────────────────────┬─────────┐
+┌────────────────────────────────────────────────────────────────────────┐
+│ HEADER: [Review] [run-0004]  [Simple (Triage) | Advanced (Analyst)]    │
+│         [ESCALATION POLICY] Advisory auto-routed to First Responders.  │
+│         Public broadcast held for Human Gate confirmation.             │
+├──────────────────────────────┬──────────────────────────────┬─────────┤
 │  EVIDENCE PANEL (left)       │  RISK GAUGE (center)         │ RIGHT   │
 │  · before/after rasters      │  ┌────────────────────────┐  │ (320px) │
 │  · change overlay            │  │  H 0.62  E 0.48        │  │┌───────┐│
@@ -119,11 +123,15 @@
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **Evidence panel (left, ~40%):** before/after rasters + change overlay + swipe.
+- **Simple / Advanced toggle:** Simple (Triage) mode shows a satellite-first triage card with early warning banner, heatmap, contamination event details, chlorine logistics formula, and SOS protocol checklist. Advanced (Analyst) mode shows the full evidence panel, risk gauges, and reasons list.
+- **Early warning banner:** "★ Early warning 12 days — trend flagged at obs-01 before critical threshold at obs-03" (surfaces the lead time from the satellite timeline).
+- **Escalation policy badge:** Shows when review is pending (elevated/critical, no decision). Communicates the two-tier routing concept: first responders get an advisory automatically, public broadcast requires human confirmation.
+- **Evidence panel (left, ~40%):** before/after rasters (object-cover, full-bleed) + change overlay + swipe.
 - **Risk gauge (center):** H / E / D_risk / confidence as gauge bars. Each score shows its value + a mini reason.
-- **Reasons panel:** strictly ≥3 deterministic reasons (PRD §9.5). Never a bare number.
+- **Reasons panel:** strictly ≥3 deterministic reasons (PRD §9.5). Never a bare number. Text uses `text-text-primary` for projector legibility.
 - **Right dock (320px):** Disease Prevention Action Sheet (Track 7.iii) + ranked exposed-infrastructure table.
 - **Decision bar (sticky bottom):** Confirm SOS (green, primary) / Reject (red) / Postpone (amber). Requires a confirmation state before Confirm fires. Reviewer identity shown.
+- **Auto-SOS on CONFIRM:** Clicking CONFIRM fires a real ntfy.sh push notification to the coordinator's phone automatically (when online). Toast confirms "Decision confirmed — SOS sent to phone".
 
 ---
 
@@ -131,6 +139,8 @@
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
+│ HEADER: [Audit] [AIR-GAP VERIFIED]  3 entries  [Export ▾]              │
+├────────────────────────────────────────────────────────────────────────┤
 │  PAYLOAD BOX (Track 7.ii)                                              │
 │  ┌──────────────────────────────────────────────────────────────────┐  │
 │  │ {"aid":"siren-04","sec":"B","haz":"GLOF_FL",...}                 │  │
@@ -139,19 +149,28 @@
 ├────────────────────────────────────────────────────────────────────────┤
 │  CHANNEL SIMULATOR                                                     │
 │  [SMS] [LoRa Mesh] [Satellite]  →  delivery status badges             │
-│  SMS: sent ✓ · LoRa: delivered ✓ · Satellite: queued ⏳               │
+│  SMS: sent ✓ (live ntfy.sh) · LoRa: delivered ✓ · Satellite: queued ⏳│
+│  RF telemetry: LoRa 868.1 MHz ISM · Iridium 1621 MHz L-Band           │
 ├────────────────────────────────────────────────────────────────────────┤
 │  AUDIT TRAIL (immutable lineage table)                                │
-│  Timestamp (UTC) │ Actor │ Action │ Detail (JSON)                     │
-│  2026-08-04T12:05 │ pipeline │ run │ {...}                            │
-│  2026-08-04T12:10 │ coordinator-01 │ review │ {...}                   │
-│  2026-08-04T12:11 │ coordinator-01 │ dispatch │ {...}                 │
+│  [ADVISORY] system → Hospitals, Firefighters, SAR (pre-confirmation)  │
+│  Timestamp (UTC) │ Actor │ Action │ Detail (JSON) │ Hash              │
+│  2026-08-04T12:05 │ pipeline │ run │ {...} │ de0190c1…                │
+│  2026-08-04T12:10 │ coordinator-01 │ review │ {...} │ 6deffb9b…       │
+│  2026-08-04T12:11 │ coordinator-01 │ dispatch │ {...} │ 382e377c…     │
+│  [VERIFY CHAIN] → Web Crypto SHA-256 verification modal               │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
+- **AIR-GAP VERIFIED badge:** Green badge in header indicating offline-first operation.
+- **Export dropdown:** Ledger JSON export + SitRep TXT export (field situation report).
 - **Payload box:** raw compressed JSON + byte counter (must show ≤250). Green badge when compliant.
-- **Channel simulator:** SMS / LoRa Mesh / Satellite with live status badges.
-- **Audit trail:** append-only table — timestamp, actor, action, JSON detail. Monospace for the JSON.
+- **Channel simulator:** SMS / LoRa Mesh / Satellite with live status badges. SMS fires a real ntfy.sh push when online (gated by `navigator.onLine`). LoRa and Satellite are simulated state machines (QUEUED → TRANSMITTING → DELIVERED).
+- **RF telemetry specs:** LoRa (868.1 MHz ISM, SF9, 125 kHz, 222 bytes max) and Iridium SBD (1621 MHz L-Band, 340 bytes/SBD).
+- **First Responder Advisory row:** When severity is elevated/critical and no confirmation yet, a pre-confirmation advisory row appears at the top of the audit trail. Amber border, labeled "ADVISORY" not "DISPATCH". Hash column shows "simulated". Disappears once confirmation is recorded.
+- **Audit trail:** append-only table — timestamp, actor, action, JSON detail, hash. Monospace for JSON. Real SHA-256 hashes (not placeholders).
+- **Verify Chain:** Web Crypto API (`crypto.subtle.digest`) verification modal. Recomputes SHA-256 for each entry and checks the chain. Shows "ALL 3 BLOCKS CRYPTOGRAPHICALLY LINKED" + "0 TAMPERING DETECTED" on success.
+- **Secondary SEND TO PHONE:** Manual ntfy.sh send button (in addition to the auto-fire on CONFIRM in ReviewView).
 
 ---
 
@@ -233,7 +252,22 @@ The following were added after the initial UI design spec was written:
 
 - **Multi-theme system** (`frontend/src/theme/`): `ThemeContext.tsx` + `ThemeToggle.tsx` providing Ops Dark (default), Professional Light, and Satellite themes. The toggle is a compact chip in the header bar.
 - **OfflineBadge** (`frontend/src/components/OfflineBadge.tsx`): Truthful online/offline indicator using `navigator.onLine` + window `online`/`offline` event listeners. Shows "ONLINE" or "OFFLINE — ALL SYSTEMS LOCAL".
+- **Projector-ready typography scaling**: Centralized type tokens in `tailwind.config.js` + `index.css` for projector legibility. Nav height 54px, banner 46px, label-caps 14px/600 weight.
+- **ReviewView Simple/Advanced toggle**: Simple (Triage) mode shows satellite-first triage card with early warning banner, heatmap, chlorine logistics, and SOS checklist. Advanced (Analyst) mode shows full evidence panel, gauges, and reasons.
+- **Auto-SOS on CONFIRM**: Clicking CONFIRM in ReviewView fires a real ntfy.sh push notification automatically. Shared utility in `frontend/src/utils/ntfy.ts`.
+- **Escalation policy badge**: Static badge in ReviewView header showing two-tier routing concept (first responders advisory vs. public broadcast held for human gate).
+- **Early warning banner**: "★ Early warning 12 days" on SimpleTriage, surfacing the satellite timeline lead time.
+- **AuditView enhancements**:
+  - Real SHA-256 mock hashes (computed using the backend formula, not placeholders)
+  - Ledger JSON export + SitRep TXT export via Export dropdown
+  - Web Crypto verification modal (`crypto.subtle.digest`) — verifies the full hash chain in-browser
+  - RF telemetry specs (LoRa 868.1 MHz ISM, Iridium 1621 MHz L-Band)
+  - First Responder Advisory row (pre-confirmation, simulated, amber border)
+  - ntfy.sh live phone alerts (gated by `navigator.onLine`)
+  - Secondary SEND TO PHONE button for manual re-send
 - **Audit run_id wiring**: AuditView queries `GET /audit?run_id={activeRunId}` when an active run exists, falling back to mock data only on network failure. The terminal SHA-256 digest is rendered from the last audit entry's `event_hash`.
 - **Audit preview modal**: Decoded plain-text emergency handset alert format, opened via a [PREVIEW] button. Escape closes the modal first (consumes `siren:escape` event).
 - **Channel FSM**: AuditView dispatch channels cycle through QUEUED → TRANSMITTING → DELIVERED (or QUEUED for satellite) with timed transitions.
+- **MapView polish**: Circular asset markers (border-radius:50%) + circular legend dots. Initial camera uses `jumpTo` (centered on Imja Lake) instead of `fitBounds`. Solid 3px corridor line (was thin dashed). Swipe compare uses absolute-positioned object-cover for clean before/after reveal.
+- **TimelineView polish**: Single legend in chart header (removed duplicate SVG labels). Axis font sizes bumped (Y 11px, X 12px). Thumbnails use `object-cover` (no letterboxing voids).
 - **Tailwind CSS**: The design system is implemented with Tailwind utility classes + CSS custom properties. No `styles/tokens.css` file — tokens live in `index.css` and Tailwind config.

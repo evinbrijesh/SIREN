@@ -18,8 +18,11 @@
 
 ## What's Simulated (Not Real at Runtime)
 
-- **Alert channels.** SMS, LoRa, and Satellite dispatch are simulated — no real carriers, modems, or satellite messengers are contacted. The AuditView channel simulator shows delivery states for demo purposes.
-- **Live satellite ingestion.** All scenes are pre-downloaded to `data/raw/`. The `ingest/` scripts can fetch from CDSE/Earthdata/Overpass, but the runtime demo makes zero network calls (ADR-004: offline-first).
+- **Alert channels — LoRa and Satellite.** LoRa and Satellite dispatch are simulated state machines (QUEUED → TRANSMITTING → DELIVERED). No real radio modems or Iridium SBD transceivers are contacted. The AuditView channel simulator shows delivery states for demo purposes.
+- **Alert channel — SMS (partially live).** SMS is the only live integration: clicking the SMS channel (or clicking CONFIRM in ReviewView) sends a real ntfy.sh push notification when online. When offline (air-gap mode), the network request is skipped and the dispatch is simulated. ntfy.sh is a free push notification service — install the app and subscribe to topic `siren-emergency-alert` to receive alerts on your phone.
+- **First Responder Advisory.** The advisory row in AuditView is a simulated visual showing the two-tier routing concept. No real pre-confirmation notification is sent to hospitals, firefighters, or SAR teams. It communicates what *would* happen in a production system.
+- **Escalation policy badge.** The badge in ReviewView is informational only. No auto-escalation dispatch fires without human confirmation (Hard Rule #3). It shows the policy, not an automated action.
+- **Live satellite ingestion.** All scenes are pre-downloaded to `data/raw/`. The `ingest/` scripts can fetch from CDSE/Earthdata/Overpass, but the runtime demo makes zero network calls for pipeline data (ADR-004: offline-first). The only runtime network call is the ntfy.sh push on CONFIRM, gated by `navigator.onLine`.
 - **Weather data.** The rainfall series is a prepared JSON file (`data/assets/weather_series.json`), not a live API call. Open-Meteo integration exists in `ingest/` but is not used at runtime.
 - **Synchronous pipeline.** `POST /runs` processes the full detect→geo→risk chain synchronously in the request. No background task queue (Celery/RQ). This is intentional for demo simplicity — a production system would use async workers.
 - **Single reviewer.** The demo hardcodes `coordinator-01` as the reviewer identity. No authentication or RBAC.
@@ -34,7 +37,7 @@
 
 - **Pipeline processing time:** ~2–4 seconds per observation on the demo hardware (Docker container, single core). A production system with GPU-accelerated inference and parallel tile processing would target <30 seconds.
 - **Dispatch latency:** Simulated as instant. Real LoRa mesh delivery in Himalayan terrain is 30–120 seconds; satellite SBD is 1–5 minutes; SMS depends on tower availability (which is the failure case SIREN is designed for).
-- **Review latency:** Depends entirely on the human coordinator. SIREN does not auto-escalate on timeout — that's a policy decision for the deploying authority.
+- **Review latency:** Depends entirely on the human coordinator. SIREN shows an escalation policy badge communicating the two-tier routing concept, but does not auto-escalate on timeout — that's a policy decision for the deploying authority. The ntfy.sh push on CONFIRM is a side-effect of the human decision, not an autonomous dispatch.
 
 ## What SIREN Does NOT Do (PRD §14)
 
@@ -48,4 +51,4 @@
 
 ---
 
-**Bottom line for judges:** The detection, corridor, exposure, scoring, and audit chain is real code on real data. The dispatch channels and live ingestion are simulated — SIREN is a decision-support and resilience layer, not a replacement for emergency infrastructure. The system deploys via Docker Compose (`./start.sh`) for a one-command demo.
+**Bottom line for judges:** The detection, corridor, exposure, scoring, and audit chain is real code on real data. The SMS channel is live via ntfy.sh (when online); LoRa and Satellite are simulated. The First Responder Advisory and escalation policy badge communicate the two-tier routing concept without violating the human gate. SIREN is a decision-support and resilience layer, not a replacement for emergency infrastructure. The system deploys via Docker Compose (`./start.sh`) for a one-command demo.

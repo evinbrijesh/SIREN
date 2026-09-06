@@ -19,9 +19,9 @@ The offline demo runs a retrospective "what-if" prevention scenario for the **Du
 1. Baseline loads (clear post-monsoon optical scene, 2025-11-22)
 2. Three observations process through the pipeline (2026-07-23, 2026-08-04, 2026-08-12)
 3. An elevated/critical review card appears with ≥3 evidence reasons
-4. The coordinator confirms the alert
+4. The coordinator confirms the alert — **an SOS push notification is sent to their phone automatically via ntfy.sh**
 5. A compressed dispatch payload (≤250 bytes) is sent
-6. The audit log reconstructs the full lineage
+6. The audit log reconstructs the full lineage with SHA-256 hash chain verification
 
 ---
 
@@ -81,6 +81,7 @@ frontend/
     simulation/   # SimulationContext (shared demo state)
     components/   # OfflineBadge (online/offline event listener)
     theme/        # ThemeProvider + ThemeToggle (Ops Dark / Professional Light / Satellite)
+    utils/        # ntfy.ts — shared ntfy.sh live alert utility
     index.css     # Tailwind base + design tokens
 data/
   raw/            # downloaded scenes (gitignored)
@@ -169,8 +170,10 @@ npm run build                    # tsc + vite build
 6. Watch three observations process through the pipeline
 7. An alert banner appears — click it to open the **Review** tab
 8. Inspect the evidence, scores, and disease-prevention actions
-9. Click **Confirm SOS** → **Yes, confirm**
-10. Go to the **Audit** tab to see the dispatch payload and audit trail
+9. Click **Confirm SOS** → **Yes, confirm** — **your phone receives an SOS push notification automatically** (install the [ntfy app](https://ntfy.sh) and subscribe to topic `siren-emergency-alert`)
+10. Go to the **Audit** tab to see the dispatch payload, audit trail, and verify the SHA-256 hash chain
+
+> **Live phone alerts:** When online, clicking CONFIRM fires a real ntfy.sh push notification. When offline (air-gap mode), the dispatch is simulated. The Audit tab also has a secondary **SEND TO PHONE** button for manual re-send.
 
 ### Keyboard Shortcuts
 
@@ -211,13 +214,15 @@ See `docs/spec/API_CONTRACT.md` for full request/response schemas.
 ## Key Design Decisions
 
 - **Deterministic-first.** No trained ML in the critical path. Rule-based masks and weighted scores (ADR-002).
-- **Offline demo.** Zero network calls at runtime. All data loads from `data/` (ADR-004).
+- **Offline demo.** Zero network calls at runtime for pipeline data. All data loads from `data/` (ADR-004). The only live network call is the ntfy.sh phone push on CONFIRM, gated by `navigator.onLine`.
 - **SAR-first.** Weather-adaptive router switches to SAR when cloud ≥20% (ADR-003).
 - **SQLite over PostGIS.** Zero-ops, offline-safe for hackathon scale (ADR-001).
 - **Combined D8 + OSM corridor.** D8 validates gravity gradient; OSM rivers capture the real surveyed riverbed (ADR-005).
-- **Human gate.** No dispatch without a recorded `confirm` review (enforced by SQLite trigger).
+- **Human gate.** No dispatch without a recorded `confirm` review (enforced by SQLite trigger). The ntfy.sh push on CONFIRM is a side-effect of the human decision, not an autonomous dispatch.
 - **≤250-byte payload.** Compact JSON for LoRa mesh / satellite messenger / low-bandwidth SMS.
 - **≥3 reasons on elevated+.** Every elevated/critical score carries at least three evidence factors.
+- **Two-tier alert routing.** First responders receive an advisory (simulated, pre-confirmation); public broadcast requires human confirmation. An escalation policy badge in ReviewView communicates this clearly.
+- **Live phone alerts via ntfy.sh.** Clicking CONFIRM fires a real push notification to the coordinator's phone. A secondary manual SEND TO PHONE button exists in AuditView.
 
 ---
 
@@ -274,7 +279,9 @@ pytest                           # 104 tests, ~20s
 - The pipeline runs synchronously in the API request (no background task queue). This is intentional for demo simplicity.
 - The frontend uses mock fallback data when the backend is unreachable. This is by design for offline resilience.
 - No authentication or role-based access control in the MVP.
-- No real alert channel integration (SMS/LoRa/satellite are simulated).
+- **SMS** is the only live alert channel (via ntfy.sh push when online). **LoRa** and **Satellite** remain simulated state machines (QUEUED → TRANSMITTING → DELIVERED). No real radio or Iridium modem transmission occurs.
+- The **First Responder Advisory** row in AuditView is a simulated visual — no real pre-confirmation notification is sent to hospitals or fire crews. It communicates the two-tier routing concept for the demo.
+- The **escalation policy badge** in ReviewView is informational only — no auto-escalation dispatch fires without human confirmation (Hard Rule #3).
 
 ---
 
