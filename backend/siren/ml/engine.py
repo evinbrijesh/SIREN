@@ -64,26 +64,32 @@ class ChangeDetectionEngine:
         import torch
         from siren.ml.model import SiameseUNet
 
-        self.model = SiameseUNet(in_channels=self.in_channels).to(self.device)
-        self.model.eval()
-
         if self.weights_path.exists():
             try:
                 checkpoint = torch.load(
                     str(self.weights_path), map_location=self.device, weights_only=True
                 )
+                # Auto-detect in_channels from checkpoint metadata
+                if isinstance(checkpoint, dict) and "in_channels" in checkpoint:
+                    self.in_channels = checkpoint["in_channels"]
                 state_dict = (
                     checkpoint["state_dict"]
                     if isinstance(checkpoint, dict) and "state_dict" in checkpoint
                     else checkpoint
                 )
+                self.model = SiameseUNet(in_channels=self.in_channels).to(self.device)
                 self.model.load_state_dict(state_dict)
+                self.model.eval()
                 self.is_ready = True
-                logger.info(f"ML engine loaded trained weights from {self.weights_path}")
+                logger.info(f"ML engine loaded trained weights from {self.weights_path} (in_channels={self.in_channels})")
             except Exception as exc:
                 logger.warning(f"Failed to load ML weights: {exc} — using deterministic fallback")
+                self.model = SiameseUNet(in_channels=self.in_channels).to(self.device)
+                self.model.eval()
                 self.is_ready = False
         else:
+            self.model = SiameseUNet(in_channels=self.in_channels).to(self.device)
+            self.model.eval()
             logger.info(
                 f"No trained weights at {self.weights_path} — "
                 "ML engine in scaffold mode (deterministic fallback active). "
@@ -117,6 +123,13 @@ class ChangeDetectionEngine:
             )
 
         import torch
+
+        # Ensure channel count matches model expectations
+        n_ch = self.in_channels
+        if t0_raster.shape[0] != n_ch:
+            t0_raster = self._adjust_channels(t0_raster, n_ch)
+        if t1_raster.shape[0] != n_ch:
+            t1_raster = self._adjust_channels(t1_raster, n_ch)
 
         with torch.no_grad():
             t0_t = torch.from_numpy(t0_raster).float().unsqueeze(0).to(self.device)
@@ -152,3 +165,17 @@ class ChangeDetectionEngine:
             probs = torch.sigmoid(logits).squeeze().cpu().numpy()
 
         return probs
+
+    @staticmethod
+    def _adjust_channels(arr: np.ndarray, target: int) -> np.ndarray:
+        """Adjust channel count: truncate or replicate to match target."""
+        c = arr.shape[0]
+        if c == target:
+            return arr
+        if c > target:
+            return arr[:target]
+        # Replicate first channel
+        reps = [target // c] + [1] * (target - (target // c) * c)
+        return np.concatenate(
+            [np.repeat(arr, reps[0], axis=0)] + [arr[:1]] * reps[1], axis=0
+        )
