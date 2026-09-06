@@ -115,9 +115,13 @@ class SiameseUNet(nn.Module):
         x = self.up2(x)
         x = self.dec2(torch.cat([x, d1], dim=1))
 
-        # Upsample back to match original image height and width
-        x = F.interpolate(x, scale_factor=2, mode="bilinear", align_corners=False)
+        # Upsample back to original spatial resolution
+        x = self.up1(x)
         x = self.dec1(x)
+
+        # Final upsample to match input H/W (conv1 stride=2 + maxpool stride=2 = 4x downsample,
+        # but we only have 3 ConvTranspose2d steps = 8x upsample from the deepest level)
+        x = F.interpolate(x, size=(t0.shape[2], t0.shape[3]), mode="bilinear", align_corners=False)
 
         return self.head(x)
 

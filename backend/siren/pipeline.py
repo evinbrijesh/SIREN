@@ -251,8 +251,9 @@ def _try_ml_evidence_layer(
         t0 = np.clip(t0.astype(np.float32) / 255.0, 0, 1) if t0.max() > 1 else t0
         t1 = np.clip(t1.astype(np.float32) / 255.0, 0, 1) if t1.max() > 1 else t1
 
-        # Run ML inference
-        ml_mask = engine.predict_change_mask(t0[:3], t1[:3])
+        # Run ML inference (use engine's expected channel count)
+        n_ch = engine.in_channels
+        ml_mask = engine.predict_change_mask(t0[:n_ch], t1[:n_ch])
 
         # Compute consensus
         result = compute_consensus_mask(ml_mask, rule_mask)
