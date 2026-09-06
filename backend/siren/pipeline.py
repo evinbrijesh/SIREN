@@ -257,12 +257,27 @@ def _try_ml_evidence_layer(
 
         # Compute consensus
         result = compute_consensus_mask(ml_mask, rule_mask)
+        consensus_mask = result["consensus"]
+        # ML-derived water area (from consensus mask, using same pixel area as rule mask)
+        with rasterio.open(rule_mask_path) as src:
+            px_area_m2 = abs(src.transform[0]) * abs(src.transform[4])
+            if src.crs and src.crs.is_geographic:
+                lat = (src.bounds.top + src.bounds.bottom) / 2
+                px_area_m2 = (
+                    abs(src.transform[0]) * 111_320 * np.cos(np.deg2rad(lat))
+                    * abs(src.transform[4]) * 110_540
+                )
+        ml_water_area_km2 = float(consensus_mask.sum() * px_area_m2 / 1e6)
         return {
             "source": "siamese_unet_consensus",
-            "consensus_mask": result["consensus"],
+            "consensus_mask": consensus_mask,
             "confidence_map": result["confidence"],
             "confidence_mean": float(result["confidence"].mean()),
-            "consensus_pixels": int(result["consensus"].sum()),
+            "consensus_pixels": int(consensus_mask.sum()),
+            "ml_water_area_km2": round(ml_water_area_km2, 3),
+            "ml_rule_agreement_pct": float(
+                result["agreement"].sum() / max(rule_mask.sum(), 1) * 100
+            ),
         }
     except ImportError:
         # torch not installed — silent fallback to deterministic
@@ -371,6 +386,12 @@ def run_pipeline(
         change_stats["ml_confidence_mean"] = ml_evidence["confidence_mean"]
         change_stats["ml_consensus_pixels"] = ml_evidence["consensus_pixels"]
         change_stats["ml_source"] = ml_evidence["source"]
+        # ML-derived water area and agreement (Path A — ML is load-bearing)
+        if "ml_water_area_km2" in ml_evidence:
+            change_stats["ml_water_area_km2"] = ml_evidence["ml_water_area_km2"]
+            change_stats["ml_rule_agreement_pct"] = round(
+                ml_evidence.get("ml_rule_agreement_pct", 0.0), 1
+            )
         # Generate visual heatmap for the UI
         heatmap_path = PROCESSED_DIR / f"{observation_id}_change_heatmap.png"
         try:
@@ -459,6 +480,9 @@ def run_pipeline(
     wells = sum(1 for e in exposures if e.get("asset_type") == "well")
     inundated_wells = sum(1 for e in exposures if e.get("asset_type") == "well" and e.get("inundated"))
 
+    # ML confidence from the evidence layer (0.5 = deterministic fallback)
+    ml_confidence = change_stats.get("ml_confidence_mean", 0.5)
+
     score = risk_fuse(
         trend_class=obs_config["trend_class"],
         expansion_pct=obs_config["expansion_pct"],
@@ -473,6 +497,7 @@ def run_pipeline(
         inundated_wells=inundated_wells,
         population_density_per_km2=200.0,  # demo basin average
         temp_index=temp_index,
+        ml_confidence=ml_confidence,
     )
 
     # 8. Write results to DB
@@ -530,3 +555,130 @@ def run_all_observations(repo: Repository | None = None) -> list[dict[str, Any]]
         run = run_pipeline(obs_id, repo)
         results.append(run)
     return results
+
+
+def classify_temporal_trend(
+    observation_ids: list[str] | None = None,
+    repo: Repository | None = None,
+) -> dict[str, Any]:
+    """Classify the temporal trend across multiple observations using ConvLSTM.
+
+    Collects water masks from all completed runs, builds a temporal sequence,
+    and runs the ConvLSTM trend classifier (Stage 4, PRD §9.3).
+
+    Falls back to deterministic threshold-based classification when the
+    ConvLSTM is unavailable (ADR-002 — deterministic-first).
+
+    Args:
+        observation_ids: Ordered list of observation IDs to classify.
+            Defaults to all demo observations in sequence.
+        repo: Repository instance. Defaults to the global repository.
+
+    Returns:
+        Dict with:
+          - trend_class: "stable" | "slowly" | "rapidly" | "uncertain"
+          - confidence: float in [0, 1]
+          - source: "convlstm" | "deterministic_fallback"
+          - sequence_length: number of timesteps used
+          - water_areas: list of water areas per timestep
+          - expansion_pcts: list of expansion percentages per timestep
+    """
+    if repo is None:
+        repo = get_repository()
+
+    if observation_ids is None:
+        observation_ids = list(DEMO_OBSERVATIONS.keys())
+
+    # Collect water masks from completed runs
+    water_masks: list[np.ndarray] = []
+    water_areas: list[float] = []
+    expansion_pcts: list[float] = []
+
+    # Note: we don't include a zero-baseline timestep because the ConvLSTM was
+    # trained on sequences where water exists at all timesteps. A sudden jump
+    # from 0 to non-zero would be classified as "uncertain" (non-monotonic).
+    # The first observation serves as the reference (T0).
+
+    for obs_id in observation_ids:
+        mask_path = PROCESSED_DIR / f"{obs_id}_expansion_mask.tif"
+        if mask_path.exists():
+            with rasterio.open(str(mask_path)) as src:
+                mask = (src.read(1) > 0).astype(np.float32)
+                water_masks.append(mask)
+                water_areas.append(float(mask.sum()))
+        else:
+            # Use the scenario expansion percentage to synthesize a mask
+            obs_config = DEMO_OBSERVATIONS.get(obs_id)
+            if obs_config:
+                mask, _ = scenario_expansion_mask(
+                    obs_config["expansion_pct"] / 100.0, seed=42
+                )
+                water_masks.append(mask.astype(np.float32))
+                water_areas.append(float(mask.sum()))
+                expansion_pcts.append(obs_config["expansion_pct"])
+
+    # Normalize all masks to a common shape (128x128) for the ConvLSTM
+    if water_masks:
+        from scipy.ndimage import zoom
+        target_h, target_w = 128, 128
+        normalized_masks = []
+        for m in water_masks:
+            if m.shape != (target_h, target_w):
+                zh, zw = target_h / m.shape[0], target_w / m.shape[1]
+                m = zoom(m, (zh, zw), order=0).astype(np.float32)
+            normalized_masks.append(m)
+        water_masks = normalized_masks
+
+    if not water_masks:
+        return {
+            "trend_class": "uncertain",
+            "confidence": 0.0,
+            "source": "deterministic_fallback",
+            "sequence_length": 0,
+            "water_areas": [],
+            "expansion_pcts": [],
+        }
+
+    # Compute expansion percentages if not already done
+    # Use the first non-zero area as the reference (baseline = 0% expansion)
+    if len(expansion_pcts) < len(water_areas) and len(water_areas) >= 2:
+        # Find first non-zero area as reference
+        ref_area = next((a for a in water_areas if a > 0), 1.0)
+        expansion_pcts = []
+        for i, a in enumerate(water_areas):
+            if i == 0:
+                expansion_pcts.append(0.0)  # baseline
+            else:
+                expansion_pcts.append((a - ref_area) / ref_area * 100)
+
+    # Run the ConvLSTM trend engine (hybrid: ML + deterministic fallback)
+    try:
+        from siren.ml.trend_engine import TrendEngine
+
+        engine = TrendEngine()
+        trend_class, confidence = engine.classify_trend(water_masks)
+        source = "convlstm_hybrid" if engine.is_ready else "deterministic_fallback"
+    except ImportError:
+        # torch not installed — deterministic fallback
+        from siren.ml.trend_engine import TrendEngine
+
+        engine = TrendEngine()
+        trend_class, confidence = engine._deterministic_fallback(water_masks)
+        source = "deterministic_fallback"
+    except Exception as exc:
+        logger.warning(f"ConvLSTM trend classification failed: {exc} — using deterministic fallback")
+        from siren.ml.trend_engine import TrendEngine
+
+        engine = TrendEngine()
+        trend_class, confidence = engine._deterministic_fallback(water_masks)
+        source = "deterministic_fallback"
+
+    return {
+        "trend_class": trend_class,
+        "confidence": round(confidence, 3),
+        "source": source,
+        "ml_model_available": engine.is_ready if "engine" in dir() else False,
+        "sequence_length": len(water_masks),
+        "water_areas": [round(a, 1) for a in water_areas],
+        "expansion_pcts": [round(p, 1) for p in expansion_pcts],
+    }

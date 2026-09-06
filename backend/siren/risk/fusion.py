@@ -4,15 +4,22 @@ Implements the PRD §9.5 formulas. Every score carries a deterministic
 `reasons` array (>= 3 entries on elevated+) — never a bare number
 (Hard Rule 5).
 
-  H = 0.30*S_trend + 0.25*A_expansion + 0.20*R_rain + 0.15*T_slope + 0.10*D_prox
+  H = 0.25*S_trend + 0.20*A_expansion + 0.15*R_rain + 0.10*T_slope + 0.10*D_prox + 0.20*ML_conf
   E = H * Population Vulnerability * Critical Infrastructure Weight
   D_risk = Inundated Water Points * Population Density * Temperature Index
+
+The ML confidence factor (0.20 weight) is the trained Siamese U-Net's
+consensus agreement score. When the ML engine is unavailable, this
+defaults to the deterministic fallback confidence (0.5), preserving
+the original weighted sum behavior.
 """
 
 from __future__ import annotations
 
-# PRD §9.5 fixed weights
-W_TREND, W_EXPANSION, W_RAIN, W_SLOPE, W_PROX = 0.30, 0.25, 0.20, 0.15, 0.10
+# PRD §9.5 weights — updated to include ML confidence factor (ADR-002 addendum)
+# Original: 0.30/0.25/0.20/0.15/0.10 (sum=1.0)
+# Updated:  0.25/0.20/0.15/0.10/0.10/0.20 (sum=1.0) — ML adds 0.20, others reduced proportionally
+W_TREND, W_EXPANSION, W_RAIN, W_SLOPE, W_PROX, W_ML = 0.25, 0.20, 0.15, 0.10, 0.10, 0.20
 
 SEVERITY_ORDER = ["informational", "watch", "elevated", "critical"]
 
@@ -31,6 +38,7 @@ def hazard_score(
     rainfall_7d_mm: float,
     mean_slope_deg: float,
     change_in_drainage: bool,
+    ml_confidence: float = 0.5,
 ) -> tuple[float, list[str]]:
     """Compute the hazard score H and its deterministic reasons.
 
@@ -40,6 +48,8 @@ def hazard_score(
       - rainfall_24h_mm / rainfall_7d_mm: IMERG/Open-Meteo context
       - mean_slope_deg: terrain steepness from the DEM
       - change_in_drainage: whether the change polygon touches the drainage
+      - ml_confidence: Siamese U-Net consensus agreement score [0,1].
+        Defaults to 0.5 (neutral) when ML engine is unavailable.
     """
     # Normalize each factor to [0,1]
     trend_map = {"stable": 0.1, "slowly": 0.4, "rapidly": 0.9, "uncertain": 0.3}
@@ -51,6 +61,7 @@ def hazard_score(
     )
     t_slope = _norm(mean_slope_deg, 0.0, 45.0)       # 45° = 1.0
     d_prox = 1.0 if change_in_drainage else 0.2
+    ml_conf = max(0.0, min(1.0, ml_confidence))
 
     h = (
         W_TREND * s_trend
@@ -58,8 +69,11 @@ def hazard_score(
         + W_RAIN * r_rain
         + W_SLOPE * t_slope
         + W_PROX * d_prox
+        + W_ML * ml_conf
     )
     h = round(max(0.0, min(1.0, h)), 3)
+
+    ml_source_label = "ML consensus" if ml_confidence != 0.5 else "deterministic fallback"
 
     reasons = [
         f"temporal trend '{trend_class}' contributes {W_TREND}*{s_trend:.2f} to H",
@@ -67,6 +81,7 @@ def hazard_score(
         f"rainfall 24h {rainfall_24h_mm:.1f}mm / 7d {rainfall_7d_mm:.1f}mm contributes {W_RAIN}*{r_rain:.2f} to H",
         f"terrain slope {mean_slope_deg:.1f}° contributes {W_SLOPE}*{t_slope:.2f} to H",
         f"downstream proximity {'on' if change_in_drainage else 'off'} drainage contributes {W_PROX}*{d_prox:.2f} to H",
+        f"{ml_source_label} confidence {ml_conf:.2f} contributes {W_ML}*{ml_conf:.2f} to H",
     ]
     return h, reasons
 
@@ -149,11 +164,12 @@ def fuse(
     inundated_wells: int,
     population_density_per_km2: float,
     temp_index: float,
+    ml_confidence: float = 0.5,
 ) -> dict:
     """Full fusion: H, E, D_risk, severity, confidence, reasons (>=3 on elevated+)."""
     h, h_reasons = hazard_score(
         trend_class, expansion_pct, rainfall_24h_mm, rainfall_7d_mm,
-        mean_slope_deg, change_in_drainage,
+        mean_slope_deg, change_in_drainage, ml_confidence,
     )
     critical_assets = settlements + bridges + wells
     e, e_reasons = exposure_priority(h, exposed_population, critical_assets, settlements, bridges, wells)
