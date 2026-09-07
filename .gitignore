@@ -16,6 +16,7 @@ dist/
 # --- Data (never commit rasters or downloaded scenes) ---
 data/raw/*
 data/processed/*
+data/archived_disqualified/
 data/*.db
 data/*.db-journal
 data/*.db-wal
@@ -39,6 +40,7 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+.~lock.*
 
 # --- Build artifacts ---
 *.log
