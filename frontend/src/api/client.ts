@@ -14,6 +14,8 @@ import type {
   AuditList,
   SarPriorityList,
   MlEvidence,
+  MlEvaluation,
+  PersonnelRegistry,
   ModelStatusResponse,
   TrendClassification,
   ApiError,
@@ -81,6 +83,9 @@ export const api = {
       `/trend${observationIds ? `?observation_ids=${observationIds.join(",")}` : ""}`,
     ),
   getModelStatus: () => fetchJson<ModelStatusResponse>("/models/status"),
+  getMlEvaluation: () => fetchJson<MlEvaluation>("/ml/evaluation"),
+  getPersonnelRegistry: (runId: string) =>
+    fetchJson<PersonnelRegistry>(`/runs/${runId}/personnel-registry`),
 };
 
 // --- Offline cache + staleness + outbox (O6) ---

@@ -46,51 +46,71 @@ function Sparkline({ timeline, progress }: { timeline: Observation[]; progress: 
   if (visible.length < 2) return null;
 
   const width = 600;
-  const height = 120;
-  const padding = { top: 16, right: 16, bottom: 24, left: 36 };
+  const height = 140;
+  const padding = { top: 16, right: 44, bottom: 28, left: 44 };
   const plotW = width - padding.left - padding.right;
   const plotH = height - padding.top - padding.bottom;
 
-  const areas = visible.map((o) => o.water_area_km2 ?? 0);
+  // Compute expansion % from water_area_km2 relative to baseline (first point)
+  const baselineArea = visible[0]?.water_area_km2 ?? 1;
+  const expansions = visible.map((o) => {
+    const area = o.water_area_km2 ?? 0;
+    return baselineArea > 0 ? ((area - baselineArea) / baselineArea) * 100 : 0;
+  });
   const rains = visible.map((o) => o.rainfall_24h_mm ?? 0);
-  const maxArea = Math.max(...areas, 4);
-  const maxRain = Math.max(...rains, 1);
-  const minArea = Math.min(...areas, 0);
+
+  // Y1 (left): expansion %, range 0 to max+10
+  const maxExp = Math.max(...expansions, 50);
+  // Y2 (right): rainfall mm, range 0 to max+10
+  const maxRain = Math.max(...rains, 100);
 
   const xStep = visible.length > 1 ? plotW / (visible.length - 1) : 0;
   const x = (i: number) => padding.left + i * xStep;
-  const yArea = (v: number) => padding.top + plotH - ((v - minArea) / (maxArea - minArea)) * plotH;
+  const yExp = (v: number) => padding.top + plotH - (v / maxExp) * plotH;
   const yRain = (v: number) => padding.top + plotH - (v / maxRain) * plotH;
 
-  const areaPath = visible.map((o, i) => `${i === 0 ? "M" : "L"} ${x(i)} ${yArea(o.water_area_km2 ?? 0)}`).join(" ");
-  const barWidth = xStep * 0.4;
+  const expPath = visible.map((_, i) => `${i === 0 ? "M" : "L"} ${x(i)} ${yExp(expansions[i])}`).join(" ");
+  const barWidth = xStep * 0.35;
 
   return (
     <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
       {/* Grid lines */}
       {[0, 0.25, 0.5, 0.75, 1].map((t) => (
-        <line key={t} x1={padding.left} x2={width - padding.right} y1={padding.top + t * plotH} y2={padding.top + t * plotH} stroke="var(--color-border-subtle)" strokeWidth="0.5" />
+        <line key={t} x1={padding.left} x2={width - padding.right} y1={padding.top + t * plotH} y2={padding.top + t * plotH} stroke="var(--color-border-subtle)" strokeWidth="0.5" strokeDasharray="3 3" />
       ))}
-      {/* Rainfall bars (cyan) */}
+      {/* Rainfall bars (cyan, right Y-axis) */}
       {visible.map((o, i) => {
         const rainVal = o.rainfall_24h_mm ?? 0;
         const barH = (rainVal / maxRain) * plotH;
-        return <rect key={`rain-${i}`} x={x(i) - barWidth / 2} y={padding.top + plotH - barH} width={barWidth} height={barH} fill="var(--color-info)" opacity="0.35" />;
+        return <rect key={`rain-${i}`} x={x(i) - barWidth / 2} y={padding.top + plotH - barH} width={barWidth} height={barH} fill="var(--color-info)" opacity="0.3" />;
       })}
-      {/* Water area line (amber) */}
-      <path d={areaPath} fill="none" stroke="var(--color-primary)" strokeWidth="2" />
-      {/* Data points */}
+      {/* Expansion % line (amber, left Y-axis) */}
+      <path d={expPath} fill="none" stroke="var(--color-primary)" strokeWidth="2.5" />
+      {/* Expansion data points with labels */}
       {visible.map((o, i) => (
-        <circle key={`pt-${i}`} cx={x(i)} cy={yArea(o.water_area_km2 ?? 0)} r="3" fill="var(--color-primary)" />
+        <g key={`pt-${i}`}>
+          <circle cx={x(i)} cy={yExp(expansions[i])} r="3.5" fill="var(--color-primary)" stroke="var(--color-surface-panel)" strokeWidth="1" />
+          <text x={x(i)} y={yExp(expansions[i]) - 8} textAnchor="middle" fontSize="10" fontWeight="600" fill="var(--color-primary)" fontFamily="monospace">
+            {expansions[i] > 0 ? `+${expansions[i].toFixed(0)}%` : "0%"}
+          </text>
+        </g>
       ))}
-      {/* X-axis labels */}
+      {/* X-axis labels (dates) */}
       {visible.map((o, i) => {
         const date = new Date(o.acquired_at).toISOString().slice(5, 10);
-        return <text key={`x-${i}`} x={x(i)} y={height - 6} textAnchor="middle" fontSize="12" fill="var(--color-text-dim)" fontFamily="monospace">{date}</text>;
+        return <text key={`x-${i}`} x={x(i)} y={height - 6} textAnchor="middle" fontSize="10" fill="var(--color-text-dim)" fontFamily="monospace">{date}</text>;
       })}
-      {/* Y-axis labels */}
-      <text x={padding.left - 4} y={padding.top + 4} textAnchor="end" fontSize="11" fill="var(--color-primary)" fontFamily="monospace">{maxArea.toFixed(1)}</text>
-      <text x={padding.left - 4} y={padding.top + plotH} textAnchor="end" fontSize="11" fill="var(--color-primary)" fontFamily="monospace">{minArea.toFixed(1)}</text>
+      {/* Left Y-axis labels (expansion %, amber) */}
+      <text x={padding.left - 6} y={padding.top + 4} textAnchor="end" fontSize="10" fill="var(--color-primary)" fontFamily="monospace">{maxExp.toFixed(0)}%</text>
+      <text x={padding.left - 6} y={padding.top + plotH / 2 + 3} textAnchor="end" fontSize="10" fill="var(--color-primary)" fontFamily="monospace">{(maxExp / 2).toFixed(0)}%</text>
+      <text x={padding.left - 6} y={padding.top + plotH} textAnchor="end" fontSize="10" fill="var(--color-primary)" fontFamily="monospace">0%</text>
+      {/* Right Y-axis labels (rainfall mm, cyan) */}
+      <text x={width - padding.right + 6} y={padding.top + 4} textAnchor="start" fontSize="10" fill="var(--color-info)" fontFamily="monospace">{maxRain.toFixed(0)}mm</text>
+      <text x={width - padding.right + 6} y={padding.top + plotH / 2 + 3} textAnchor="start" fontSize="10" fill="var(--color-info)" fontFamily="monospace">{(maxRain / 2).toFixed(0)}mm</text>
+      <text x={width - padding.right + 6} y={padding.top + plotH} textAnchor="start" fontSize="10" fill="var(--color-info)" fontFamily="monospace">0mm</text>
+      {/* Axis labels */}
+      <text x={padding.left - 28} y={padding.top - 4} fontSize="9" fill="var(--color-primary)" fontFamily="monospace" fontWeight="600">EXP %</text>
+      <text x={width - padding.right + 4} y={padding.top - 4} fontSize="9" fill="var(--color-info)" fontFamily="monospace" fontWeight="600">RAIN</text>
     </svg>
   );
 }
