@@ -158,6 +158,7 @@ export interface MlEvidence {
   baseline_mask_bounds: number[][] | null;
   preview_baseline_uri: string;
   preview_after_uri: string;
+  ml_shadow_mask_uri: string | null;
   model_available: boolean;
   change_polygon: GeoJSONFeature | null;
 }
@@ -192,6 +193,7 @@ export interface ModelStatus {
   description: string;
   architecture: string;
   training_data: string | null;
+  status?: "active" | "archived_disqualified" | "shadow";
 }
 
 export interface ModelStatusResponse {
@@ -206,4 +208,74 @@ export interface TrendClassification {
   sequence_length: number;
   water_areas: number[];
   expansion_pcts: number[];
+}
+
+// ADR-010: dual-split evaluation report for the ML Evaluation card
+export interface MlEvaluationSplit {
+  strategy: string;
+  test_iou: number;
+  test_precision: number;
+  test_recall: number;
+  test_f1: number;
+  n_test: number;
+  best_val_iou: number;
+  best_epoch: number;
+  leakage_note: string;
+  train_events?: string[];
+  val_events?: string[];
+  test_events?: string[];
+}
+
+export interface MlEvaluation {
+  official: MlEvaluationSplit;
+  event_holdout: MlEvaluationSplit;
+  deployment_gate: string;
+  shadow_mode_reason: string;
+}
+
+// Personnel accountability (Track 7 Area i)
+export interface PersonnelSector {
+  sector_id: string;
+  name: string;
+  population_total: number;
+  population_accounted: number;
+  population_unaccounted: number;
+  medical_critical: number;
+  isolated: boolean;
+  access_routes: string[];
+}
+
+export interface ResponderUnit {
+  unit_id: string;
+  call_sign: string;
+  lora_node_id: string;
+  frequency_mhz: number;
+  sector: string;
+  status: "deployed" | "standby";
+  team_size: number;
+  last_checkin: string;
+}
+
+export interface SeveredRoute {
+  asset_id: string;
+  name: string;
+  type: "bridge" | "road";
+  status: string;
+  isolates: string[];
+}
+
+export interface PersonnelRegistry {
+  run_id: string;
+  sectors: PersonnelSector[];
+  responders: ResponderUnit[];
+  severed_routes: SeveredRoute[];
+  totals: {
+    population_total: number;
+    population_accounted: number;
+    population_unaccounted: number;
+    medical_critical: number;
+    responder_teams_deployed: number;
+    responder_teams_standby: number;
+  };
+  manifest_text: string;
 }

@@ -7,6 +7,8 @@ import type {
   DispatchResponse,
   SarPriorityList,
   MlEvidence,
+  MlEvaluation,
+  PersonnelRegistry,
   ModelStatusResponse,
   TrendClassification,
 } from "./types";
@@ -101,8 +103,8 @@ const audit: AuditList = {
 
 const dispatch: DispatchResponse = {
   dispatch_id: "disp-0001", alert_id: "alert-0091", geofence_id: "sector-b",
-  payload: '{"aid":"siren-04","sec":"B","haz":"GLOF_FL","lvl":3,"exp_pop":1240,"crit":["BR-12","RD-4"],"med_act":"BOIL_WATER_NOW"}',
-  payload_bytes: 118, channel: "sms", status: "sent", sent_at: "2026-08-04T12:11:00Z",
+  payload: '{"aid":"siren-alert-0091","sec":"B","haz":"GLOF_FL","lvl":3,"exp_pop":1240,"crit":["BR-12","RD-4"],"med_act":["BOIL_WATER_NOW"]}',
+  payload_bytes: 128, channel: "sms", status: "sent", sent_at: "2026-08-04T12:11:00Z",
 };
 
 const sarPriority: SarPriorityList = {
@@ -117,7 +119,7 @@ const sarPriority: SarPriorityList = {
 sarPriority.top_priority = sarPriority.sectors[0];
 
 const mlEvidence: MlEvidence = {
-  run_id: "run-mock-obs-002", observation_id: "obs-002", ml_source: "deterministic_fallback",
+  run_id: "run-mock-obs-002", observation_id: "obs-002", ml_source: "ml-shadow",
   ml_confidence_mean: 0.78, ml_consensus_pixels: 2548,
   heatmap_uri: "/data/processed/obs-002_change_heatmap.png",
   heatmap_bounds: [[86.8945, 27.9219], [86.9555, 27.9219], [86.9555, 27.8681], [86.8945, 27.8681]],
@@ -126,91 +128,106 @@ const mlEvidence: MlEvidence = {
   baseline_mask_uri: "/data/processed/baseline_water_mask.png", baseline_mask_bounds: null,
   preview_baseline_uri: "/map-assets/obs-002/baseline-optical.png",
   preview_after_uri: "/data/processed/obs-002_change_heatmap.png",
-  model_available: false,
+  ml_shadow_mask_uri: "/data/processed/obs-002_ml_shadow_mask.png",
+  model_available: true,
   change_polygon: { type: "Polygon", coordinates: [[[86.8945, 27.8681], [86.9555, 27.8681], [86.9555, 27.9219], [86.8945, 27.9219], [86.8945, 27.8681]]] },
+};
+
+const mlEvaluation: MlEvaluation = {
+  official: {
+    strategy: "official",
+    test_iou: 0.6708,
+    test_precision: 0.773,
+    test_recall: 0.8355,
+    test_f1: 0.803,
+    n_test: 90,
+    best_val_iou: 0.6368,
+    best_epoch: 40,
+    leakage_note: "All 10 flood events appear in train, val, and test — chip-level split only",
+  },
+  event_holdout: {
+    strategy: "event_holdout",
+    test_iou: 0.2394,
+    test_precision: 0.2955,
+    test_recall: 0.558,
+    test_f1: 0.3864,
+    n_test: 54,
+    best_val_iou: 0.6979,
+    best_epoch: 40,
+    train_events: ["Ghana", "India", "Mekong", "Paraguay", "Sri-Lanka", "USA"],
+    val_events: ["Nigeria", "Spain"],
+    test_events: ["Pakistan", "Somalia"],
+    leakage_note: "Zero event overlap between train, val, and test — honest generalization measure",
+  },
+  deployment_gate: "event_holdout",
+  shadow_mode_reason: "Event-holdout IoU 0.24 is below the 0.65 load-bearing gate. ML is shadow evidence only.",
 };
 
 const modelStatus: ModelStatusResponse = {
   models: {
-    siamese_unet: {
+    water_unet: {
       stage: 1,
-      name: "Siamese U-Net Change Detector",
+      name: "WaterUNet (Shadow)",
       loaded: true,
-      weights_path: "data/processed/siamese_unet_weights.pt",
+      weights_path: "data/processed/water_unet_weights.pt",
       weights_exists: true,
-      weights_size_mb: 85.3,
+      weights_size_mb: 31.1,
       metadata: {
         epoch: 40,
-        loss: 0.0842,
-        accuracy: 0.941,
-        in_channels: 3,
-        backbone: "ResNet-34",
-        input_resolution: "512x512 @ 10m GSD",
-        dataset: "Sen1Floods11 (252 hand-labeled SAR/Optical chips)",
+        val_iou: 0.6979,
+        in_channels: 2,
+        split_strategy: "event_holdout",
+        architecture: "WaterUNet",
+        input_contract: "ml/contract.py:normalize_sar",
+        dataset: "Sen1Floods11-handlabeled",
       },
       description:
-        "Bi-temporal change detection using shared ResNet-34 encoder. Produces pixel-level change probability maps from satellite image pairs.",
-      architecture: "SiameseUNet(ResNet-34, U-Net decoder)",
-      training_data: "Sen1Floods11 (252 hand-labeled SAR chips)",
+        "Per-date surface water segmentation from Sentinel-1 VV/VH. Shadow mode only — supplementary evidence, not load-bearing.",
+      architecture: "WaterUNet(2-ch VV/VH, U-Net decoder, <=10M params)",
+      training_data: "Sen1Floods11 (431 hand-labeled SAR chips)",
+      status: "shadow",
     },
-    segformer: {
-      stage: 2,
-      name: "SegFormer Land-Cover Classifier",
-      loaded: true,
-      weights_path: "data/processed/segformer_classifier_weights.pt",
+    siamese_unet: {
+      stage: 0,
+      name: "Siamese U-Net (ARCHIVED)",
+      loaded: false,
+      weights_path: "data/archived_disqualified/siamese_unet_weights.pt",
+      weights_exists: true,
+      weights_size_mb: 85.3,
+      metadata: null,
+      description:
+        "ARCHIVED — disqualified by 2026-09-07 DL audit. Label leakage: training synthesized 'before' images from the answer key.",
+      architecture: "SiameseUNet (archived)",
+      training_data: null,
+      status: "archived_disqualified",
+    },
+    segformer_classifier: {
+      stage: 0,
+      name: "SegFormer Classifier (ARCHIVED)",
+      loaded: false,
+      weights_path: "data/archived_disqualified/segformer_classifier_weights.pt",
       weights_exists: true,
       weights_size_mb: 14.8,
-      metadata: {
-        epoch: 25,
-        loss: 0.128,
-        accuracy: 0.912,
-        num_classes: 5,
-        class_names: ["Water (Flood)", "Debris Flow", "Snowmelt (Benign)", "Cloud/Shadow", "Bare Rock"],
-        dataset: "Sen1Floods11 weak-labeled (2580 crops, 5 classes)",
-      },
+      metadata: null,
       description:
-        "Classifies changed pixels into functional categories: water, debris, snowmelt, shadow, bare rock. Filters false alarms from cloud shadows and snowmelt.",
-      architecture: "SegFormerHead(MiT-B0 patch attention, 5-class)",
-      training_data: "Sen1Floods11 weak-labeled (2580 crops, 5 classes)",
-    },
-    consensus_gating: {
-      stage: 3,
-      name: "Multi-Sensor Consensus Gating",
-      loaded: true,
-      weights_path: null,
-      weights_exists: true,
-      weights_size_mb: 0,
-      metadata: {
-        slope_threshold_deg: 35.0,
-        ml_weight: 0.6,
-        rule_weight: 0.4,
-        engine: "Vectorized NumPy / C++ array operator",
-      },
-      description:
-        "Fuses ML mask with rule-based mask and DEM slope gating. Eliminates ML false positives on steep terrain (>35°). Weighted fusion: 0.6×ML + 0.4×rule-based.",
-      architecture: "Deterministic (consensus.py)",
+        "ARCHIVED — disqualified by 2026-09-07 DL audit. Not the SegFormer architecture; could remove real flood pixels from the mask.",
+      architecture: "SegFormerHead (archived)",
       training_data: null,
+      status: "archived_disqualified",
     },
     convlstm_trend: {
-      stage: 4,
-      name: "ConvLSTM Temporal Trend Classifier",
-      loaded: true,
-      weights_path: "data/processed/convlstm_trend_weights.pt",
+      stage: 0,
+      name: "ConvLSTM Trend (ARCHIVED)",
+      loaded: false,
+      weights_path: "data/archived_disqualified/convlstm_trend_weights.pt",
       weights_exists: true,
       weights_size_mb: 5.6,
-      metadata: {
-        epoch: 50,
-        loss: 0.194,
-        accuracy: 0.884,
-        seq_len: 3,
-        num_classes: 4,
-        hybrid_cutoff: 0.75,
-        dataset: "Synthetic sequences from Sen1Floods11 (840 sequences, 4 trend classes)",
-      },
+      metadata: null,
       description:
-        "Classifies temporal trend from satellite sequences: stable, slowly expanding, rapidly expanding, or uncertain. Uses ConvLSTM cells over a CNN encoder. Hybrid inference — defers to deterministic thresholds when ML confidence < 0.75.",
-      architecture: "ConvLSTMTrendClassifier(CNN encoder, ConvLSTM cells, 4-class)",
-      training_data: "Synthetic sequences from Sen1Floods11 (840 sequences, 4 trend classes)",
+        "ARCHIVED — disqualified by 2026-09-07 DL audit. Trained on synthetic mask progressions, not real satellite sequences.",
+      architecture: "ConvLSTMTrendClassifier (archived)",
+      training_data: null,
+      status: "archived_disqualified",
     },
   },
 };
@@ -234,4 +251,80 @@ export const canonicalBaseline = {
   water_area_change_percent: 0.0,
 };
 
-export const mockData = { basin, observations, runs, exposures, audit, dispatch, sarPriority, mlEvidence, modelStatus, trend };
+const personnelRegistry: PersonnelRegistry = {
+  run_id: "run-mock-obs-002",
+  sectors: [
+    {
+      sector_id: "village-chhukung",
+      name: "Chhukung",
+      population_total: 1240,
+      population_accounted: 1184,
+      population_unaccounted: 42,
+      medical_critical: 14,
+      isolated: true,
+      access_routes: ["Hillary Bridge (BR-12)"],
+    },
+    {
+      sector_id: "village-benkar",
+      name: "Benkar",
+      population_total: 380,
+      population_accounted: 363,
+      population_unaccounted: 17,
+      medical_critical: 4,
+      isolated: false,
+      access_routes: [],
+    },
+  ],
+  responders: [
+    {
+      unit_id: "SAR-Alpha",
+      call_sign: "SAR-Alpha",
+      lora_node_id: "LORA-04",
+      frequency_mhz: 868.1,
+      sector: "Chhukung / Hillary Bridge",
+      status: "deployed",
+      team_size: 6,
+      last_checkin: "2026-08-12T14:30:00Z",
+    },
+    {
+      unit_id: "MED-Bravo",
+      call_sign: "Med-Bravo",
+      lora_node_id: "LORA-07",
+      frequency_mhz: 868.1,
+      sector: "Chhukung Health Post",
+      status: "deployed",
+      team_size: 4,
+      last_checkin: "2026-08-12T14:15:00Z",
+    },
+    {
+      unit_id: "SAR-Charlie",
+      call_sign: "SAR-Charlie",
+      lora_node_id: "LORA-11",
+      frequency_mhz: 868.1,
+      sector: "Benkar / Dudh Koshi",
+      status: "standby",
+      team_size: 5,
+      last_checkin: "2026-08-12T13:45:00Z",
+    },
+  ],
+  severed_routes: [
+    {
+      asset_id: "BR-12",
+      name: "Hillary Bridge",
+      type: "bridge",
+      status: "severed",
+      isolates: ["Chhukung"],
+    },
+  ],
+  totals: {
+    population_total: 1620,
+    population_accounted: 1547,
+    population_unaccounted: 59,
+    medical_critical: 18,
+    responder_teams_deployed: 2,
+    responder_teams_standby: 1,
+  },
+  manifest_text: "SIREN MUSTER MANIFEST\nChhukung: 1240 total, 1184 accounted, 42 unaccounted\nHillary Bridge (BR-12) SEVERED — Chhukung isolated",
+};
+
+export const mockData = { basin, observations, runs, exposures, audit, dispatch, sarPriority, mlEvidence, mlEvaluation, personnelRegistry, modelStatus, trend };

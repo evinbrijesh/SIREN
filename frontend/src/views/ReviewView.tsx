@@ -4,7 +4,7 @@ import { api, apiOrMock, addToOutbox } from "../api/client";
 import { mockData } from "../api/mockData";
 import { useSimulation } from "../simulation/SimulationContext";
 import { sendNtfyAlert } from "../utils/ntfy";
-import type { Run, ExposureList, SarPriorityList, MlEvidence, ReviewResponse, DispatchResponse, ApiError } from "../api/types";
+import type { Run, ExposureList, SarPriorityList, MlEvidence, MlEvaluation, PersonnelRegistry, ReviewResponse, DispatchResponse, ApiError } from "../api/types";
 
 interface Props {
   run?: Run;
@@ -42,6 +42,8 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
   const [selectedSector, setSelectedSector] = useState<string>("sector-b");
   const [selectedChannel, setSelectedChannel] = useState<"sms" | "lora" | "satellite">("sms");
   const [viewMode, setViewMode] = useState<"simple" | "advanced">("simple");
+  const [maskLayer, setMaskLayer] = useState<"deterministic" | "shadow">("deterministic");
+  const [swipePos, setSwipePos] = useState(50);
 
   const score = run?.score;
   const runId = run?.run_id;
@@ -77,8 +79,22 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
     enabled: Boolean(runId),
   });
 
+  const { data: mlEvalData } = useQuery({
+    queryKey: ["ml-evaluation"],
+    queryFn: () => apiOrMock(() => api.getMlEvaluation(), "mlEvaluation") as Promise<MlEvaluation>,
+    staleTime: 60_000,
+  });
+
+  const { data: personnelData } = useQuery({
+    queryKey: ["personnel-registry", runId],
+    queryFn: () => apiOrMock(() => api.getPersonnelRegistry(runId!), "personnelRegistry") as Promise<PersonnelRegistry>,
+    enabled: Boolean(runId),
+  });
+
   const sarPriority = sarData ?? mockData.sarPriority;
   const mlEvidence = mlData ?? mockData.mlEvidence;
+  const mlEvaluation = mlEvalData ?? mockData.mlEvaluation;
+  const personnel = personnelData ?? mockData.personnelRegistry;
   const exposures = exposuresData?.exposures ?? mockData.exposures.exposures;
   const wells = exposures.filter((e) => e.asset_type === "well");
   const villages = exposures.filter((e) => e.asset_type === "village");
@@ -330,13 +346,23 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
             <div className="flex items-center justify-between px-space-12 py-space-8 border-b border-border-subtle">
               <h2 className="label-caps">Evidence</h2>
               <div className="flex items-center gap-space-6">
-                <span className={`text-body-sm border px-space-4 py-space-1 ${
-                  mlEvidence.model_available
-                    ? "border-primary-container text-primary-container"
-                    : "border-status-warn text-status-warn"
-                }`}>
-                  {mlEvidence.model_available ? "ML active" : "Rule-based"}
-                </span>
+                {mlEvidence.model_available ? (
+                  <span
+                    className="text-body-sm border border-status-warn text-status-warn px-space-4 py-space-1 bg-status-warn/10"
+                    title="Supplementary vision inference only. Load-bearing hazard scoring decoupled to deterministic physical engine per ADR-010."
+                  >
+                    ML: SHADOW MODE
+                    {mlEvaluation && (
+                      <span className="text-caption ml-space-4 text-status-warn/80">
+                        ({mlEvaluation.event_holdout.test_iou.toFixed(2)} event-holdout IoU)
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="text-body-sm border border-text-dim text-text-dim px-space-4 py-space-1">
+                    Deterministic fallback
+                  </span>
+                )}
               </div>
             </div>
 
@@ -360,13 +386,16 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
                 </div>
                 <div className="flex-1 h-[140px] border border-border-subtle bg-surface-recessed relative overflow-hidden flex flex-col">
                   <img
-                    src={mlEvidence.mask_uri}
-                    alt="Current change mask"
+                    src={maskLayer === "deterministic" ? mlEvidence.mask_uri : (mlEvidence.ml_shadow_mask_uri ?? mlEvidence.mask_uri)}
+                    alt={maskLayer === "deterministic" ? "Deterministic change mask (authoritative)" : "WaterUNet shadow mask (supplementary)"}
                     className="absolute inset-0 w-full h-full object-cover opacity-90"
                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                   />
                   <div className="relative z-10 flex items-center justify-between px-space-8 py-space-4 bg-surface-panel border-b border-border-subtle">
                     <span className="text-body-sm text-text-dim">After</span>
+                    {maskLayer === "shadow" && (
+                      <span className="text-caption text-status-warn border border-status-warn px-space-2 py-space-1">SHADOW</span>
+                    )}
                   </div>
                   <div className="relative z-10 flex flex-col px-space-8 py-space-4 mt-auto bg-surface-panel border-t border-border-subtle">
                     <span className="data-val text-headline-md text-text-primary">{areaAfter.toFixed(2)} km²</span>
@@ -374,6 +403,87 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
                   </div>
                 </div>
               </div>
+
+              {/* Swipe compare: Baseline Optical vs SAR Surge */}
+              <div className="flex flex-col gap-space-4">
+                <div className="flex items-center justify-between">
+                  <span className="label-caps text-caption text-text-dim">Swipe Compare: Baseline → After</span>
+                  <span className="text-caption font-mono text-text-muted">{swipePos}%</span>
+                </div>
+                <div
+                  className="relative h-[160px] border border-border-subtle bg-surface-recessed overflow-hidden select-none"
+                  style={{ userSelect: "none" }}
+                >
+                  {/* Bottom layer: After (SAR surge / change mask) */}
+                  <img
+                    src={maskLayer === "deterministic" ? mlEvidence.mask_uri : (mlEvidence.ml_shadow_mask_uri ?? mlEvidence.mask_uri)}
+                    alt="After"
+                    className="absolute inset-0 w-full h-full object-cover opacity-90"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                  {/* Top layer: Baseline, clipped by slider */}
+                  <div
+                    className="absolute inset-0 overflow-hidden"
+                    style={{ clipPath: `inset(0 0 0 ${100 - swipePos}%)` }}
+                  >
+                    <img
+                      src={mlEvidence.baseline_mask_uri}
+                      alt="Baseline"
+                      className="absolute inset-0 w-full h-full object-cover opacity-80"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  </div>
+                  {/* Labels */}
+                  <span className="absolute top-space-4 left-space-6 text-[10px] font-mono text-text-dim bg-surface-panel/80 px-space-3 py-space-1 border border-border-subtle z-10">
+                    BASELINE
+                  </span>
+                  <span className="absolute top-space-4 right-space-6 text-[10px] font-mono text-primary bg-surface-panel/80 px-space-3 py-space-1 border border-border-subtle z-10">
+                    AFTER
+                  </span>
+                  {/* Slider line */}
+                  <div
+                    className="absolute top-0 bottom-0 w-[2px] bg-primary z-10 pointer-events-none"
+                    style={{ left: `${swipePos}%` }}
+                  >
+                    <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-[12px] h-[12px] rounded-full bg-primary border-2 border-surface-panel" />
+                  </div>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={swipePos}
+                  onChange={(e) => setSwipePos(Number(e.target.value))}
+                  className="w-full h-[6px] accent-primary cursor-pointer"
+                  aria-label="Swipe compare slider"
+                />
+              </div>
+
+              {/* Mask layer toggle — deterministic (authoritative) vs WaterUNet shadow */}
+              {mlEvidence.model_available && mlEvidence.ml_shadow_mask_uri && (
+                <div className="flex items-center gap-space-4 bg-surface-recessed border border-border-subtle p-space-2">
+                  <button
+                    onClick={() => setMaskLayer("deterministic")}
+                    className={`px-space-8 py-space-2 text-caption font-medium transition-colors ${
+                      maskLayer === "deterministic"
+                        ? "bg-status-safe text-surface-canvas"
+                        : "text-text-dim hover:text-text-primary"
+                    }`}
+                  >
+                    Deterministic (authoritative)
+                  </button>
+                  <button
+                    onClick={() => setMaskLayer("shadow")}
+                    className={`px-space-8 py-space-2 text-caption font-medium transition-colors ${
+                      maskLayer === "shadow"
+                        ? "bg-status-warn text-surface-canvas"
+                        : "text-text-dim hover:text-text-primary"
+                    }`}
+                  >
+                    WaterUNet (shadow)
+                  </button>
+                </div>
+              )}
 
               {/* ML heatmap */}
               <div className="h-[120px] border border-border-subtle bg-surface-recessed relative overflow-hidden flex flex-col">
@@ -414,7 +524,7 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
 
               <div className="text-body-sm text-text-dim">
                 {mlEvidence.model_available
-                  ? "ML + rule-based consensus (ADR-002)"
+                  ? "Deterministic mask (authoritative) + WaterUNet shadow evidence (ADR-010)"
                   : "Rule-based detection with confidence gradient"}
               </div>
             </div>
@@ -424,7 +534,7 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
                 Confidence: <span className="data-val text-text-primary">{(score.confidence * 100).toFixed(1)}%</span>
               </span>
               <span className="data-val text-caption">
-                {mlEvidence.model_available ? "ML + rules fusion" : "Rule-based detection"}
+                {mlEvidence.model_available ? "Deterministic + shadow ML" : "Rule-based detection"}
               </span>
             </div>
           </section>
@@ -461,6 +571,103 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
             </div>
           </section>
         </div>
+
+        {/* ML Evaluation Card — ADR-010 transparency: dual-split honest metrics */}
+        {mlEvaluation && (
+          <section className="bg-surface-panel border border-status-warn/30 mt-space-16 flex flex-col">
+            <div className="flex items-center justify-between px-space-12 py-space-8 border-b border-border-subtle">
+              <h2 className="label-caps">ML Evaluation — Why Shadow Mode?</h2>
+              <span className="text-caption border border-status-warn text-status-warn px-space-4 py-space-1 bg-status-warn/10">
+                ADR-010
+              </span>
+            </div>
+            <div className="p-space-12 flex flex-col gap-space-12">
+              {/* Dual-split comparison */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-space-8">
+                {/* Official split */}
+                <div className="bg-surface-recessed border border-border-subtle p-space-8 flex flex-col gap-space-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-body-sm text-text-dim font-medium">Official Chip-Level Split</span>
+                    <span className="text-caption border border-text-dim text-text-dim px-space-2 py-space-1">Literature-comparable</span>
+                  </div>
+                  <div className="flex items-baseline gap-space-4">
+                    <span className="data-val text-metric-display text-text-primary">{mlEvaluation.official.test_iou.toFixed(4)}</span>
+                    <span className="text-body-sm text-text-dim">Test IoU</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-space-4 text-caption data-val text-text-dim">
+                    <div>P: <span className="text-text-primary">{mlEvaluation.official.test_precision.toFixed(3)}</span></div>
+                    <div>R: <span className="text-text-primary">{mlEvaluation.official.test_recall.toFixed(3)}</span></div>
+                    <div>F1: <span className="text-text-primary">{mlEvaluation.official.test_f1.toFixed(3)}</span></div>
+                  </div>
+                  <div className="text-caption text-text-muted">
+                    {mlEvaluation.official.n_test} test chips · {mlEvaluation.official.leakage_note}
+                  </div>
+                </div>
+
+                {/* Event-holdout split */}
+                <div className="bg-surface-recessed border border-status-warn/40 p-space-8 flex flex-col gap-space-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-body-sm text-status-warn font-medium">Event-Holdout Split (Deployment Gate)</span>
+                    <span className="text-caption border border-status-warn text-status-warn px-space-2 py-space-1">Honest</span>
+                  </div>
+                  <div className="flex items-baseline gap-space-4">
+                    <span className="data-val text-metric-display text-status-danger">{mlEvaluation.event_holdout.test_iou.toFixed(4)}</span>
+                    <span className="text-body-sm text-text-dim">Test IoU</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-space-4 text-caption data-val text-text-dim">
+                    <div>P: <span className="text-text-primary">{mlEvaluation.event_holdout.test_precision.toFixed(3)}</span></div>
+                    <div>R: <span className="text-text-primary">{mlEvaluation.event_holdout.test_recall.toFixed(3)}</span></div>
+                    <div>F1: <span className="text-text-primary">{mlEvaluation.event_holdout.test_f1.toFixed(3)}</span></div>
+                  </div>
+                  <div className="text-caption text-text-muted">
+                    {mlEvaluation.event_holdout.n_test} test chips · {mlEvaluation.event_holdout.leakage_note}
+                  </div>
+                  {mlEvaluation.event_holdout.test_events && (
+                    <div className="text-caption text-text-dim">
+                      Held-out events: {mlEvaluation.event_holdout.test_events.join(", ")}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* IoU comparison bar */}
+              <div className="flex flex-col gap-space-4">
+                <div className="flex items-center justify-between text-caption data-val text-text-dim">
+                  <span>IoU Comparison</span>
+                  <span>0.00 ─ 1.00</span>
+                </div>
+                <div className="flex flex-col gap-space-4">
+                  <div className="flex items-center gap-space-8">
+                    <span className="text-caption text-text-dim w-32 shrink-0">Official</span>
+                    <div className="flex-1 h-[6px] bg-surface-recessed border border-border-subtle overflow-hidden">
+                      <div className="h-full bg-primary" style={{ width: `${mlEvaluation.official.test_iou * 100}%` }} />
+                    </div>
+                    <span className="data-val text-body-sm text-text-primary w-12 text-right">{mlEvaluation.official.test_iou.toFixed(2)}</span>
+                  </div>
+                  <div className="flex items-center gap-space-8">
+                    <span className="text-caption text-status-warn w-32 shrink-0">Event-holdout</span>
+                    <div className="flex-1 h-[6px] bg-surface-recessed border border-border-subtle overflow-hidden">
+                      <div className="h-full bg-status-danger" style={{ width: `${mlEvaluation.event_holdout.test_iou * 100}%` }} />
+                    </div>
+                    <span className="data-val text-body-sm text-status-danger w-12 text-right">{mlEvaluation.event_holdout.test_iou.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Shadow mode rationale */}
+              <div className="bg-status-warn/10 border border-status-warn/30 px-space-8 py-space-6 flex items-start gap-space-8">
+                <span className="text-status-warn text-body-md mt-space-1">⚠</span>
+                <div className="flex flex-col gap-space-2">
+                  <span className="text-body-sm text-text-primary font-medium">Shadow Mode Rationale</span>
+                  <span className="text-body-sm text-text-dim">{mlEvaluation.shadow_mode_reason}</span>
+                  <span className="text-caption text-text-muted">
+                    Hazard score H uses 5 physical factors only (PRD §9.5). ML output is displayed as supplementary evidence and cannot modify the load-bearing mask, hazard score, or dispatch payload.
+                  </span>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Bottom row: Disease + Assets */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-space-8 mt-space-16">
@@ -553,6 +760,189 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
             </div>
           </section>
         </div>
+
+        {/* Personnel & Muster Triage (Track 7 Area i) */}
+        {personnel && personnel.sectors.length > 0 && (
+          <section className="bg-surface-panel border border-border-subtle mt-space-16 flex flex-col">
+            <div className="flex items-center justify-between px-space-12 py-space-8 border-b border-border-subtle">
+              <h2 className="label-caps">Personnel & Muster Triage</h2>
+              <div className="flex items-center gap-space-8">
+                <span className="text-caption border border-text-dim text-text-dim px-space-4 py-space-1">
+                  Area i
+                </span>
+                <button
+                  onClick={() => {
+                    const blob = new Blob([personnel.manifest_text], { type: "text/plain" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `muster-manifest-${runId ?? "demo"}.txt`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="text-caption border border-border-subtle text-text-dim hover:text-primary hover:border-primary px-space-6 py-space-2 transition-colors"
+                >
+                  EXPORT MANIFEST
+                </button>
+              </div>
+            </div>
+
+            <div className="p-space-12 flex flex-col gap-space-12">
+              {/* Aggregate headcounts */}
+              <div className="grid grid-cols-4 gap-space-8">
+                <div className="bg-surface-recessed border border-border-subtle p-space-8 flex flex-col">
+                  <span className="text-[10px] font-mono text-text-muted uppercase">Total Exposed</span>
+                  <span className="data-val text-headline-md text-text-primary mt-space-2">
+                    {personnel.totals.population_total.toLocaleString()}
+                  </span>
+                </div>
+                <div className="bg-surface-recessed border border-status-safe/30 p-space-8 flex flex-col">
+                  <span className="text-[10px] font-mono text-status-safe uppercase">Accounted</span>
+                  <span className="data-val text-headline-md text-status-safe mt-space-2">
+                    {personnel.totals.population_accounted.toLocaleString()}
+                  </span>
+                </div>
+                <div className="bg-surface-recessed border border-status-danger/30 p-space-8 flex flex-col">
+                  <span className="text-[10px] font-mono text-status-danger uppercase">Unaccounted</span>
+                  <span className="data-val text-headline-md text-status-danger mt-space-2">
+                    {personnel.totals.population_unaccounted.toLocaleString()}
+                  </span>
+                </div>
+                <div className="bg-surface-recessed border border-status-warn/30 p-space-8 flex flex-col">
+                  <span className="text-[10px] font-mono text-status-warn uppercase">Med-Critical</span>
+                  <span className="data-val text-headline-md text-status-warn mt-space-2">
+                    {personnel.totals.medical_critical}
+                  </span>
+                </div>
+              </div>
+
+              {/* Accounted vs Unaccounted ratio bar */}
+              <div className="flex flex-col gap-space-4">
+                <div className="flex items-center justify-between text-caption font-mono text-text-dim">
+                  <span>Accountability Ratio</span>
+                  <span>
+                    {((personnel.totals.population_accounted / personnel.totals.population_total) * 100).toFixed(1)}% accounted
+                  </span>
+                </div>
+                <div className="h-[10px] w-full bg-surface-recessed border border-border-subtle overflow-hidden flex">
+                  <div
+                    className="h-full bg-status-safe"
+                    style={{ width: `${(personnel.totals.population_accounted / personnel.totals.population_total) * 100}%` }}
+                  />
+                  <div
+                    className="h-full bg-status-danger"
+                    style={{ width: `${(personnel.totals.population_unaccounted / personnel.totals.population_total) * 100}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Per-settlement breakdown */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left font-mono text-caption border-collapse">
+                  <thead>
+                    <tr className="border-b border-border-strong text-text-muted text-[11px] bg-surface-recessed">
+                      <th className="py-space-6 px-space-8">SETTLEMENT</th>
+                      <th className="py-space-6 px-space-8">TOTAL</th>
+                      <th className="py-space-6 px-space-8">ACCOUNTED</th>
+                      <th className="py-space-6 px-space-8">UNACCOUNTED</th>
+                      <th className="py-space-6 px-space-8">MED-CRIT</th>
+                      <th className="py-space-6 px-space-8">STATUS</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border-subtle">
+                    {personnel.sectors.map((s) => (
+                      <tr key={s.sector_id} className="hover:bg-surface-container transition-colors">
+                        <td className="py-space-6 px-space-8 font-semibold text-text-primary">{s.name}</td>
+                        <td className="py-space-6 px-space-8 text-text-primary">{s.population_total.toLocaleString()}</td>
+                        <td className="py-space-6 px-space-8 text-status-safe">{s.population_accounted.toLocaleString()}</td>
+                        <td className="py-space-6 px-space-8 text-status-danger font-bold">{s.population_unaccounted}</td>
+                        <td className="py-space-6 px-space-8 text-status-warn">{s.medical_critical}</td>
+                        <td className="py-space-6 px-space-8">
+                          {s.isolated ? (
+                            <span className="text-[10px] border border-status-danger text-status-danger px-space-4 py-space-1 bg-status-danger/10">
+                              ISOLATED — {s.access_routes.join(", ")}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] border border-status-safe text-status-safe px-space-4 py-space-1">
+                              REACHABLE
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Severed routes */}
+              {personnel.severed_routes.length > 0 && (
+                <div className="bg-status-danger/10 border border-status-danger/30 px-space-8 py-space-6 flex items-start gap-space-8">
+                  <span className="text-status-danger text-body-md mt-space-1">⚠</span>
+                  <div className="flex flex-col gap-space-2">
+                    <span className="text-body-sm text-text-primary font-medium">Severed Access Routes</span>
+                    {personnel.severed_routes.map((r) => (
+                      <span key={r.asset_id} className="text-caption text-text-dim font-mono">
+                        {r.name} ({r.asset_id}) — {r.type} severed · isolates: {r.isolates.join(", ")}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Field responder units */}
+              <div className="flex flex-col gap-space-6">
+                <span className="label-caps text-caption text-text-dim">Field Responder Units (LoRa Telemetry)</span>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-space-8">
+                  {personnel.responders.map((r) => (
+                    <div
+                      key={r.unit_id}
+                      className={`p-space-8 border flex flex-col gap-space-4 ${
+                        r.status === "deployed"
+                          ? "border-status-safe/40 bg-status-safe/5"
+                          : "border-border-subtle bg-surface-recessed"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-body-sm font-semibold text-text-primary">{r.call_sign}</span>
+                        <span
+                          className={`text-[10px] font-mono px-space-4 py-space-1 border ${
+                            r.status === "deployed"
+                              ? "border-status-safe text-status-safe bg-status-safe/10"
+                              : "border-text-dim text-text-dim"
+                          }`}
+                        >
+                          {r.status.toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="space-y-space-2 font-mono text-caption text-text-dim">
+                        <div className="flex justify-between">
+                          <span>Node:</span>
+                          <span className="text-text-primary">{r.lora_node_id}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Freq:</span>
+                          <span className="text-text-primary">{r.frequency_mhz.toFixed(1)} MHz</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Team:</span>
+                          <span className="text-text-primary">{r.team_size} personnel</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Sector:</span>
+                          <span className="text-text-primary truncate max-w-[140px]" title={r.sector}>{r.sector}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Last:</span>
+                          <span className="text-text-muted">{r.last_checkin.slice(11, 16)}Z</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* SAR Priority */}
         {sarPriority.sectors.length > 0 && (
