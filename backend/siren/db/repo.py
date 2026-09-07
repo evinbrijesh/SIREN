@@ -755,6 +755,157 @@ class Repository:
             "sent_at": sent_at,
         }
 
+    # --- acquisition jobs (ADR-008: durable orchestration) ---
+
+    def create_acquisition_job(
+        self,
+        source: str,
+        provider_product_id: str,
+        download_url: str | None = None,
+        acquired_at: str | None = None,
+    ) -> dict[str, Any]:
+        """Create or update an acquisition job. Idempotent on (source, provider_product_id).
+
+        If a job for this (source, provider_product_id) already exists, it is
+        updated (not duplicated). Returns the job dict.
+        """
+        job_id = f"acq-{zlib.crc32(f'{source}:{provider_product_id}'.encode()) % 100000:05d}"
+        now = _utcnow_iso()
+        self._conn.execute(
+            """INSERT INTO acquisition_jobs
+               (job_id, source, provider_product_id, status, download_url, acquired_at, created_at, updated_at)
+               VALUES(?,?,?,?,?,?,?,?)
+               ON CONFLICT(source, provider_product_id) DO UPDATE SET
+               download_url=excluded.download_url,
+               acquired_at=excluded.acquired_at,
+               updated_at=excluded.updated_at""",
+            (job_id, source, provider_product_id, "pending", download_url, acquired_at, now, now),
+        )
+        self._conn.commit()
+        return self.get_acquisition_job(job_id) or {
+            "job_id": job_id, "source": source, "provider_product_id": provider_product_id,
+            "status": "pending",
+        }
+
+    def update_acquisition_job(
+        self,
+        job_id: str,
+        status: str,
+        local_path: str | None = None,
+        last_error: str | None = None,
+    ) -> None:
+        """Update an acquisition job's status and optionally its local path / error."""
+        now = _utcnow_iso()
+        self._conn.execute(
+            """UPDATE acquisition_jobs
+               SET status=?, local_path=COALESCE(?, local_path),
+                   last_error=?, attempts=attempts+1, updated_at=?
+               WHERE job_id=?""",
+            (status, local_path, last_error, now, job_id),
+        )
+        self._conn.commit()
+
+    def get_acquisition_job(self, job_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT * FROM acquisition_jobs WHERE job_id=?", (job_id,)
+        ).fetchone()
+        if row is None:
+            return None
+        return self._acquisition_job_row(row)
+
+    def find_acquisition_job(self, source: str, provider_product_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT * FROM acquisition_jobs WHERE source=? AND provider_product_id=?",
+            (source, provider_product_id),
+        ).fetchone()
+        return None if row is None else self._acquisition_job_row(row)
+
+    def list_acquisition_jobs(self, status: str | None = None) -> list[dict[str, Any]]:
+        if status is not None:
+            rows = self._conn.execute(
+                "SELECT * FROM acquisition_jobs WHERE status=? ORDER BY created_at DESC",
+                (status,),
+            ).fetchall()
+        else:
+            rows = self._conn.execute(
+                "SELECT * FROM acquisition_jobs ORDER BY created_at DESC"
+            ).fetchall()
+        return [self._acquisition_job_row(row) for row in rows]
+
+    @staticmethod
+    def _acquisition_job_row(row: sqlite3.Row) -> dict[str, Any]:
+        return {
+            "job_id": row["job_id"],
+            "source": row["source"],
+            "provider_product_id": row["provider_product_id"],
+            "status": row["status"],
+            "download_url": row["download_url"],
+            "local_path": row["local_path"],
+            "acquired_at": row["acquired_at"],
+            "attempts": row["attempts"],
+            "last_error": row["last_error"],
+            "created_at": row["created_at"],
+            "updated_at": row["updated_at"],
+        }
+
+    def register_observation(
+        self,
+        observation_id: str,
+        basin_id: str,
+        acquired_at: str,
+        source: str,
+        raster_uri: str,
+        cloud_fraction: float = 0.0,
+        optical_cloud_fraction: float = 0.0,
+        alignment_ok: bool = True,
+        usable: bool = True,
+        quality_score: float = 0.9,
+        confidence_adjustment: float = 1.0,
+        processing_version: str = "0.1.0",
+        water_area_km2: float | None = None,
+        water_area_change_percent: float | None = None,
+        rainfall_24h_mm: float | None = None,
+        rainfall_7d_mm: float | None = None,
+        mean_slope_degrees: float | None = None,
+    ) -> dict[str, Any]:
+        """Register a new observation in the database (for live acquisition).
+
+        This is the path that unblocks run_pipeline() for non-demo observations.
+        The observation must be registered before run_pipeline() can process it.
+        Returns the observation dict.
+        """
+        self._conn.execute(
+            """INSERT INTO observations
+            (observation_id, basin_id, acquired_at, source, raster_uri, crs,
+             quality_score, cloud_fraction, optical_cloud_fraction, alignment_ok, usable, confidence_adjustment,
+             water_area_km2, water_area_change_percent, rainfall_24h_mm, rainfall_7d_mm,
+             mean_slope_degrees, processing_version, status)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            ON CONFLICT(observation_id) DO UPDATE SET
+            acquired_at=excluded.acquired_at, source=excluded.source,
+            raster_uri=excluded.raster_uri,
+            cloud_fraction=excluded.cloud_fraction,
+            optical_cloud_fraction=excluded.optical_cloud_fraction,
+            alignment_ok=excluded.alignment_ok, usable=excluded.usable,
+            confidence_adjustment=excluded.confidence_adjustment,
+            quality_score=excluded.quality_score,
+            water_area_km2=excluded.water_area_km2,
+            water_area_change_percent=excluded.water_area_change_percent,
+            rainfall_24h_mm=excluded.rainfall_24h_mm,
+            rainfall_7d_mm=excluded.rainfall_7d_mm,
+            mean_slope_degrees=excluded.mean_slope_degrees,
+            processing_version=excluded.processing_version, status=excluded.status""",
+            (
+                observation_id, basin_id, acquired_at, source, raster_uri, "EPSG:4326",
+                quality_score, cloud_fraction, optical_cloud_fraction,
+                int(alignment_ok), int(usable), confidence_adjustment,
+                water_area_km2, water_area_change_percent, rainfall_24h_mm, rainfall_7d_mm,
+                mean_slope_degrees, processing_version, "ingested",
+            ),
+        )
+        self._conn.commit()
+        return self.get_observation(observation_id) or {}
+
     # --- audit (append-only: INSERT + SELECT only; no update/delete methods) ---
 
     def _audit(self, alert_id: str | None, actor: str, action: str, detail: dict[str, Any]) -> None:

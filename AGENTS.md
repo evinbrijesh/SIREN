@@ -4,7 +4,7 @@
 
 **Read before writing code:** `docs/spec/PRD.md` (v4.3 — product spec, data contracts, scoring formulas) and `docs/spec/BUILD_ROADMAP.md` (phase order, checkpoints, fallbacks). This file tells you *how to work*; those tell you *what to build*.
 
-> **Build status:** Phases 0–6 complete. 104/104 tests passing (101 active + 3 torch-gated). DoD chain verified end-to-end. Post-build enhancements: auto-SOS on CONFIRM (ntfy.sh), Simple/Advanced ReviewView modes, AuditView exports + Web Crypto verification, First Responder Advisory, escalation policy badge, projector-ready UI polish. See `README.md` for the quick-start guide.
+> **Build status:** Phases 0–6 complete. 124/124 tests passing (121 active + 3 torch-gated). DoD chain verified end-to-end. Live-service transition in progress: ingest fixes, acquisition_jobs table, and pipeline observation-acceptance blocker resolved (2026-09-07). See `README.md` for the quick-start guide.
 
 ---
 
@@ -54,7 +54,7 @@ docs/
 # backend
 cd backend && pip install -e ".[dev]"
 uvicorn siren.api:app --reload --port 8010
-pytest                             # 104 tests
+pytest                             # 124 tests
 
 # frontend
 cd frontend && npm install && npm run dev   # port 5175, proxies /api → 8010

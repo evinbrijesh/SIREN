@@ -59,32 +59,32 @@
 
 The following gaps were identified during the live-service architecture audit (2026-09-07). They do not affect the hackathon demo but must be resolved before the service runs unattended. Each item maps to a phase in the Live Service Transition Roadmap (`docs/spec/BUILD_ROADMAP.md`).
 
-### Pipeline observation acceptance (Phase 4 blocker)
-`run_pipeline()` accepts only the three hardcoded demo observation IDs (`obs-001`, `obs-002`, `obs-003`). Registering a new satellite product in the database does not make it processable. A live acquisition service can download and store real products, but the frozen pipeline will reject them with `ValueError: Unknown observation`. This must be resolved by an explicit scope decision before automatic live scoring is possible.
+### Pipeline observation acceptance (Phase 4 blocker) — RESOLVED 2026-09-07
+`run_pipeline()` now accepts both demo observations (`obs-001/002/003`, using hardcoded config and scenario masks) and live observations registered in the database via `repo.register_observation()`. Live observations must have a `raster_uri` pointing to a pre-computed change mask. The frozen deterministic pipeline semantics are unchanged. The Live Phase 4 blocker is resolved.
 
-### Ingest scripts exit 0 on failure (Phase 1)
-All four ingest scripts (`cdse.py`, `srtm.py`, `imerg.py`, `overpass.py`) return exit code 0 for many failure conditions. A scheduler that checks exit codes for success will silently miss failed downloads. Failure must produce a non-zero exit and a durable failure record.
+### Ingest scripts exit 0 on failure (Phase 1) — RESOLVED 2026-09-07
+All four ingest scripts now support a `--strict` flag that returns non-zero exit codes on any failure (for scheduler use). Without `--strict`, network failures still exit 0 (offline-safe per ADR-004). API errors (empty results, invalid JSON) now return exit 1 even without `--strict`.
 
-### CDSE uses deprecated endpoint (Phase 1)
-`backend/siren/ingest/cdse.py` targets `catalogue.dataspace.copernicus.eu/stac/search`. Current Copernicus documentation identifies `stac.dataspace.copernicus.eu/v1/search` as the active endpoint. The legacy endpoint is marked for deprecation and may stop returning results without warning.
+### CDSE uses deprecated endpoint (Phase 1) — RESOLVED 2026-09-07
+`cdse.py` now targets `stac.dataspace.copernicus.eu/v1/search` (the active endpoint). The legacy `catalogue.dataspace.copernicus.eu/stac/search` endpoint was deprecated on 2025-11-17. Pagination via `links[].rel == "next"` is now supported.
 
-### CDSE downloads entire archive into memory (Phase 1)
-The download loop reads the full response body before writing. A Sentinel-1 GRD archive is approximately 1.7 GB. This will exhaust memory on a typical Lambda or small container. Downloads must stream to a temporary file.
+### CDSE downloads entire archive into memory (Phase 1) — RESOLVED 2026-09-07
+Downloads now stream to disk in 64 KiB chunks via `_http_stream_to_file()`, avoiding loading ~1.7 GB S1 GRD archives into memory.
 
-### Overpass query missing river geometry (Phase 1, ADR-005 blocker)
-`backend/siren/ingest/overpass.py` does not query `waterway=river` or `waterway=stream`. A live Overpass refresh would produce an extract without river geometry, breaking the corridor module's OSM river selection step. The committed `osm_infrastructure.geojson` was manually prepared and contains rivers; automated refresh would remove them.
+### Overpass query missing river geometry (Phase 1, ADR-005 blocker) — RESOLVED 2026-09-07
+`overpass.py` now queries `waterway=river` and `waterway=stream` (both nodes and ways). Automated refresh will include river geometry compatible with the corridor module.
 
-### Overpass output format incompatible with corridor module (Phase 1)
-The script emits `properties.tags` (nested). The corridor module expects flat properties (`waterway`, `highway`, `@id`). Automated refresh with the current script would produce a structurally incompatible extract that silently produces no corridor results.
+### Overpass output format incompatible with corridor module (Phase 1) — RESOLVED 2026-09-07
+Properties are now emitted FLAT: OSM tags are merged into top-level properties (`waterway`, `highway`, `amenity`, etc.) so the corridor module can filter directly. The nested `tags` key is also preserved for full-fidelity access. Empty Overpass responses no longer overwrite existing extracts.
 
-### `openmeteo.py` date window walks forward, not backward (Phase 1)
-The `_days_before(obs_date, -offset)` call in `openmeteo.py` moves the window forward in time. The seven-day antecedent rainfall accumulation is computed over the wrong dates. Missing precipitation is filled with zero. This makes the weather feature unreliable for any observation where the window does not coincide with available data.
+### `openmeteo.py` date window walks forward, not backward (Phase 1) — RESOLVED 2026-09-07
+The 7-day antecedent rainfall window now walks BACKWARD from the observation date: `[obs_date - 6, obs_date]`. Missing precipitation is recorded as `null` (not `0.0`), and the number of missing days is tracked in `rainfall_7d_days_missing`. The script now accepts `--lat`, `--lon`, `--date`, and `--out` CLI arguments.
 
-### No job ledger or idempotency constraints (Phase 1)
-There is no durable record of download attempts. A scheduler retry creates a duplicate `observations` row. The count-based run ID (`SELECT COUNT(*) + 1`) produces collisions under concurrent requests. Both must be fixed before any multi-instance deployment.
+### No job ledger or idempotency constraints (Phase 1) — PARTIALLY RESOLVED 2026-09-07
+An `acquisition_jobs` table (ADR-008 schema) has been added with `UNIQUE(source, provider_product_id)` for idempotency. Repository methods (`create_acquisition_job`, `update_acquisition_job`, `find_acquisition_job`, `list_acquisition_jobs`) are available. The count-based run ID collision issue remains open for Phase 3.
 
-### SRTM uses outdated access URL (Phase 1)
-`backend/siren/ingest/srtm.py` uses the old LP DAAC Data Pool URL format. NASA has migrated SRTM access to Earthdata Cloud with updated endpoints and requires Earthdata authentication for downloads. The current URL may return 404 or redirect incorrectly.
+### SRTM uses outdated access URL (Phase 1) — RESOLVED 2026-09-07
+`srtm.py` now uses the LP DAAC Earthdata Cloud endpoint (`lpdaac.earthdatacloud.nasa.gov/lp-prod-protected/MEASURES/SRTMGL1.003/`). Bearer token auth (`EARTHDATA_TOKEN`) is supported alongside Basic auth. Downloads stream to disk.
 
 ### Downloaded Sentinel-1 pair misses Imja Lake (known, documented)
 The two downloaded Sentinel-1 archives (orbit 85, ascending) do not cover Imja Lake at 86.925°E. Scenario masks near Imja are used for demo observations 2 and 3. For operational monitoring, orbit 12 (ascending) and orbit 121 (descending) are the covering tracks, each with a 12-day repeat. The downloaded orbit-85 pair should not be used for Imja assessments.

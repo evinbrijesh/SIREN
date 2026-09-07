@@ -14,7 +14,8 @@ Retry logic with exponential backoff on transient failures (max 3 retries).
 
 Offline-safe (ADR-004): if the network is unavailable, prints a clear message
 to stderr and exits with code 0 — never crashes. This is a prep-time
-acquisition script, never a runtime dependency.
+acquisition script, never a runtime dependency. Use --strict to get non-zero
+exit codes on any failure (for scheduler use).
 
 Auth (optional): set CDSE_TOKEN, or CDSE_USERNAME + CDSE_PASSWORD (free account
 at dataspace.copernicus.eu). Public STAC search works without auth; downloads
@@ -33,7 +34,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-STAC_URL = "https://catalogue.dataspace.copernicus.eu/stac/search"
+STAC_URL = "https://stac.dataspace.copernicus.eu/v1/search"
 TOKEN_URL = (
     "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/"
     "protocol/openid-connect/token"
@@ -41,6 +42,8 @@ TOKEN_URL = (
 COLLECTIONS = {"s1": "sentinel-1-grd", "s2": "sentinel-2-l2a"}
 MAX_RETRIES = 3
 BASE_DELAY = 1.0  # seconds; doubled each retry
+CHUNK_SIZE = 65536  # 64 KiB streaming chunks
+MAX_PAGES = 20  # safety cap on pagination
 
 
 # --------------------------------------------------------------------------- #
@@ -141,9 +144,31 @@ def _http_post_json(url: str, payload: dict, timeout: int = 60, headers: dict | 
 
 
 def _http_get_bytes(url: str, timeout: int = 3600, headers: dict | None = None) -> bytes:
+    """Read entire response into memory (used for small JSON responses only)."""
     req = urllib.request.Request(url, headers=headers or {})
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return resp.read()
+
+
+def _http_stream_to_file(
+    url: str, out_path: Path, timeout: int = 3600, headers: dict | None = None
+) -> int:
+    """Stream an HTTP response body to a file on disk.
+
+    Avoids loading large archives (S1 GRD ~1.7 GB) into memory.
+    Returns the number of bytes written.
+    """
+    req = urllib.request.Request(url, headers=headers or {})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with open(out_path, "wb") as f:
+            total = 0
+            while True:
+                chunk = resp.read(CHUNK_SIZE)
+                if not chunk:
+                    break
+                f.write(chunk)
+                total += len(chunk)
+            return total
 
 
 # --------------------------------------------------------------------------- #
@@ -170,32 +195,74 @@ def search_stac(
     bbox: tuple[float, float, float, float],
     sensor: str,
     date_range: tuple[str, str],
-    limit: int = 10,
+    limit: int = 100,
     token: str | None = None,
-) -> list[dict]:
-    """Search CDSE STAC. Returns a list of STAC item (feature) dicts."""
+    page: int = 1,
+) -> dict:
+    """Search CDSE STAC. Returns the full FeatureCollection response dict.
+
+    The new CDSE STAC API (stac.dataspace.copernicus.eu/v1/search) supports
+    pagination via 'links' with rel='next'. This function returns the raw
+    response so the caller can follow pagination links.
+    """
     collection = COLLECTIONS[sensor]
     start, end = date_range
-    body = {
+    body: dict = {
         "collections": [collection],
         "bbox": list(bbox),
         "datetime": f"{start}T00:00:00Z/{end}T23:59:59Z",
         "limit": limit,
     }
+    if page > 1:
+        body["page"] = page
     headers = {}
     if token:
         headers["Authorization"] = f"Bearer {token}"
-    resp = _http_post_json(STAC_URL, body, headers=headers)
-    return resp.get("features", [])
+    return _http_post_json(STAC_URL, body, headers=headers)
+
+
+def search_all_scenes(
+    bbox: tuple[float, float, float, float],
+    sensor: str,
+    date_range: tuple[str, str],
+    max_scenes: int = 100,
+    token: str | None = None,
+) -> list[dict]:
+    """Search CDSE STAC with pagination. Returns a list of all feature dicts.
+
+    Follows 'next' links up to MAX_PAGES or until max_scenes is reached.
+    """
+    all_features: list[dict] = []
+    page = 1
+    while page <= MAX_PAGES and len(all_features) < max_scenes:
+        resp = search_stac(bbox, sensor, date_range, limit=100, token=token, page=page)
+        features = resp.get("features", [])
+        if not features:
+            break
+        all_features.extend(features)
+        # Check for a 'next' link to know if there are more pages
+        links = resp.get("links", [])
+        has_next = any(link.get("rel") == "next" for link in links)
+        if not has_next:
+            break
+        page += 1
+    return all_features[:max_scenes]
 
 
 def _pick_asset(item: dict) -> tuple[str | None, dict | None]:
-    """Pick the primary downloadable asset from a STAC item."""
+    """Pick the primary downloadable asset from a STAC item.
+
+    The new CDSE STAC API uses different asset keys than the legacy endpoint.
+    For Sentinel-1 GRD, the primary data is typically under 'data' or a
+    product-specific key. For Sentinel-2 L2A, it's under 'data' or 'product'.
+    """
     assets = item.get("assets", {})
-    for key in ("data", "product", "manifest", "metadata"):
+    # Priority order for primary data assets
+    for key in ("data", "product", "download", "manifest", "metadata"):
         a = assets.get(key)
         if a and "href" in a:
             return key, a
+    # Fallback: first asset with an href
     for key, a in assets.items():
         if "href" in a:
             return key, a
@@ -210,7 +277,10 @@ def _acquired_at(item: dict) -> str:
 def download_scene(
     item: dict, out_dir: Path, token: str | None = None
 ) -> tuple[Path, int, str]:
-    """Download one scene's primary asset. Returns (path, retries, url)."""
+    """Download one scene's primary asset. Returns (path, retries, url).
+
+    Streams to disk to avoid loading large archives into memory.
+    """
     scene_id = item.get("id", "scene")
     key, asset = _pick_asset(item)
     if asset is None:
@@ -225,7 +295,7 @@ def download_scene(
         headers["Authorization"] = f"Bearer {token}"
 
     def _fetch() -> Path:
-        out_path.write_bytes(_http_get_bytes(url, headers=headers))
+        _http_stream_to_file(url, out_path, headers=headers)
         return out_path
 
     path, retries = retry(_fetch)
@@ -247,7 +317,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--date", required=True, type=parse_date_range,
                    help="date range 'YYYY-MM-DD:YYYY-MM-DD'")
     p.add_argument("--out", default="data/raw", help="output directory (default: data/raw)")
-    p.add_argument("--limit", type=int, default=10, help="max scenes to download")
+    p.add_argument("--limit", type=int, default=100, help="max scenes to download")
+    p.add_argument("--strict", action="store_true",
+                   help="exit non-zero on any failure (for scheduler use)")
     return p
 
 
@@ -259,26 +331,32 @@ def main(argv: list[str] | None = None) -> int:
     source = "copernicus-cdse-stac"
     try:
         token = _auth_token()
-        features, _ = retry(
-            search_stac, args.bbox, args.sensor, args.date, limit=args.limit, token=token
+        features = search_all_scenes(
+            args.bbox, args.sensor, args.date,
+            max_scenes=args.limit, token=token,
         )
-    except (urllib.error.URLError, OSError, RuntimeError, json.JSONDecodeError) as exc:
+    except (urllib.error.URLError, OSError) as exc:
         print(f"✗ Network unavailable or CDSE error: {exc}", file=sys.stderr)
         print("  Offline-safe exit (no files written).", file=sys.stderr)
-        return 0
+        return 1 if args.strict else 0
+    except (RuntimeError, json.JSONDecodeError) as exc:
+        print(f"✗ CDSE API error: {exc}", file=sys.stderr)
+        return 1
 
     if not features:
         print(f"✗ No {args.sensor} scenes found over bbox in {args.date}.", file=sys.stderr)
-        return 0
+        return 1 if args.strict else 0
 
     print(f"Found {len(features)} scene(s); downloading to {out_dir}")
     n = 0
+    failures = 0
     for item in features:
         scene_id = item.get("id", f"scene-{n}")
         try:
             path, retries, url = download_scene(item, out_dir, token=token)
         except Exception as exc:  # noqa: BLE001 — one bad scene shouldn't kill the batch
             print(f"  ✗ failed {scene_id}: {exc}", file=sys.stderr)
+            failures += 1
             continue
         write_provenance(
             provenance_path_for(path),
@@ -292,6 +370,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  ✓ {path.name} (retries={retries})")
         n += 1
     print(f"✓ Downloaded {n} scene(s) to {out_dir}")
+    if failures > 0:
+        print(f"✗ {failures} scene(s) failed", file=sys.stderr)
+        return 1 if args.strict else 0
     return 0
 
 

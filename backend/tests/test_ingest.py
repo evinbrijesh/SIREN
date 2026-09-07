@@ -11,6 +11,7 @@ import json
 import urllib.error
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from siren.ingest import cdse, imerg, overpass, srtm
@@ -25,8 +26,15 @@ class _FakeResp:
     def __init__(self, data: bytes):
         self._data = data
 
-    def read(self) -> bytes:
-        return self._data
+    def read(self, size: int | None = None) -> bytes:
+        if size is None:
+            return self._data
+        # Streaming mode: return chunks until exhausted
+        if not self._data:
+            return b""
+        chunk = self._data[:size]
+        self._data = self._data[size:]
+        return chunk
 
     def __enter__(self):
         return self
@@ -89,7 +97,8 @@ def test_cdse_provenance_sidecar(tmp_path, monkeypatch):
                     "properties": {"datetime": "2026-07-23T12:00:00Z"},
                     "assets": {"data": {"href": "https://example.com/scene.zip"}},
                 }
-            ]
+            ],
+            "links": [],
         }
     ).encode()
     download_bytes = b"FAKE-ZIP-CONTENT"
@@ -143,7 +152,7 @@ def test_srtm_provenance_sidecar(tmp_path, monkeypatch):
     sidecars = [f for f in tmp_path.iterdir() if f.suffix == ".json"]
     assert len(sidecars) == 2
     prov = json.loads((tmp_path / "N27E086.SRTMGL1.hgt.zip.json").read_text())
-    assert prov["source"] == "nasa-earthdata-srtm"
+    assert prov["source"] == "nasa-earthdata-cloud-srtm"
     assert prov["scene_id"] == "N27E086.SRTMGL1.hgt.zip"
     assert prov["acquired_at"] == "2000-02-11"
     assert prov["retries"] == 0
@@ -188,6 +197,9 @@ def test_overpass_provenance_sidecar(tmp_path, monkeypatch):
                 {"type": "way", "id": 3,
                  "geometry": [{"lon": 86.8, "lat": 27.7}, {"lon": 86.9, "lat": 27.8}],
                  "tags": {"highway": "residential"}},
+                {"type": "way", "id": 4,
+                 "geometry": [{"lon": 86.7, "lat": 27.7}, {"lon": 86.9, "lat": 27.9}],
+                 "tags": {"waterway": "river", "name": "Dudh Koshi"}},
             ]
         }
     ).encode()
@@ -203,9 +215,23 @@ def test_overpass_provenance_sidecar(tmp_path, monkeypatch):
 
     fc = json.loads(out.read_text())
     assert fc["type"] == "FeatureCollection"
-    assert len(fc["features"]) == 3
+    assert len(fc["features"]) == 4
     assert fc["features"][0]["geometry"]["type"] == "Point"
     assert fc["features"][2]["geometry"]["type"] == "LineString"
+
+    # Verify flat properties: tags merged into top-level properties
+    village = fc["features"][0]
+    assert village["properties"]["place"] == "village"
+    assert village["properties"]["name"] == "Chukhung"
+    assert village["properties"]["id"] == 1
+    assert village["properties"]["osm_type"] == "node"
+    # Original tags also preserved as nested key
+    assert "tags" in village["properties"]
+
+    # Verify river feature has flat waterway property
+    river = fc["features"][3]
+    assert river["properties"]["waterway"] == "river"
+    assert river["properties"]["name"] == "Dudh Koshi"
 
     sidecar = tmp_path / "osm_infrastructure.geojson.json"
     assert sidecar.exists()
@@ -276,3 +302,227 @@ def test_retry_exhausts_then_raises(monkeypatch):
 
     with pytest.raises(urllib.error.URLError):
         cdse.retry(always_fail, max_retries=2)
+
+
+# --------------------------------------------------------------------------- #
+# overpass: empty response does not overwrite existing file
+# --------------------------------------------------------------------------- #
+def test_overpass_empty_response_no_overwrite(tmp_path, monkeypatch):
+    monkeypatch.setattr("time.sleep", lambda *a, **k: None)
+
+    # Write a pre-existing file
+    out = tmp_path / "osm_infrastructure.geojson"
+    out.write_text(json.dumps({"type": "FeatureCollection", "features": [{"existing": True}]}))
+
+    empty_resp = json.dumps({"elements": []}).encode()
+
+    def fake_urlopen(req, timeout=None):  # noqa: ARG001
+        return _FakeResp(empty_resp)
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+
+    code = overpass.main(["--bbox", "86.65,27.65,87.00,27.98", "--out", str(out)])
+    # Non-strict: exit 0, but file preserved
+    assert code == 0
+    # The existing file must NOT have been overwritten
+    fc = json.loads(out.read_text())
+    assert "existing" in fc.get("features", [{}])[0]
+
+
+def test_overpass_empty_response_strict_nonzero(tmp_path, monkeypatch):
+    monkeypatch.setattr("time.sleep", lambda *a, **k: None)
+
+    empty_resp = json.dumps({"elements": []}).encode()
+
+    def fake_urlopen(req, timeout=None):  # noqa: ARG001
+        return _FakeResp(empty_resp)
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+
+    out = tmp_path / "osm_infrastructure.geojson"
+    code = overpass.main(["--bbox", "86.65,27.65,87.00,27.98", "--out", str(out), "--strict"])
+    assert code == 1
+
+
+# --------------------------------------------------------------------------- #
+# overpass: query includes waterway=river
+# --------------------------------------------------------------------------- #
+def test_overpass_query_includes_rivers():
+    bbox = (86.65, 27.65, 87.00, 27.98)
+    q = overpass.build_query(bbox)
+    assert 'waterway"="river"' in q
+    assert 'waterway"="stream"' in q
+
+
+# --------------------------------------------------------------------------- #
+# cdse: --strict flag returns non-zero on network failure
+# --------------------------------------------------------------------------- #
+def test_cdse_strict_nonzero_on_network_failure(tmp_path, monkeypatch):
+    monkeypatch.setattr("time.sleep", lambda *a, **k: None)
+
+    def fake_urlopen(*a, **k):  # noqa: ARG001
+        raise urllib.error.URLError("offline")
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+
+    code = cdse.main([
+        "--bbox", "86.65,27.65,87.00,27.98", "--sensor", "s1",
+        "--date", "2026-07-01:2026-08-31", "--out", str(tmp_path), "--strict",
+    ])
+    assert code == 1
+
+
+# --------------------------------------------------------------------------- #
+# openmeteo: date window walks backward (bug fix)
+# --------------------------------------------------------------------------- #
+def test_openmeteo_date_window_backward():
+    """Verify _days_before walks backward (positive n = past)."""
+    from siren.ingest import openmeteo
+    # 7 days before 2026-08-04 should be 2026-07-28
+    assert openmeteo._days_before("2026-08-04", 7) == "2026-07-28"
+    # 0 days before = same date
+    assert openmeteo._days_before("2026-08-04", 0) == "2026-08-04"
+    # 6 days before 2026-08-04 should be 2026-07-29
+    assert openmeteo._days_before("2026-08-04", 6) == "2026-07-29"
+
+
+def test_openmeteo_cli_accepts_args(tmp_path, monkeypatch):
+    """Verify openmeteo has a proper CLI with --lat, --lon, --date, --out."""
+    from siren.ingest import openmeteo
+
+    # Mock the API response
+    api_resp = json.dumps({
+        "daily": {
+            "time": ["2026-07-17", "2026-07-18", "2026-07-23"],
+            "precipitation_sum": [0.0, 5.0, 18.2],
+            "temperature_2m_mean": [10.0, 12.0, 15.0],
+        }
+    }).encode()
+
+    def fake_urlopen(req, timeout=None):  # noqa: ARG001
+        return _FakeResp(api_resp)
+
+    # openmeteo imports urlopen directly, so patch at the module level
+    monkeypatch.setattr("siren.ingest.openmeteo.urlopen", fake_urlopen)
+
+    out = tmp_path / "weather.json"
+    code = openmeteo.main([
+        "--lat", "27.815", "--lon", "86.825",
+        "--date", "2026-07-23", "--out", str(out),
+    ])
+    assert code == 0
+    data = json.loads(out.read_text())
+    assert data["source"] == "open-meteo-archive"
+    assert len(data["series"]) == 1
+    s = data["series"][0]
+    assert s["date"] == "2026-07-23"
+    assert s["rainfall_24h_mm"] == 18.2
+    # 7-day window: [2026-07-17 .. 2026-07-23] = 0.0 + 5.0 + 18.2 = 23.2
+    # (only 3 days in the mock data, 4 days missing)
+    assert s["rainfall_7d_days_missing"] == 4
+    assert s["rainfall_7d_complete"] is False
+
+
+# --------------------------------------------------------------------------- #
+# acquisition_jobs table + repo methods
+# --------------------------------------------------------------------------- #
+def test_acquisition_job_create_and_update():
+    from siren.db.repo import Repository
+    repo = Repository(":memory:")
+
+    # Create a job
+    job = repo.create_acquisition_job(
+        source="cdse-s1",
+        provider_product_id="S1_SCENE_001",
+        download_url="https://example.com/scene.zip",
+        acquired_at="2026-07-23T12:00:00Z",
+    )
+    assert job["source"] == "cdse-s1"
+    assert job["provider_product_id"] == "S1_SCENE_001"
+    assert job["status"] == "pending"
+
+    # Idempotency: creating the same job again doesn't duplicate
+    job2 = repo.create_acquisition_job(
+        source="cdse-s1",
+        provider_product_id="S1_SCENE_001",
+    )
+    assert job2["job_id"] == job["job_id"]
+
+    # Update status
+    repo.update_acquisition_job(job["job_id"], "verified", local_path="data/raw/scene.zip")
+    updated = repo.get_acquisition_job(job["job_id"])
+    assert updated["status"] == "verified"
+    assert updated["local_path"] == "data/raw/scene.zip"
+    assert updated["attempts"] == 1
+
+    # Find by source + product_id
+    found = repo.find_acquisition_job("cdse-s1", "S1_SCENE_001")
+    assert found is not None
+    assert found["job_id"] == job["job_id"]
+
+    # List jobs
+    all_jobs = repo.list_acquisition_jobs()
+    assert len(all_jobs) == 1
+    failed_jobs = repo.list_acquisition_jobs(status="failed")
+    assert len(failed_jobs) == 0
+
+
+# --------------------------------------------------------------------------- #
+# pipeline: live observation unblock
+# --------------------------------------------------------------------------- #
+def test_pipeline_rejects_truly_unknown_observation():
+    """run_pipeline() should still reject IDs not in demo config or DB."""
+    from siren.pipeline import run_pipeline
+    from siren.db.repo import Repository
+    repo = Repository(":memory:")
+    with pytest.raises(ValueError, match="Unknown observation"):
+        run_pipeline("nonexistent-obs", repo)
+
+
+def test_pipeline_accepts_live_observation(tmp_path):
+    """run_pipeline() should accept an observation registered in the DB.
+
+    This is the Live Phase 4 unblock test. The observation must be registered
+    with a raster_uri pointing to a real change mask file.
+    """
+    from siren.pipeline import run_pipeline
+    from siren.db.repo import Repository
+    from siren.detect.scenario import scenario_expansion_mask
+    import rasterio
+
+    repo = Repository(":memory:")
+
+    # Create a change mask file for the live observation
+    mask_dir = tmp_path / "processed"
+    mask_dir.mkdir()
+    mask_path = mask_dir / "live-001_expansion_mask.tif"
+    mask, meta = scenario_expansion_mask(0.15, seed=99)
+    with rasterio.open(
+        str(mask_path), "w", driver="GTiff",
+        height=mask.shape[0], width=mask.shape[1],
+        count=1, dtype="uint8", crs="EPSG:4326",
+        transform=meta["transform"],
+    ) as dst:
+        dst.write(mask.astype(np.uint8), 1)
+
+    # Register a live observation pointing to this mask
+    repo.register_observation(
+        observation_id="live-001",
+        basin_id="dudh-koshi-demo-01",
+        acquired_at="2026-09-01T12:00:00Z",
+        source="sentinel-1-grd-nrt",
+        raster_uri=str(mask_path),
+        cloud_fraction=0.0,
+        optical_cloud_fraction=0.80,
+        water_area_km2=3.5,
+        water_area_change_percent=15.0,
+        rainfall_24h_mm=30.0,
+        rainfall_7d_mm=90.0,
+    )
+
+    # The pipeline should now accept this observation
+    result = run_pipeline("live-001", repo)
+    assert result["observation_id"] == "live-001"
+    assert result["status"] == "processed"
+    assert result["score"] is not None
+    assert result["score"]["severity"] in ("informational", "watch", "elevated", "critical")

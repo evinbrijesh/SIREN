@@ -75,7 +75,7 @@ backend/
     audit/        # append-only log writer + SHA-256 hash chain
     db/           # SQLite schema + repositories
     pipeline.py   # orchestrator: detect→geo→risk→DB→audit
-  tests/          # 104 tests (pytest: 101 active + 3 torch-gated)
+  tests/          # 124 tests (pytest: 121 active + 3 torch-gated)
 frontend/
   src/
     views/        # MapView, TimelineView, ReviewView, AuditView
@@ -154,7 +154,7 @@ pip install -e ".[dev]"          # or use existing venv
 uvicorn siren.api:app --port 8010 --reload
 
 # run tests
-pytest                           # 104 tests
+pytest                           # 124 tests
 ```
 
 ### Frontend
@@ -263,7 +263,7 @@ The prevention story: the +8% expansion on 07-23 was the early warning. Had SIRE
 
 ```bash
 cd backend
-pytest                           # 104 tests, ~20s
+pytest                           # 124 tests, ~10s
 ```
 
 | Test Suite | Tests | Coverage |
@@ -273,7 +273,7 @@ pytest                           # 104 tests, ~20s
 | test_audit | 11 | Append-only enforcement, hash chain, trigger validation |
 | test_api | 12 | All API endpoints, human gate, error shapes |
 | test_preprocess | 6 | Clip, reproject, co-register on synthetic rasters |
-| test_ingest | 25 | CLI argument parsing, provenance sidecars |
+| test_ingest | 34 | CLI parsing, provenance sidecars, streaming downloads, flat OSM properties, empty-response protection, acquisition jobs, live observation pipeline |
 | test_pipeline | 5 | Full orchestrator: detect→geo→risk→DB→audit |
 | test_ml | 13 | ML evidence layer (deterministic fallback, torch-gated) |
 | test_sar_priority | 9 | SAR priority ranking (PRD §15) |
@@ -328,15 +328,15 @@ The hackathon MVP is an offline demo with prepared data. The project is being ev
 
 | Phase | Goal | Status |
 |---|---|---|
-| 0 | Frozen release and acceptance boundary | Pending |
-| 1 | Reliable acquisition-only service | Pending |
+| 0 | Frozen release and acceptance boundary | In progress |
+| 1 | Reliable acquisition-only service | **In progress** (ingest fixes done, scheduler pending) |
 | 2 | Basin and input qualification | Pending |
 | 3 | Hosted persistence, security, live UI | Pending |
-| 4 | Automatic scoring integration | **Blocked** |
+| 4 | Automatic scoring integration | **Unblocked** (observation-acceptance interface resolved) |
 | 5 | Extended shadow operation (30-day) | Pending |
 | 6 | Authority-supervised operational pilot | Pending |
 
-> **Phase 4 blocker:** `run_pipeline()` currently accepts only the three hardcoded demo observation IDs (`obs-001`, `obs-002`, `obs-003`). A live acquisition service can download real satellite products, but the frozen pipeline will reject them with `ValueError: Unknown observation`. An approved scope decision is required to extend the observation-acceptance interface before automatic live scoring is possible.
+> **Phase 4 blocker resolved (2026-09-07):** `run_pipeline()` now accepts both demo observations (`obs-001/002/003`) and live observations registered in the database via `repo.register_observation()`. Live observations must have a `raster_uri` pointing to a pre-computed change mask. The frozen deterministic pipeline semantics are unchanged. Remaining Phase 4 tasks (input materialization, authenticated trigger, processing worker) are infrastructure work, not pipeline changes.
 
 See [`docs/spec/BUILD_ROADMAP.md`](docs/spec/BUILD_ROADMAP.md) → "Live Service Transition Roadmap" for full task tables, GO/NO-GO criteria, and rollback plans per phase.
 
@@ -370,14 +370,16 @@ See [`docs/spec/BUILD_ROADMAP.md`](docs/spec/BUILD_ROADMAP.md) → "Live Service
 
 ### Production transition gaps (must fix before unattended operation)
 
-15 specific gaps were identified during the live-service architecture audit, including:
+15 specific gaps were identified during the live-service architecture audit. 8 have been resolved (2026-09-07):
 
-- **Phase 4 blocker:** `run_pipeline()` accepts only the three demo observation IDs. Live scoring is impossible without an approved scope decision.
-- **Ingest scripts exit 0 on failure** — silent data loss under a scheduler.
-- **CDSE uses deprecated endpoint** — may stop returning results.
-- **Overpass query missing river geometry** — automated OSM refresh would break the corridor.
-- **openmeteo.py date window bug** — seven-day antecedent rainfall computed over wrong dates.
-- **No job ledger or idempotency** — duplicate observations on scheduler retry.
+- ~~**Phase 4 blocker:** `run_pipeline()` accepts only the three demo observation IDs.~~ **Resolved** — live observations now accepted via `repo.register_observation()`.
+- ~~**Ingest scripts exit 0 on failure**~~ **Resolved** — `--strict` flag added; API errors return non-zero.
+- ~~**CDSE uses deprecated endpoint**~~ **Resolved** — uses `stac.dataspace.copernicus.eu/v1/search` with pagination.
+- ~~**Overpass query missing river geometry**~~ **Resolved** — `waterway=river/stream` queried; flat properties emitted.
+- ~~**openmeteo.py date window bug**~~ **Resolved** — backward 7-day window; null for missing precip.
+- ~~**No job ledger or idempotency**~~ **Partially resolved** — `acquisition_jobs` table added with idempotency constraint.
+- ~~**SRTM uses outdated URL**~~ **Resolved** — Earthdata Cloud endpoint with Bearer token auth.
+- ~~**CDSE downloads into memory**~~ **Resolved** — streaming downloads in 64 KiB chunks.
 - **SQLite unsuitable for multi-instance** — WAL/network filesystem limitation.
 - **Review suppression logic incorrect** — historical confirm still authorizes dispatch after later reject.
 - **ntfy delivery is browser-side** — `"sent"` does not mean delivered.

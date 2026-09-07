@@ -12,6 +12,7 @@ Retry logic with exponential backoff on transient failures (max 3 retries).
 
 Offline-safe (ADR-004): if the network is unavailable, prints a clear message
 and exits with code 0 — never crashes. Prep-time acquisition script only.
+Use --strict to get non-zero exit codes on any failure (for scheduler use).
 
 Auth: set EARTHDATA_USERNAME + EARTHDATA_PASSWORD (free account at
 urs.earthdata.nasa.gov). Subsetting to the bbox is a post-processing step
@@ -179,6 +180,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--date", required=True, type=parse_date_range,
                    help="date range 'YYYY-MM-DD:YYYY-MM-DD'")
     p.add_argument("--out", default="data/raw", help="output directory (default: data/raw)")
+    p.add_argument("--strict", action="store_true",
+                   help="exit non-zero on any failure (for scheduler use)")
     return p
 
 
@@ -190,7 +193,7 @@ def main(argv: list[str] | None = None) -> int:
     days = list(date_range(*args.date))
     if not days:
         print(f"✗ Invalid date range {args.date}.", file=sys.stderr)
-        return 0
+        return 1
     print(f"Fetching {len(days)} IMERG daily file(s) for {args.date[0]}..{args.date[1]}")
     n = 0
     try:
@@ -210,8 +213,10 @@ def main(argv: list[str] | None = None) -> int:
     except (urllib.error.URLError, OSError) as exc:
         print(f"✗ Network unavailable or GES DISC error: {exc}", file=sys.stderr)
         print("  Offline-safe exit (partial files may remain).", file=sys.stderr)
-        return 0
+        return 1 if args.strict else 0
     print(f"✓ Downloaded {n}/{len(days)} file(s) to {out_dir}")
+    if n < len(days):
+        return 1 if args.strict else 0
     return 0
 
 

@@ -402,18 +402,64 @@ def _derive_synthetic_confidence(mask: np.ndarray) -> np.ndarray:
     return confidence
 
 
+def _load_observation_config(
+    observation_id: str, repo: Repository
+) -> dict[str, Any] | None:
+    """Load observation metadata from demo config or the database.
+
+    Demo observations (obs-001/002/003) use the hardcoded DEMO_OBSERVATIONS dict.
+    Live observations registered via repo.register_observation() are loaded
+    from the observations table. This is the function that unblocks
+    run_pipeline() for non-demo observation IDs (Live Phase 4 blocker).
+
+    Returns None if the observation is not found in either source.
+    """
+    # Demo observations — hardcoded config (frozen, unchanged)
+    if observation_id in DEMO_OBSERVATIONS:
+        return DEMO_OBSERVATIONS[observation_id]
+
+    # Live observations — from the database
+    obs = repo.get_observation(observation_id)
+    if obs is None:
+        return None
+
+    # Build a config dict in the same shape as DEMO_OBSERVATIONS
+    return {
+        "source": obs["source"],
+        "cloud_fraction": obs["cloud_fraction"] or 0.0,
+        "optical_cloud_fraction": obs.get("optical_cloud_fraction") or obs["cloud_fraction"] or 0.0,
+        "alignment_error": 0.2 if obs.get("alignment_ok", True) else 1.0,
+        "acquired_at": obs["acquired_at"],
+        "water_area_km2": obs.get("water_area_km2") or 0.0,
+        "expansion_pct": obs.get("water_area_change_percent") or 0.0,
+        "trend_class": "uncertain",  # live observations don't have a preset trend
+        "rainfall_24h_mm": obs.get("rainfall_24h_mm") or 0.0,
+        "rainfall_7d_mm": obs.get("rainfall_7d_mm") or 0.0,
+        # Live-specific fields
+        "_is_live": True,
+        "raster_uri": obs.get("raster_uri"),
+        "basin_id": obs.get("basin_id"),
+        "mean_slope_degrees": obs.get("mean_slope_degrees"),
+    }
+
+
 def run_pipeline(
     observation_id: str,
     repo: Repository | None = None,
 ) -> dict[str, Any]:
     """Run the full pipeline for a single observation.
 
+    Accepts both demo observations (obs-001/002/003, using hardcoded config and
+    scenario masks) and live observations registered in the database via
+    repo.register_observation(). This unblocks the Live Phase 4 observation-
+    acceptance blocker while keeping the frozen deterministic pipeline unchanged.
+
     Returns the run dict (matching the API GET /runs shape).
     """
     if repo is None:
         repo = get_repository()
 
-    obs_config = DEMO_OBSERVATIONS.get(observation_id)
+    obs_config = _load_observation_config(observation_id, repo)
     if obs_config is None:
         raise ValueError(f"Unknown observation: {observation_id}")
 
@@ -444,23 +490,48 @@ def run_pipeline(
             "reason": "Sentinel-1 SAR acquisition selected as all-weather primary",
         }
 
-    # 4. Get change mask (scenario masks for demo)
-    _ensure_scenario_masks()
-    _ensure_obs003_mask()
+    # 4. Get change mask
+    #    Demo observations: use scenario masks (frozen behavior)
+    #    Live observations: use a pre-computed mask at raster_uri or a
+    #      processed mask at data/processed/{obs_id}_expansion_mask.tif
+    is_live = obs_config.get("_is_live", False)
+    if not is_live:
+        _ensure_scenario_masks()
+        _ensure_obs003_mask()
     mask_path = PROCESSED_DIR / f"{observation_id}_expansion_mask.tif"
     if not mask_path.exists():
-        # Fallback: generate on the fly
-        mask, meta = scenario_expansion_mask(
-            obs_config["expansion_pct"] / 100.0, seed=42
-        )
-        mask_path = PROCESSED_DIR / f"{observation_id}_expansion_mask.tif"
-        with rasterio.open(
-            str(mask_path), "w", driver="GTiff",
-            height=mask.shape[0], width=mask.shape[1],
-            count=1, dtype="uint8", crs="EPSG:4326",
-            transform=meta["transform"],
-        ) as dst:
-            dst.write(mask.astype(np.uint8), 1)
+        if is_live:
+            # For live observations, check if a mask was provided at raster_uri
+            raster_uri = obs_config.get("raster_uri")
+            if raster_uri:
+                provided = PROJECT_ROOT / raster_uri
+                if provided.exists():
+                    mask_path = provided
+                else:
+                    raise ValueError(
+                        f"Live observation {observation_id}: mask not found at "
+                        f"{provided}. A change mask must be pre-computed and "
+                        f"registered via raster_uri before running the pipeline."
+                    )
+            else:
+                raise ValueError(
+                    f"Live observation {observation_id}: no raster_uri registered. "
+                    f"Register the observation with a mask path via "
+                    f"repo.register_observation() first."
+                )
+        else:
+            # Demo fallback: generate scenario mask on the fly
+            mask, meta = scenario_expansion_mask(
+                obs_config["expansion_pct"] / 100.0, seed=42
+            )
+            mask_path = PROCESSED_DIR / f"{observation_id}_expansion_mask.tif"
+            with rasterio.open(
+                str(mask_path), "w", driver="GTiff",
+                height=mask.shape[0], width=mask.shape[1],
+                count=1, dtype="uint8", crs="EPSG:4326",
+                transform=meta["transform"],
+            ) as dst:
+                dst.write(mask.astype(np.uint8), 1)
 
     # 5. Compute change stats + polygon for map rendering
     change_stats = _compute_change_stats(
@@ -593,12 +664,27 @@ def run_pipeline(
     trend_source = "config"
     trend_confidence = 0.0
     try:
-        # Build the observation sequence up to and including this one
-        obs_sequence = []
-        for oid in DEMO_OBSERVATIONS:
-            obs_sequence.append(oid)
-            if oid == observation_id:
-                break
+        # Build the observation sequence up to and including this one.
+        # For demo observations, use the demo sequence order.
+        # For live observations, use all observations for the same basin
+        # ordered by acquired_at.
+        if not is_live:
+            obs_sequence = []
+            for oid in DEMO_OBSERVATIONS:
+                obs_sequence.append(oid)
+                if oid == observation_id:
+                    break
+        else:
+            # Query all observations for this basin, ordered by date
+            all_obs = repo.list_observations()
+            basin_id = obs_config.get("basin_id", "dudh-koshi-demo-01")
+            obs_sequence = [
+                o["observation_id"] for o in all_obs
+                if o.get("basin_id") == basin_id
+                and o["observation_id"] <= observation_id  # only up to this one
+            ]
+            if not obs_sequence:
+                obs_sequence = [observation_id]
         trend_result = classify_temporal_trend(
             observation_ids=obs_sequence, repo=repo
         )
@@ -615,7 +701,7 @@ def run_pipeline(
         expansion_pct=obs_config["expansion_pct"],
         rainfall_24h_mm=rainfall_24h,
         rainfall_7d_mm=rainfall_7d,
-        mean_slope_deg=MEAN_SLOPE_DEG,
+        mean_slope_deg=obs_config.get("mean_slope_degrees") or MEAN_SLOPE_DEG,
         change_in_drainage=True,
         exposed_population=exposed_pop,
         settlements=settlements,
