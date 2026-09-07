@@ -188,7 +188,7 @@ The following enhancements were added after the core build was complete and the 
 | Document every code/spec discrepancy | KNOWN_LIMITATIONS.md updated; all conflicts between PRD and implementation recorded |
 | Verify the observation-acceptance interface | `run_pipeline("live-new-scene", repo)` → `ValueError` reproduced and documented; blocker formally recorded |
 | Confirm storage/API adapter boundary | Written agreement on which interfaces can change (storage adapter, API layer) vs. which are frozen (pipeline internals) |
-| Confirm ADR-002 compliance | Verify that the ML confidence term in risk fusion is documented; decide whether it is within or outside the frozen boundary |
+| Confirm ADR-002 compliance | ✅ Audit completed 2026-09-07: fusion weights diverge from PRD §9.5 (0.20 ML term), trend can be replaced by ConvLSTM, "SegFormer" is not SegFormer, ChangeFormer unimplemented — findings in `docs/reference/DL_MODEL_AUDIT.md`; ADR-010 proposed; accept/reject ADR-010 as part of the Phase 0 GO |
 
 **GO criterion:** a written, agreed list of what is frozen and what can be changed exists before any live-service code is written.
 
@@ -240,6 +240,9 @@ The following enhancements were added after the core build was complete and the 
 | Independent corridor evaluation | Corridor run on at least one real non-demo SAR scene; exposed assets visually checked against known valley geography |
 | OSM population/freshness assessment | Critical assets reviewed against an authority source; population gaps documented; exposure reports labeled with data-source confidence |
 | DEM qualification | SRTM version pinned; checksum committed; replacement policy defined |
+| ML retraining per ADR-010 Stage 1 | Single-date SAR water segmenter trained on Sen1Floods11 with the **official event-level splits**; held-out-event evaluation passes agreed thresholds before any ML output is displayed as evidence |
+| South Lhonak event-validation dataset | Pre/post Oct-2023 S1+S2 over South Lhonak lake and the Teesta corridor acquired and verified; covering orbits identified; retrospective "would SIREN have flagged it" run documented (`docs/reference/PRODUCTION_ML_PLAN.md` §3C/§4) |
+| Dataset licensing review | Sen1Floods11 terms / WorldFloods (**CC non-commercial**) / SSL4EO-S12 / SegFormer & ChangeFormer code licenses reviewed against the deployment model |
 
 **GO criteria:**
 - At least two real lake-covering SAR acquisitions available and verified.
