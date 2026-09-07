@@ -126,6 +126,78 @@ class SiameseUNet(nn.Module):
         return self.head(x)
 
 
+class WaterUNet(nn.Module):
+    """Compact single-date SAR water-segmentation U-Net (ADR-010 Stage 1).
+
+    Task: per-date surface water segmentation from calibrated Sentinel-1
+    VV/VH sigma0 (dB), NOT bi-temporal change detection. Change detection
+    remains deterministic bi-temporal differencing of two independently
+    segmented per-date masks (see docs/reference/PRODUCTION_ML_PLAN.md §1).
+
+    Built from scratch (no ImageNet-pretrained encoder): ImageNet weights
+    are tuned for 3-channel RGB optical statistics, which do not transfer
+    to 2-channel SAR sigma0-dB inputs (ADR-010 audit finding, distinct
+    modality). Parameter budget: <=10M (~1.9M actual).
+
+    Input:  (B, 2, H, W) -- VV, VH sigma0 in dB, normalized via
+            siren.ml.contract.normalize_sar() to [0, 1]. H and W must be
+            multiples of 16 (4 downsampling stages).
+    Output: (B, 1, H, W) -- water probability logits (sigmoid -> [0, 1]).
+    """
+
+    def __init__(self, in_channels: int = 2, base_channels: int = 32) -> None:
+        super().__init__()
+        self.in_channels = in_channels
+        c = base_channels
+
+        self.enc1 = DoubleConv(in_channels, c)          # H
+        self.enc2 = DoubleConv(c, c * 2)                # H/2
+        self.enc3 = DoubleConv(c * 2, c * 4)             # H/4
+        self.enc4 = DoubleConv(c * 4, c * 8)             # H/8
+        self.pool = nn.MaxPool2d(2)
+
+        self.bottleneck = DoubleConv(c * 8, c * 16)      # H/16
+
+        self.up4 = nn.ConvTranspose2d(c * 16, c * 8, kernel_size=2, stride=2)
+        self.dec4 = DoubleConv(c * 8 + c * 8, c * 8)
+
+        self.up3 = nn.ConvTranspose2d(c * 8, c * 4, kernel_size=2, stride=2)
+        self.dec3 = DoubleConv(c * 4 + c * 4, c * 4)
+
+        self.up2 = nn.ConvTranspose2d(c * 4, c * 2, kernel_size=2, stride=2)
+        self.dec2 = DoubleConv(c * 2 + c * 2, c * 2)
+
+        self.up1 = nn.ConvTranspose2d(c * 2, c, kernel_size=2, stride=2)
+        self.dec1 = DoubleConv(c + c, c)
+
+        self.head = nn.Conv2d(c, 1, kernel_size=1)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        e1 = self.enc1(x)
+        e2 = self.enc2(self.pool(e1))
+        e3 = self.enc3(self.pool(e2))
+        e4 = self.enc4(self.pool(e3))
+
+        b = self.bottleneck(self.pool(e4))
+
+        d4 = self.up4(b)
+        d4 = self.dec4(torch.cat([d4, e4], dim=1))
+
+        d3 = self.up3(d4)
+        d3 = self.dec3(torch.cat([d3, e3], dim=1))
+
+        d2 = self.up2(d3)
+        d2 = self.dec2(torch.cat([d2, e2], dim=1))
+
+        d1 = self.up1(d2)
+        d1 = self.dec1(torch.cat([d1, e1], dim=1))
+
+        return self.head(d1)
+
+    def num_parameters(self) -> int:
+        return sum(p.numel() for p in self.parameters())
+
+
 class SegFormerHead(nn.Module):
     """Lightweight SegFormer (MiT-B0) classifier head for changed pixels.
 

@@ -2,6 +2,13 @@
 
 Provides a single source of truth for which models are loaded, their
 training metadata, and whether they're ready for inference.
+
+Per ADR-010, the only qualified model is the single-date SAR water
+segmentation U-Net (``water_unet``). The three previous checkpoints
+(Siamese U-Net, SegFormer crop classifier, ConvLSTM trend) were
+disqualified by the 2026-09-07 DL audit and archived to
+``data/archived_disqualified/``. They are reported here as ``archived``
+with their disqualification reason, not as ``loaded``.
 """
 
 from __future__ import annotations
@@ -13,6 +20,12 @@ DEFAULT_WEIGHTS_DIR = (
     Path(__file__).resolve().parents[3]
     / "data"
     / "processed"
+)
+
+ARCHIVED_WEIGHTS_DIR = (
+    Path(__file__).resolve().parents[3]
+    / "data"
+    / "archived_disqualified"
 )
 
 
@@ -29,40 +42,56 @@ def get_model_status() -> dict[str, Any]:
     """
     models: dict[str, Any] = {}
 
-    # Stage 1: Siamese U-Net (change detection)
-    siren_weights = DEFAULT_WEIGHTS_DIR / "siamese_unet_weights.pt"
-    models["siamese_unet"] = {
+    # --- Active model (ADR-010 Stage 1) ---
+    # Single-date SAR water segmentation U-Net.
+    # Trained on Sen1Floods11 hand-labeled chips with official event-level splits.
+    # Input contract: 2-ch VV/VH sigma0 dB, normalized via ml/contract.py.
+    water_weights = DEFAULT_WEIGHTS_DIR / "water_unet_weights.pt"
+    models["water_unet"] = {
         "stage": 1,
-        "name": "Siamese U-Net Change Detector",
-        "loaded": _check_torch_model(siren_weights),
-        "weights_path": str(siren_weights),
-        "weights_exists": siren_weights.exists(),
-        "weights_size_mb": round(siren_weights.stat().st_size / 1e6, 1) if siren_weights.exists() else 0,
-        "metadata": _load_checkpoint_metadata(siren_weights),
-        "description": "Bi-temporal change detection using shared ResNet-34 encoder. "
-                       "Produces pixel-level change probability maps from satellite image pairs.",
-        "architecture": "SiameseUNet(ResNet-34, U-Net decoder)",
-        "training_data": "Sen1Floods11 (252 hand-labeled SAR chips)",
+        "name": "Single-Date SAR Water Segmentation U-Net",
+        "loaded": _check_torch_model(water_weights),
+        "weights_path": str(water_weights),
+        "weights_exists": water_weights.exists(),
+        "weights_size_mb": round(water_weights.stat().st_size / 1e6, 1) if water_weights.exists() else 0,
+        "metadata": _load_checkpoint_metadata(water_weights),
+        "description": "Per-date surface water segmentation from Sentinel-1 VV/VH sigma0. "
+                       "Change detection is deterministic bi-temporal differencing of per-date masks. "
+                       "ML evidence only — never the sole source of a hazard score (ADR-010).",
+        "architecture": "WaterUNet(2-ch VV/VH, U-Net decoder, <=10M params)",
+        "training_data": "Sen1Floods11 hand-labeled, official event-level splits",
+        "input_contract": "ml/contract.py: normalize_sar(), [-30, 0] dB → [0, 1]",
     }
 
-    # Stage 2: SegFormer (semantic classification)
-    segformer_weights = DEFAULT_WEIGHTS_DIR / "segformer_classifier_weights.pt"
-    models["segformer"] = {
-        "stage": 2,
-        "name": "SegFormer Land-Cover Classifier",
-        "loaded": _check_torch_model(segformer_weights),
-        "weights_path": str(segformer_weights),
-        "weights_exists": segformer_weights.exists(),
-        "weights_size_mb": round(segformer_weights.stat().st_size / 1e6, 2) if segformer_weights.exists() else 0,
-        "metadata": _load_checkpoint_metadata(segformer_weights),
-        "description": "Classifies changed pixels into functional categories: water, debris, "
-                       "snowmelt, shadow, bare rock. Filters false alarms from cloud shadows and snowmelt. "
-                       "Trained with weak labels from SAR backscatter statistics.",
-        "architecture": "SegFormerHead(MiT-B0 patch attention, 5-class)",
-        "training_data": "Sen1Floods11 weak-labeled (2580 crops, 5 classes)",
-    }
+    # --- Archived / disqualified models (ADR-010) ---
+    # These checkpoints are NOT loaded. They are reported for transparency.
+    archived_models = [
+        ("siamese_unet", "Siamese U-Net (bi-temporal, disqualified)",
+         "Label leakage: training synthesizes 'before' images from labels; "
+         "runtime feeds binary masks instead of sigma0. ADR-010 §1 verdict: replace."),
+        ("segformer_classifier", "SegFormer crop classifier (disqualified)",
+         "Not the SegFormer architecture; threshold-generated weak labels; "
+         "unreachable 'shadow' class; can delete rule-detected evidence. ADR-010 §1 verdict: drop."),
+        ("convlstm_trend", "ConvLSTM trend classifier (disqualified)",
+         "Trained on synthetic mask progressions; no elapsed-time input; "
+         "inference fabricates missing timesteps by dilation. ADR-010 §1 verdict: replace."),
+    ]
 
-    # Stage 3: Consensus gating (not a neural network — deterministic)
+    for name, display_name, reason in archived_models:
+        weights_file = ARCHIVED_WEIGHTS_DIR / f"{name}_weights.pt"
+        models[name] = {
+            "stage": "archived",
+            "name": display_name,
+            "loaded": False,
+            "weights_path": str(weights_file),
+            "weights_exists": weights_file.exists(),
+            "weights_size_mb": round(weights_file.stat().st_size / 1e6, 2) if weights_file.exists() else 0,
+            "metadata": _load_checkpoint_metadata(weights_file),
+            "description": f"ARCHIVED — disqualified by 2026-09-07 DL audit. {reason}",
+            "status": "archived_disqualified",
+        }
+
+    # --- Deterministic consensus (not a neural network) ---
     models["consensus_gating"] = {
         "stage": 3,
         "name": "Multi-Sensor Consensus Gating",
@@ -73,39 +102,36 @@ def get_model_status() -> dict[str, Any]:
         "metadata": None,
         "description": "Fuses ML mask with rule-based mask and DEM slope gating. "
                        "Eliminates ML false positives on steep terrain (>35°). "
-                       "Weighted fusion: 0.6×ML + 0.4×rule-based.",
+                       "Weighted fusion: 0.6xML + 0.4xrule-based.",
         "architecture": "Deterministic (consensus.py)",
         "training_data": None,
-    }
-
-    # Stage 4: ConvLSTM (temporal trend)
-    convlstm_weights = DEFAULT_WEIGHTS_DIR / "convlstm_trend_weights.pt"
-    models["convlstm_trend"] = {
-        "stage": 4,
-        "name": "ConvLSTM Temporal Trend Classifier",
-        "loaded": _check_torch_model(convlstm_weights),
-        "weights_path": str(convlstm_weights),
-        "weights_exists": convlstm_weights.exists(),
-        "weights_size_mb": round(convlstm_weights.stat().st_size / 1e6, 2) if convlstm_weights.exists() else 0,
-        "metadata": _load_checkpoint_metadata(convlstm_weights),
-        "description": "Classifies temporal trend from satellite sequences: stable, slowly expanding, "
-                       "rapidly expanding, or uncertain. Uses ConvLSTM cells over a CNN encoder. "
-                       "Hybrid inference — defers to deterministic thresholds when ML confidence < 0.75.",
-        "architecture": "ConvLSTMTrendClassifier(CNN encoder, ConvLSTM cells, 4-class)",
-        "training_data": "Synthetic sequences from Sen1Floods11 (840 sequences, 4 trend classes)",
     }
 
     return models
 
 
 def _check_torch_model(weights_path: Path) -> bool:
-    """Check if a torch model can be loaded from the given path."""
+    """Check if a torch model can be loaded from the given path.
+
+    Per ADR-010 audit finding §5.8, this checks actual loadability
+    (file exists AND torch is installed AND the checkpoint can be
+    deserialized), not just file existence.
+    """
     if not weights_path.exists():
         return False
     try:
         import torch  # noqa: F401
+        # Verify the checkpoint can actually be deserialized
+        checkpoint = torch.load(
+            str(weights_path), map_location="cpu", weights_only=True
+        )
+        # Must have a state_dict to be loadable
+        if isinstance(checkpoint, dict) and "state_dict" in checkpoint:
+            return True
+        if isinstance(checkpoint, dict) and not isinstance(checkpoint.get("state_dict"), dict):
+            return False
         return True
-    except ImportError:
+    except Exception:
         return False
 
 
