@@ -70,7 +70,7 @@ backend/
     detect/       # NDWI, SAR backscatter, weather-adaptive router, scenario masks
     geo/          # D8 corridor, tolerance buffers, exposure intersections
     risk/         # hazard H, exposure E, disease D_risk, SAR priority scoring + reasons
-    ml/           # Optional ML evidence layer (deterministic fallback, torch-gated)
+    ml/           # ML evidence layer (audited 2026-09-07 — not qualified for live use; see docs/reference/DL_MODEL_AUDIT.md)
     alerting/     # ≤250-byte payload codec, validator
     audit/        # append-only log writer + SHA-256 hash chain
     db/           # SQLite schema + repositories
@@ -223,7 +223,7 @@ See `docs/spec/API_CONTRACT.md` for full request/response schemas.
 
 ### Hackathon MVP (ADR-001 → ADR-005, Accepted)
 
-- **Deterministic-first.** No trained ML in the critical path. Rule-based masks and weighted scores (ADR-002).
+- **Deterministic-first.** No trained ML in the critical path. Rule-based masks and weighted scores (ADR-002). *Audit note (2026-09-07): the current implementation diverges — a 0.20-weight ML term sits inside H and the trend class can be model-replaced; ADR-010 (Proposed) restores compliance.*
 - **Offline demo.** Zero network calls at runtime for pipeline data. All data loads from `data/` (ADR-004). The only live network call is the ntfy.sh phone push on CONFIRM, gated by `navigator.onLine`.
 - **SAR-first.** Weather-adaptive router switches to SAR when cloud ≥20% (ADR-003).
 - **SQLite over PostGIS.** Zero-ops, offline-safe for hackathon scale (ADR-001).
@@ -284,7 +284,7 @@ pytest                           # 104 tests, ~20s
 
 ### Specs
 
-- [`docs/spec/PRD.md`](docs/spec/PRD.md) — Product Requirements Document (v4.5)
+- [`docs/spec/PRD.md`](docs/spec/PRD.md) — Product Requirements Document (v4.6)
 - [`docs/spec/BUILD_ROADMAP.md`](docs/spec/BUILD_ROADMAP.md) — 36-hour build plan + live service transition roadmap (Phases 0–6)
 - [`docs/spec/API_CONTRACT.md`](docs/spec/API_CONTRACT.md) — HTTP API surface
 - [`docs/design/UI_DESIGN.md`](docs/design/UI_DESIGN.md) — Coordinator console design spec
@@ -303,10 +303,13 @@ pytest                           # 104 tests, ~20s
 | [ADR-007](docs/adr/ADR-007-postgresql-operational-persistence.md) | **Proposed** | PostgreSQL operational persistence (hosted) |
 | [ADR-008](docs/adr/ADR-008-durable-orchestration-immutable-manifests.md) | **Proposed** | Durable orchestration, job ledger, immutable manifests |
 | [ADR-009](docs/adr/ADR-009-authenticated-review-server-side-delivery.md) | **Proposed** | Authenticated review, server-side delivery outbox |
+| [ADR-010](docs/adr/ADR-010-ml-evidence-isolation-and-retraining-path.md) | **Proposed** | ML evidence isolation, model verdicts, retraining path |
 
 ### Reference
 
-- [`docs/reference/KNOWN_LIMITATIONS.md`](docs/reference/KNOWN_LIMITATIONS.md) — Demo limitations + production transition gaps (15 items, phase-tagged)
+- [`docs/reference/KNOWN_LIMITATIONS.md`](docs/reference/KNOWN_LIMITATIONS.md) — Demo limitations + production transition gaps (phase-tagged)
+- [`docs/reference/DL_MODEL_AUDIT.md`](docs/reference/DL_MODEL_AUDIT.md) — 2026-09-07 audit of the four PRD-nominated ML models; verdict: no existing checkpoint is qualified for live hazard assessment
+- [`docs/reference/PRODUCTION_ML_PLAN.md`](docs/reference/PRODUCTION_ML_PLAN.md) — Recommended production pipeline, models, datasets, and the dual-basin strategy (Imja monitoring + South Lhonak event validation)
 
 ---
 
@@ -379,6 +382,8 @@ See [`docs/spec/BUILD_ROADMAP.md`](docs/spec/BUILD_ROADMAP.md) → "Live Service
 - **Review suppression logic incorrect** — historical confirm still authorizes dispatch after later reject.
 - **ntfy delivery is browser-side** — `"sent"` does not mean delivered.
 - **No S3/object storage** — local disk exhausts within weeks at production volume.
+- **ML not qualified for live use (audited 2026-09-07)** — train/inference input mismatch, no held-out evaluation, and ML paths that can suppress rule evidence; see `docs/reference/DL_MODEL_AUDIT.md` + ADR-010.
+- **Chorabari is pre-Sentinel-1** — the 2013 Kedarnath event cannot validate the SAR-primary pipeline (S1A launched April 2014); the Sentinel-era validation event is the South Lhonak GLOF (October 2023), hence the dual-basin strategy.
 
 See [`docs/reference/KNOWN_LIMITATIONS.md`](docs/reference/KNOWN_LIMITATIONS.md) → "Production Transition Gaps" for the complete list with phase tags.
 

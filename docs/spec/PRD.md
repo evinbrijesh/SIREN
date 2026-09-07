@@ -6,7 +6,7 @@
 
 | | |
 |---|---|
-| **Version** | 4.5 (Canonical — consolidates drafts v1.0–v3.0; v4.1 renames SafeBasin → SIREN; v4.2 adds combined D8+OSM corridor, UI design spec, verified demo assets; v4.3 reflects implemented state with pipeline orchestrator, 104 passing tests, verified DoD chain, ML evidence layer, SAR priority, SHA-256 audit hash chain; v4.4 adds auto-SOS on CONFIRM via ntfy.sh, Simple/Advanced ReviewView modes, AuditView exports + Web Crypto verification, First Responder Advisory, escalation policy badge, projector-ready UI polish; v4.5 adds live-service architecture audit, documents production-transition gaps, proposes ADR-006 through ADR-009, corrects known ingest defects, and adds the live service transition roadmap) |
+| **Version** | 4.6 (Canonical — consolidates drafts v1.0–v3.0; v4.1 renames SafeBasin → SIREN; v4.2 adds combined D8+OSM corridor, UI design spec, verified demo assets; v4.3 reflects implemented state with pipeline orchestrator, 104 passing tests, verified DoD chain, ML evidence layer, SAR priority, SHA-256 audit hash chain; v4.4 adds auto-SOS on CONFIRM via ntfy.sh, Simple/Advanced ReviewView modes, AuditView exports + Web Crypto verification, First Responder Advisory, escalation policy badge, projector-ready UI polish; v4.5 adds live-service architecture audit, documents production-transition gaps, proposes ADR-006 through ADR-009, corrects known ingest defects, adds the live service transition roadmap; v4.6 records the 2026-09-07 DL model audit, proposes ADR-010 (ML evidence isolation + retraining path), corrects §6.3/§9.2/§9.3/§9.5 to the audited implementation, extends §11 with the production dataset plan, and adopts a dual-basin strategy: Imja monitoring + South Lhonak event validation) |
 | **Target track** | Track 7 — *Living with Uncertainties, Building with Resilience* |
 | **Track areas** | Area ii: Communication Systems During Disasters for Effective Response · Area iii: Curbing Diseases That Arise During Disasters |
 | **Demo geography** | Dudh Koshi / Imja glacial basin, Nepal Himalaya (swap-ready to Chorabari/Kedarnath or South Lhonak if Indian terrain resonates better with judges; pipeline is basin-agnostic) |
@@ -120,8 +120,8 @@ The primary MVP user is an **authorized emergency coordinator**. The public aler
 
 **6.3 Change detection (hybrid, weather-adaptive).**
 - *SAR path (primary during cloud/monsoon conditions):* dual-polarization (σ⁰VV, σ⁰VH) backscatter differencing and ratio thresholding flags open-water expansion and surface scouring regardless of weather or daylight.
-- *Optical path (used when skies are clear):* NDWI plus a Siamese U-Net / ChangeFormer model — shared encoders over baseline and current imagery, decoded into a pixel-level change-probability map and category (water expansion, floodwater, debris, glacier change, uncertain).
-- A SegFormer head classifies changed pixels into functional classes: open water, inundation/debris, glacier/snow, moraine/bare rock, forest, built-up, cloud/shadow.
+- *Optical path (used when skies are clear):* NDWI differencing, cross-checked against DynamicWorld water/flooded-vegetation probabilities. (The originally named Siamese U-Net / ChangeFormer optical change path is deferred per ADR-010 until real labeled bi-temporal pairs exist.)
+- Semantic classification of changed pixels into functional classes (open water, inundation/debris, glacier/snow, moraine/bare rock, forest, built-up, cloud/shadow) is deferred until defensible labels exist — the implemented crop classifier is not SegFormer (see `docs/reference/DL_MODEL_AUDIT.md`).
 
 **6.4 Temporal trend, hydrological corridor, and exposure mapping.** Two-to-four observations are compared chronologically; persistence across multiple passes is required before escalation (stable / slowly expanding / rapidly expanding / uncertain — never a precise collapse time). The downstream exposure corridor uses a **combined D8 + OSM river buffering** approach (ADR-005 / Roadmap Phase 3):
 
@@ -247,13 +247,15 @@ Confidence multiplier = (1.0 − cloud_fraction) × sensor-freshness weight. For
 
 **Implemented (MVP):** registered raster differencing plus NDWI (optical, `detect/ndwi.py`) and SAR backscatter log-ratio thresholding with multi-look speckle suppression and DEM slope masking (`detect/sar.py`). Scenario masks (`detect/scenario.py`) provide deterministic, reproducible demo masks near the Imja lake when the available SAR swath doesn't cover the change source.
 
-**Research-grade (V3 roadmap):** fine-tuned Siamese U-Net or ChangeFormer with shared encoders over baseline and current imagery, decoded into a pixel-level change-probability map. SegFormer classifies changed regions into: open water, inundation/debris, glacier/snow, moraine/bare rock, built-up, forest, cloud/shadow-invalid.
+**Implemented (post-build ML layer — audited 2026-09-07):** `ml/` contains a Siamese U-Net (ResNet-34 encoder) trained on synthetic bi-temporal Sen1Floods11 pairs, a five-class changed-crop classifier internally named "SegFormer" (not the SegFormer architecture), and a ConvLSTM trend classifier trained on synthetic water-mask progressions. The audit found train/inference input mismatches, threshold-generated labels, no held-out evaluation, and integration paths that can suppress rule-based evidence. No existing checkpoint is qualified for live hazard assessment — see `docs/reference/DL_MODEL_AUDIT.md`.
+
+**Research-grade (per ADR-010, proposed):** a compact single-date SAR water-segmentation U-Net (VV/VH σ0 input, Sen1Floods11 hand-labeled event-level splits) as the first trained model, with change detection performed by deterministic bi-temporal differencing of per-date water masks on a fixed basin grid. Paired Siamese change detection (FC-Siam-diff / ChangeFormer adapted to SAR) is deferred until real labeled bi-temporal pairs exist; semantic classification is deferred until defensible labels exist. See `docs/reference/PRODUCTION_ML_PLAN.md`.
 
 ### 9.3 Temporal trend model
 
-**Implemented (MVP):** deterministic trend classification (`stable | slowly | rapidly | uncertain`) configured per observation in the pipeline orchestrator. The trend class feeds the hazard score's S_trend factor (weight 0.30).
+**Implemented (MVP):** deterministic trend classification (`stable | slowly | rapidly | uncertain`) configured per observation in the pipeline orchestrator, with a ConvLSTM hybrid (Stage 4) that can replace the configured class when trained weights are available. Audit note (2026-09-07): the ConvLSTM was trained on synthetic mask progressions, has no elapsed-time input, and its inference wrapper fabricates missing timesteps by dilating the last mask — see `docs/reference/DL_MODEL_AUDIT.md`. The trend class feeds the hazard score's S_trend factor (weight 0.30).
 
-**Research-grade (V3 roadmap):** ConvLSTM or temporal Transformer once enough labeled sequences exist. Output classification remains stable / slowly changing / rapidly changing / uncertain — deliberately never a precise event-time prediction.
+**Research-grade (per ADR-010, proposed):** deterministic time-aware trend estimation first — water-area change per elapsed day over a trailing window, with minimum-observation counts, data-age gating, and an explicit "insufficient observations" outcome. A learned temporal model (with elapsed-time features) is revisited only after ≥2 seasons of real observations. Deliberately never a precise event-time prediction.
 
 ### 9.4 GIS exposure engine
 
@@ -277,6 +279,8 @@ H = 0.30 × satellite-change trend (S_trend)
   + 0.15 × terrain and slope risk (T_slope)
   + 0.10 × downstream proximity (D_prox)
 ```
+
+> **Audit note (2026-09-07):** `risk/fusion.py` currently implements `H = 0.25·S_trend + 0.20·A_expansion + 0.15·R_rain + 0.10·T_slope + 0.10·D_prox + 0.20·ML_confidence` — a six-factor formula diverging from the documented weights above. ADR-010 (Proposed) restores the documented five-factor weights and records ML confidence as separate evidence. See `docs/reference/DL_MODEL_AUDIT.md`.
 
 **Exposure priority:**
 
@@ -393,6 +397,14 @@ The public-facing message avoids false certainty:
 | OpenStreetMap (HOT) | Humanitarian OSM Team vectors | Roads, bridges, clinics, schools, and municipal water sources | GeoJSON/GeoPackage |
 | Sen1Floods11 | Public benchmark dataset | Pretraining/benchmarking SAR flood-water segmentation weights | GeoTIFF/COG |
 | ICIMOD inventories | Open data/reports | Glacial-lake baselines and regional GLOF context | GeoJSON/GeoPackage |
+| WorldFloods v2 | S2 L1C + curated flood/cloud masks, 509 events 2016–23 (HuggingFace `isp-uv-es/WorldFloodsv2`; masks on Zenodo) | Cloud-aware optical flood segmentation training/validation (ADR-010 Stage 1b) | **CC non-commercial — license review required** |
+| JRC Global Surface Water | Monthly water history 1984–present + permanent-water layer (GEE `JRC/GSW1_4`) | Permanent-water prior; persistent-vs-new-water separation | GEE raster |
+| DynamicWorld V1 | NRT 10 m S2 LULC class probabilities — water, flooded_vegetation, snow_and_ice (GEE `GOOGLE/DYNAMICWORLD/V1`) | Opportunistic optical cross-check; weak-supervision candidate | GEE raster |
+| Copernicus DEM GLO-30 | 30 m global DEM (Copernicus Data Space) | Alternative/successor to SRTM for slope + D8 (per-basin requalification required, ADR-005) | Raster DEM |
+| HydroLAKES / GLIMS-RGI | Global lake extents / glacier outlines | Lake identity, naming, historical extents for baselines and reporting | GeoJSON/GeoPackage |
+| SSL4EO-S12 | Self-supervised S1/S2 encoders (ResNet/ViT; MoCo/DINO/MAE) | Optional encoder initialization for the Stage-1 SAR segmenter (ADR-010) | PyTorch checkpoints |
+
+**Production dataset plan** — training/evaluation splits, per-basin operational inputs, and event-validation data (incl. the South Lhonak October 2023 GLOF) are specified in `docs/reference/PRODUCTION_ML_PLAN.md` (companion to ADR-010).
 
 **Prepared demo dataset (verified on disk, `data/`):**
 - Sentinel-1 GRD triplet: 2026-07-23 (obs-001) + 2026-08-04 (obs-002) + 2026-08-12 (obs-003), IW dual-pol VV/VH, full AOI coverage.
@@ -510,11 +522,11 @@ For emergency use, a model with a slightly lower pixel score may still be prefer
 
 **V1.5 — Live acquisition service (in planning):** automated discovery and download of new satellite products from Copernicus CDSE, IMERG, OSM Overpass, and SRTM; durable job ledger with idempotency (ADR-008); acquisition-health alerting; credential management via Secrets Manager. The frozen deterministic pipeline is not changed in this phase — it receives verified registered inputs rather than being rewritten. Key defects to fix: CDSE deprecated endpoint, Overpass missing river geometry, openmeteo date window bug, and silent failure exits. See `docs/spec/BUILD_ROADMAP.md` Live Phase 1 and `docs/reference/KNOWN_LIMITATIONS.md` Production Transition Gaps.
 
-**V2 — Hosted operational service:** PostgreSQL/RDS persistence with idempotency constraints (ADR-007); S3 object storage for rasters; OIDC authentication and basin-scoped RBAC (ADR-009); paginated API; server-side delivery outbox with provider receipts; multi-instance API behind ALB; live-timeline frontend without simulation controls. PostGIS enabled for the operational asset catalogue and footprint queries — the frozen pipeline's spatial joins remain in-memory via geopandas. See ADR-006 for the connected-acquisition/isolated-execution boundary and ADR-009 for authenticated review.
+**V2 — Hosted operational service:** PostgreSQL/RDS persistence with idempotency constraints (ADR-007); S3 object storage for rasters; OIDC authentication and basin-scoped RBAC (ADR-009); paginated API; server-side delivery outbox with provider receipts; multi-instance API behind ALB; live-timeline frontend without simulation controls. PostGIS enabled for the operational asset catalogue and footprint queries — the frozen pipeline's spatial joins remain in-memory via geopandas. See ADR-006 for the connected-acquisition/isolated-execution boundary and ADR-009 for authenticated review. **Dual-basin pilot:** Imja/Dudh Koshi (monitoring) + South Lhonak/Teesta (event validation — the real October 2023 GLOF); see `docs/reference/PRODUCTION_ML_PLAN.md` §4. Chorabari/Kedarnath is dropped as a validation basin: the 2013 event predates Sentinel-1 (S1A launched April 2014), so the SAR-primary pipeline cannot be validated on it.
 
 **Critical blocker between V1.5 and V2:** the frozen `run_pipeline()` accepts only the three hardcoded demo observation IDs. The pipeline must reject unknown observations, not silently process them with demo defaults. An approved scope decision is required to extend the observation-acceptance interface before automatic live scoring is possible. See `docs/reference/KNOWN_LIMITATIONS.md` → "Pipeline observation acceptance (Phase 4 blocker)".
 
-**V3 — Research system:** fine-tuned Siamese U-Net/ChangeFormer + SegFormer, ConvLSTM/temporal Transformer trend modeling, calibrated risk fusion with uncertainty estimation, regional transfer testing, hydrodynamic flow modeling, post-event damage assessment; what-if scenario simulation (e.g., partial lake-release planning mode for preparedness exercises); UAV/drone tasking for high-resolution local verification; landslide-susceptibility modeling.
+**V3 — Research system (revised per ADR-010):** single-date SAR water segmentation (Sen1Floods11 with event-level splits) with deterministic bi-temporal differencing; paired SAR change detection (FC-Siam-diff / ChangeFormer adapted to SAR) once real labeled bi-temporal pairs exist; time-aware deterministic trend, with learned temporal models (elapsed-time-aware) only after ≥2 seasons of real observations; calibrated risk fusion with uncertainty estimation; regional transfer testing (optional non-Himalayan generalization basin, e.g. Cordillera Blanca); hydrodynamic flow modeling; post-event damage assessment; what-if scenario simulation (e.g., partial lake-release planning mode for preparedness exercises); UAV/drone tasking for high-resolution local verification; landslide-susceptibility modeling.
 
 **V4 — Resilience platform:** integration with river gauges, local field reports, telecom status feeds, food/water logistics, shelter capacity, multilingual alert templates, offline field applications, cross-border basin coordination; multi-basin national portfolio dashboard; **Area i expansion — personnel identification and family reunification** (missing-persons registry, survivor tracking, reunification workflow), built only in partnership with approved disaster-management authorities and subject to the privacy constraints in §13.
 

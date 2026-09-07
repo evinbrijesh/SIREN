@@ -14,7 +14,7 @@
 - **Audit log.** Append-only, enforced by SQLite triggers (no UPDATE/DELETE paths exist). Lineage is queryable by alert_id or run_id. SHA-256 hash chain (`prev_hash` + `event_hash`) makes the log tamper-evident.
 - **Human gate.** No code path dispatches without a recorded `confirm` review. Enforced at the DB layer.
 - **SAR priority ranking.** `risk/sar_priority.py` computes a priority score for exposed assets (PRD §15). Real code on real OSM exposure data — 9 tests.
-- **ML evidence layer (optional).** `ml/` provides a change-detection evidence layer with a deterministic fallback when torch is not installed. When torch is available, a Siamese U-Net / ChangeFormer path can be activated. The deterministic path is the default and always works (ADR-002 addendum).
+- **ML evidence layer (optional, audited 2026-09-07).** `ml/` contains a Siamese U-Net (trained on synthetic bi-temporal Sen1Floods11 pairs), a changed-crop classifier internally named "SegFormer" (not the SegFormer architecture; trained on threshold-generated weak labels), and a ConvLSTM trend model (trained on synthetic mask progressions). ChangeFormer is named in the PRD but not implemented. The deterministic path remains the default, but the audit found the ML layer is not currently qualified for live hazard assessment — see `docs/reference/DL_MODEL_AUDIT.md` and ADR-010 (Proposed).
 
 ## What's Simulated (Not Real at Runtime)
 
@@ -112,3 +112,13 @@ The `/audit` endpoint recomputes hashes from current field values rather than co
 
 ### No S3 or object-storage integration (Phase 3)
 Raw SAFE archives (approximately 1.7 GB per SAR product) are stored on the local container filesystem. At 5–10 SAR products per month, local storage will exhaust typical ECS ephemeral limits within weeks. S3 with immutable keys and lifecycle rules is required for durable raster storage.
+
+### DL layer (audited 2026-09-07 — see docs/reference/DL_MODEL_AUDIT.md)
+
+- **ML train/inference input mismatch (Phase 4).** The Siamese model trains on SAR chips but the pipeline feeds it binary water masks as both inputs.
+- **Crop classifier can remove rule-detected evidence (Phase 4).** The Stage-2 `filtered_mask` replaces the consensus mask and can delete entire rule-detected regions; the deterministic fallback heuristic can do the same.
+- **ConvLSTM fabricates missing timesteps (Phase 4).** `trend_engine.py` pads short sequences by dilating the last mask — synthetic growth is fed to the model as observation.
+- **No held-out evaluation exists (Phase 2).** All checkpoint metrics (e.g. the "93.7% accuracy") are training-set numbers; model selection is by training loss; there is no event-level split or test set.
+- **Risk fusion diverges from PRD §9.5 (Phase 4 — scope decision).** A 0.20-weight ML-confidence term replaces the documented weights; ADR-002's "no trained ML in the critical path" is not currently enforced.
+- **Weak-label "shadow" class is unreachable (Phase 2).** In `train_segformer.py`, water is assigned all VV < −22 dB, so shadow (VV < −25, not water) can never be labeled.
+- **Docker weights-path divergence (Phase 3).** The engine's default checkpoint path resolves to `/data/processed` in the container while the pipeline mounts `/app/data/processed` — a deployed container silently runs the fallback despite mounted checkpoints.
