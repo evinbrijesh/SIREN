@@ -1,29 +1,30 @@
 {
   "basin_id": "dudh-koshi-demo-01",
+  "source": "open-meteo-era5",
   "series": [
     {
       "date": "2026-07-23",
       "observation_id": "obs-001",
-      "rainfall_24h_mm": 18.2,
-      "rainfall_7d_mm": 64.0,
-      "temp_mean_c": 11.5,
-      "temp_index": 0.58
+      "rainfall_24h_mm": 3.2,
+      "rainfall_7d_mm": 58.9,
+      "temp_mean_c": 8.5,
+      "temp_index": 0.47
     },
     {
       "date": "2026-08-04",
       "observation_id": "obs-002",
-      "rainfall_24h_mm": 84.6,
-      "rainfall_7d_mm": 192.4,
-      "temp_mean_c": 14.2,
-      "temp_index": 0.71
+      "rainfall_24h_mm": 12.1,
+      "rainfall_7d_mm": 48.5,
+      "temp_mean_c": 9.3,
+      "temp_index": 0.49
     },
     {
       "date": "2026-08-12",
       "observation_id": "obs-003",
-      "rainfall_24h_mm": 60.0,
-      "rainfall_7d_mm": 160.0,
-      "temp_mean_c": 13.8,
-      "temp_index": 0.69
+      "rainfall_24h_mm": 3.7,
+      "rainfall_7d_mm": 61.3,
+      "temp_mean_c": 10.6,
+      "temp_index": 0.51
     }
   ]
 }
