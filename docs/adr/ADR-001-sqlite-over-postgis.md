@@ -19,3 +19,19 @@ Use **SQLite with JSON columns** for persistence, and **GeoJSON files on disk** 
 ## Rationale
 
 At hackathon scale the basin extract is small enough that in-memory geopandas joins are effectively instant. The cost of running PostGIS (setup, ops, demo fragility) outweighs the indexing benefit for a single-basin demo. This is a scope decision, not a permanent one — see Roadmap V2 (PostGIS migration).
+
+---
+
+## Addendum — Hosted service considerations (2026-09-07)
+
+**Status change proposed:** Accepted (demo/single-host) · See ADR-007 for hosted deployment.
+
+The following limitations have been identified that make SQLite unsuitable as the sole persistence layer for a continuously hosted multi-instance service:
+
+- **SQLite WAL does not work over network filesystems.** The SQLite documentation explicitly warns against using WAL mode on NFS, EFS, or any network-mounted path. Putting a shared `.db` file on EFS for multi-instance API access is unsupported and risks corruption.
+- **Concurrent write contention.** A single persistent connection with `check_same_thread=False` and a five-second busy timeout does not serialize concurrent ingestion workers, processing workers, and audit writes correctly under sustained load.
+- **Count-based ID generation.** The current `SELECT COUNT(*) + 1` pattern for run and observation IDs produces collisions under concurrent inserts.
+- **No native idempotency constraints.** There is no provider-product-ID uniqueness constraint. Scheduler retries can create duplicate observations.
+- **No backup/PITR.** File-copy backup can produce a corrupt snapshot if a writer is active at copy time.
+
+ADR-007 proposes RDS PostgreSQL as the persistence layer for hosted operation. SQLite is retained and continues to be the correct choice for demo and single-host operation (ADR-001 remains Accepted for those profiles). The frozen pipeline's in-memory spatial joins via geopandas are not migrated to PostGIS.
