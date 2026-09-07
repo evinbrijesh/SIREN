@@ -166,6 +166,213 @@ The following enhancements were added after the core build was complete and the 
 
 ---
 
+---
+
+## Live Service Transition Roadmap (Post-Hackathon)
+
+**Companion to:** ADR-006, ADR-007, ADR-008, ADR-009 · **Applies to:** transitioning SIREN from an offline demo to a continuously running hosted service.
+
+**Principle:** the frozen deterministic pipeline is not changed. What changes is what feeds it and how often it is triggered. Phases build on each other — do not skip a go/no-go gate.
+
+> **Critical blocker that applies to all phases:** `run_pipeline()` currently accepts only the three hardcoded demo observation IDs (`obs-001`, `obs-002`, `obs-003`). A live acquisition service can discover and download real satellite products, but the pipeline will reject them until the observation-acceptance interface is extended under an approved scope decision. Phase 4 is explicitly blocked until this is resolved. Phases 1–3 can proceed independently.
+
+---
+
+### Live Phase 0 — Frozen release and acceptance boundary
+
+**Goal:** establish exactly what is frozen and what can change.
+
+| Task | Done when |
+|---|---|
+| Pin the exact engine container image and processing version | A tagged, reproducible image exists; its digest is committed |
+| Document every code/spec discrepancy | KNOWN_LIMITATIONS.md updated; all conflicts between PRD and implementation recorded |
+| Verify the observation-acceptance interface | `run_pipeline("live-new-scene", repo)` → `ValueError` reproduced and documented; blocker formally recorded |
+| Confirm storage/API adapter boundary | Written agreement on which interfaces can change (storage adapter, API layer) vs. which are frozen (pipeline internals) |
+| Confirm ADR-002 compliance | Verify that the ML confidence term in risk fusion is documented; decide whether it is within or outside the frozen boundary |
+
+**GO criterion:** a written, agreed list of what is frozen and what can be changed exists before any live-service code is written.
+
+**NO-GO action:** do not build Phase 1 until the boundary is agreed. Building acquisition infrastructure for a pipeline that cannot accept its output wastes the effort.
+
+**Rollback:** none needed; this is a discovery phase only.
+
+---
+
+### Live Phase 1 — Reliable acquisition-only service
+
+**Goal:** a service that discovers, downloads, verifies, and registers new satellite and weather products with durable job state — without triggering any pipeline run.
+
+| Task | Done when |
+|---|---|
+| Fix `cdse.py`: current STAC endpoint, pagination, asset-role selection, atomic streaming download | Repeated discovery+download creates one canonical, verified local file; no partial files at destination |
+| Add `acquisition_jobs` table (ADR-008 schema) | DB migration tested; `UNIQUE(source, provider_product_id)` prevents duplicates on scheduler retry |
+| Wrap each ingest script in job-ledger logic | Every download attempt is recorded; failures are visible; exit 0 is never returned for a failed download |
+| Fix `overpass.py`: add `waterway=river/stream`, emit flat properties, do not overwrite on empty response | Updated extract is compatible with the corridor module; an empty Overpass response is quarantined |
+| Fix `openmeteo.py`: correct the backward date bug, make date window dynamic | Seven-day antecedent rainfall is computed correctly; missing precipitation is `null`, not `0` |
+| Fix `srtm.py`: update to current Earthdata Cloud access URLs | Download completes without redirect failure |
+| Add a simple scheduler (EventBridge or systemd timer) | Each source is polled at the recommended interval; missed polls are logged |
+| Add credential management | Provider credentials stored in AWS Secrets Manager; never in source or environment variables committed to git |
+| Add ingestion-health alerting | Missed heartbeats, persistent 401/403, and dead-letter jobs produce operator notifications on a separate channel from hazard alerts |
+
+**GO tests:**
+- Repeated scheduler triggers for the same satellite acquisition create exactly one `acquisition_jobs` row.
+- A download that is interrupted mid-file never marks the job `verified` or `ready`.
+- A 401 response triggers one token refresh; a second 401 marks the job `failed` and sends an operator alert.
+- An empty Overpass response does not overwrite the last approved OSM extract.
+- A missing IMERG granule is recorded as `null` rainfall, not `0`.
+
+**NO-GO trigger:** ingestion success is still inferred from process exit code or file existence.
+
+**Rollback:** disable the scheduler; the demo continues to work from prepared data unchanged.
+
+---
+
+### Live Phase 2 — Basin and input qualification
+
+**Goal:** verify that the live acquisition pipeline produces inputs that the frozen corridor and detector implementations can use correctly, and that the Imja basin has adequate coverage for the intended monitoring purpose.
+
+| Task | Done when |
+|---|---|
+| Expand acquisition inventory | At least two full orbit-12 and orbit-121 SAR acquisitions verified, downloaded, and stored |
+| Validate SAR footprint covers Imja Lake | Actual pixel coverage at 86.925°E verified for each track; orbit-85 excluded from Imja assessments |
+| Validate OSM river geometry compatibility | Updated Overpass extract opens correctly in the corridor module; river segment count is within expected range |
+| Validate IMERG rainfall window | Seven-day window computed from real IMERG granules matches open reference for at least one historical date |
+| Independent corridor evaluation | Corridor run on at least one real non-demo SAR scene; exposed assets visually checked against known valley geography |
+| OSM population/freshness assessment | Critical assets reviewed against an authority source; population gaps documented; exposure reports labeled with data-source confidence |
+| DEM qualification | SRTM version pinned; checksum committed; replacement policy defined |
+
+**GO criteria:**
+- At least two real lake-covering SAR acquisitions available and verified.
+- Corridor produces plausible exposure output on a scene not from the demo pair.
+- OSM freshness and population gaps are quantified and accepted by an operational partner.
+- Scientific suitability is accepted independently of infrastructure uptime.
+
+**NO-GO trigger:** required lake coverage is unavailable on the correct orbits; or corridor performance depends on the demonstration masks; or OSM population gaps are unacceptable to the operational partner.
+
+**Rollback:** retain shadow observation mode; do not advance to Phase 3 with unqualified inputs.
+
+---
+
+### Live Phase 3 — Hosted persistence, security, and live UI
+
+**Goal:** replace the single-machine demo stack with a multi-instance hosted service. Database, auth, API, and frontend changes. No pipeline changes.
+
+| Task | Done when |
+|---|---|
+| Migrate schema to PostgreSQL / RDS (ADR-007) | Row counts and FK checks match the SQLite source; restore drill passes; multi-instance write test passes without ID collision |
+| Implement storage adapter | Repository interface unchanged; adapter tested with both SQLite (demo) and PostgreSQL (hosted) backends |
+| Add S3 object storage | Verified products stored at immutable keys; local materialization for execution; lifecycle rules for retention |
+| Add OIDC authentication (ADR-009) | Reviewer identity from authenticated claims; ingestion-worker role cannot submit reviews |
+| Add paginated API responses | `/observations`, `/runs`, `/audit` accept `?page=` and `?limit=`; no unpaginated list queries in production |
+| Add health and freshness endpoints | `GET /health/ingestion` returns per-source last-success time, pending job count, and any dead-letter jobs |
+| Update frontend: live timeline mode | Frontend polls for new observations without a simulation button; no automatic mock fallback on API error |
+| Server-side delivery outbox (ADR-009) | `delivery_jobs` table; background worker; `"delivered"` means provider accepted; browser-side ntfy retained for demo only |
+| Backup and restore | Automated daily RDS snapshots; quarterly restore drill; backup copies in a separate region |
+| Docker / Compose / IaC updated | `docker-compose.yml` supports both demo (SQLite) and hosted (PostgreSQL + S3) profiles via environment variables |
+
+**GO tests:**
+- Two concurrent API instances write reviews without ID collision.
+- A later `reject` decision suppresses an unsent dispatch from a prior `confirm`.
+- API outage does not cause the frontend to display mock data as live.
+- Browser restart restores actual review state from the server, not from localStorage cache.
+- Restore drill reconstructs the database and referenced evidence correctly.
+- Audit chain verification uses stored records; independent checkpoint passes.
+
+**NO-GO trigger:** multi-instance writes produce ID collisions; or review suppression logic is incorrect; or restore drill fails.
+
+**Rollback:** revert to single-instance SQLite deployment; demo unaffected.
+
+---
+
+### Live Phase 4 — Automatic scoring integration
+
+**Prerequisite:** Live Phase 0 GO criterion must be met. **Currently blocked** by `run_pipeline()` accepting only demo observation IDs.
+
+**Goal:** a verified, ready observation automatically triggers an authenticated pipeline run, producing a scored result for human review — without any browser action.
+
+| Task | Done when |
+|---|---|
+| Resolve live-observation interface blocker | Scope decision made: either the observation-acceptance interface is extended, or an approved adapter is defined outside the frozen boundary |
+| Implement input materialization | Processing worker copies pinned inputs from S3 to task-local ephemeral storage; never reads from a shared mutable path |
+| Implement authenticated `POST /runs` trigger | Ready-input event submits an idempotent run request with a stable idempotency key |
+| Implement processing worker | Worker acquires a lease; executes the frozen callable; publishes the complete result before releasing the lease |
+| Wire complete result publication | Score, exposures, and audit entry are committed in a single transaction before the run is marked complete |
+| Validate idempotency | Duplicate ready events produce exactly one run record |
+
+**GO tests:**
+- A new provider observation ID reaches the review queue without browser action.
+- Duplicate submission of the same ready event yields one logical run and one review card.
+- Worker crash is reconciled without duplicate public effects.
+- Replaying the same input manifest produces identical scientific results.
+- A missing required input cannot produce scenario-mask or seeded-default evidence.
+- The ingestion-worker role cannot submit a review or trigger a dispatch.
+
+**NO-GO trigger:** making the integration work requires changing frozen pipeline behavior or frozen scoring logic.
+
+**Rollback:** disable automatic triggering; manual `POST /runs` from the API remains available.
+
+---
+
+### Live Phase 5 — Extended shadow operation
+
+**Goal:** at least 30 days of unattended operation, supplemented by historical seasonal validation. No public alerts during this phase.
+
+| Task | Done when |
+|---|---|
+| Monitor every expected acquisition | Each expected pass is accounted for: processed, rejected, unavailable, or failed with reason |
+| Credential rotation drill | CDSE token refresh and Earthdata token rotation tested under real expiry conditions |
+| Provider outage simulation | Backend unavailable for 24 hours; acquisition degrades gracefully; assessments labeled with data age |
+| Disaster recovery drill | Full restore from backup to a clean environment; API and frontend reconnect correctly |
+| Cost measurement | Actual AWS spend measured against the budget estimate; anomalies investigated |
+| Scientific review | False-positive and false-exposure rate estimated from at least two independent no-change periods |
+| Operator runbook | Runbook covers common failure scenarios; on-call rotation defined |
+
+**GO criteria:**
+- Every expected acquisition is accounted for (no unexplained gaps).
+- No duplicate assessments or duplicate alert records.
+- Storage and retry behavior is bounded (no unbounded growth observed).
+- Scientific suitability accepted by the designated operational partner.
+- Agreed freshness and operator-response targets are met in practice.
+
+**NO-GO trigger:** unexplained data gaps; unbounded storage or retry growth; scientific performance below accepted thresholds.
+
+---
+
+### Live Phase 6 — Authority-supervised operational pilot
+
+**Goal:** the first live hazard assessments with a real response partner. Human review and confirmation required before every dispatch. Alerts go to an approved recipient group, not the public ntfy topic.
+
+| Task | Done when |
+|---|---|
+| Approved delivery provider | An authority-reviewed channel (SMS gateway, official push, or satellite messenger) is integrated and tested |
+| Recipient groups defined | Groups, geofences, and escalation contacts are configured and approved by the operational partner |
+| Review staffing | Coordinator schedule, review expiry, and escalation procedure are agreed and documented |
+| Message template testing | Alert templates tested in relevant languages; LoRa/satellite byte constraints verified against Nepal radio regulations |
+| First supervised dispatch | At least one full confirm→deliver cycle with receipt confirmation; reviewed by the operational partner |
+| Public communication framing | All public-facing materials clearly label the service as supplementary decision support, not a replacement for official warning systems |
+
+**GO criteria:**
+- All dispatches trace to valid authenticated confirmations.
+- Delivery receipts recorded; expired undelivered messages flagged.
+- Ingestion-health notifications use a separate channel from hazard messages.
+- Operational partner accepts the system and its limitations in writing.
+
+**NO-GO trigger:** anyone depends on satellite polling as immediate GLOF detection; or simulated `"sent"` records are treated as confirmed delivery; or alert templates have not been validated in the target language and format.
+
+---
+
+### Live Service Go/No-Go Summary
+
+| Phase | Key gate question | If NO |
+|---|---|---|
+| 0 | Is the frozen boundary agreed in writing? | Do not start Phase 1 |
+| 1 | Are downloads atomic, verified, and idempotent? | Fix before scheduling |
+| 2 | Do real acquisitions produce corridor-compatible inputs? | No automatic triggering until yes |
+| 3 | Does multi-instance operation produce no ID collisions? | Fix before adding more instances |
+| 4 | Is the live-observation blocker resolved? | Phase 4 stays blocked |
+| 5 | Are data gaps, duplicates, and growth bounded after 30 days? | Extend shadow period |
+| 6 | Has a real dispatch been confirmed, delivered, and receipted? | No public pilot |
+
 ## Team Work Streams
 
 | Stream | Owner | Owns phases | Spine nodes |
