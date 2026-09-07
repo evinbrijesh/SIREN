@@ -96,6 +96,12 @@ DEMO_OBSERVATIONS = {
         "trend_class": "rapidly",
         "rainfall_24h_mm": 60.0,
         "rainfall_7d_mm": 160.0,
+        # KNOWN LIMITATION: obs-003 uses a synthetic scenario mask (+43% expansion)
+        # because no real Sentinel-1 SAFE archive was available for this date
+        # (CDSE download requires credentials not present on this machine).
+        # obs-001 and obs-002 use real calibrated VV/VH sigma0 dB from SAFE archives.
+        # The obs-003 mask is a deterministic scenario per PRD §9.2/§16.
+        "mask_provenance": "synthetic_scenario",
     },
 }
 
@@ -216,66 +222,110 @@ def _get_ml_engine() -> Any:
     return _ml_engine_cache["engine"]
 
 
-def _get_segformer_engine() -> Any:
-    """Get or create a cached SegFormerEngine."""
-    if "segformer" not in _ml_engine_cache:
-        from siren.ml.segformer_engine import SegFormerEngine
-        _ml_engine_cache["segformer"] = SegFormerEngine()
-    return _ml_engine_cache["segformer"]
-
-
 def _try_ml_evidence_layer(
     observation_id: str, rule_mask_path: str
 ) -> dict[str, Any] | None:
-    """Attempt to run the ML evidence layer (ADR-002).
+    """Attempt to run the ML evidence layer in SHADOW MODE (ADR-010).
 
     Returns None if torch is unavailable or no trained weights exist —
     the pipeline then uses the deterministic mask alone (Hard Rule 1).
 
-    If the ML engine is ready, computes a consensus mask that fuses the
-    ML prediction with the rule-based mask, plus a confidence map for
-    the UI heatmap visualization.
+    ADR-010 safety boundaries enforced here:
+      - The ML output is recorded as SEPARATE EVIDENCE only. It does NOT
+        replace the rule-based change mask, does NOT filter rule-detected
+        pixels, and does NOT enter the hazard score (see risk/fusion.py —
+        the 5-factor formula has no ML term).
+      - The SegFormer classifier (archived/disqualified) previously
+        REPLACED the consensus mask via seg_result["filtered_mask"]. That
+        was a load-bearing ML violation ("do not let a classifier remove
+        rule-detected pixels"). Its output is now retained strictly as
+        metadata under "classification_breakdown" and never modifies the
+        mask used downstream.
+      - Source labels: "ml-shadow" when WaterUNet weights are loaded and
+        producing supplementary evidence; "deterministic-fallback" when
+        the ML engine is not ready (no torch or no weights).
+
+    The "consensus_mask" returned here is ALWAYS the rule-based mask.
+    The ML prediction is stored separately under "ml_shadow_mask" for
+    the UI to display as supplementary evidence, never as the
+    load-bearing mask for corridor/exposure/scoring.
     """
     try:
         from siren.ml.consensus import compute_consensus_mask
 
         engine = _get_ml_engine()
+
+        # Always load the rule-based mask — it is the load-bearing mask
+        # regardless of whether ML is available.
+        with rasterio.open(rule_mask_path) as src:
+            rule_mask = src.read(1)
+
         if not engine.is_ready:
-            # No trained weights — use deterministic mask with synthetic confidence
-            with rasterio.open(rule_mask_path) as src:
-                rule_mask = src.read(1)
-            # Derive a confidence map from the rule-based mask:
-            # high confidence in the interior, lower at edges
+            # No trained weights — deterministic fallback with synthetic confidence
             confidence = _derive_synthetic_confidence(rule_mask)
             return {
-                "source": "deterministic_fallback",
+                "source": "deterministic-fallback",
                 "consensus_mask": rule_mask,
                 "confidence_map": confidence,
                 "confidence_mean": float(confidence[rule_mask > 0].mean()) if rule_mask.any() else 0.0,
                 "consensus_pixels": int(rule_mask.sum()),
             }
 
-        # ML engine is ready — load rasters and run inference
-        baseline_path = PROCESSED_DIR / "baseline_water_mask.tif"
-        if not baseline_path.exists():
-            return None
+        # ML engine is ready — run inference in SHADOW MODE.
+        # The ML mask is supplementary evidence, NOT the load-bearing mask.
+        #
+        # TENSOR CONTRACT (2026-09-12 fix): WaterUNet expects calibrated
+        # Sentinel-1 VV/VH sigma0 in dB, normalized to [0, 1] via
+        # normalize_sar() (ml/contract.py). We now extract and calibrate
+        # real VV/VH dB from the SAFE archives using preprocess/sar_calibrate.py.
+        # The calibrated rasters are cached to data/processed/ as GeoTIFFs.
+        # Safety is preserved because WaterUNet is shadow-only and cannot
+        # affect hazard scoring, corridor routing, exposure, or dispatch.
+        from siren.preprocess.sar_calibrate import (
+            extract_and_cache_vv_vh_db,
+            find_safe_for_observation,
+        )
 
-        with rasterio.open(str(baseline_path)) as src:
-            t0 = src.read()  # (C, H, W)
-        with rasterio.open(rule_mask_path) as src:
-            t1 = src.read()
-            rule_mask = src.read(1)
+        raw_dir = DATA_DIR / "raw"
+
+        # Find the SAFE archive for this observation
+        safe_path = find_safe_for_observation(observation_id, raw_dir)
+        if safe_path is None:
+            logger.info(
+                f"No SAFE archive for {observation_id} — "
+                "ML shadow mask skipped (no calibrated SAR input)"
+            )
+            confidence = _derive_synthetic_confidence(rule_mask)
+            return {
+                "source": "deterministic-fallback",
+                "consensus_mask": rule_mask,
+                "confidence_map": confidence,
+                "confidence_mean": float(confidence[rule_mask > 0].mean()) if rule_mask.any() else 0.0,
+                "consensus_pixels": int(rule_mask.sum()),
+            }
+
+        # Extract and cache calibrated VV/VH dB for the current observation
+        t1_cache = PROCESSED_DIR / f"{observation_id}_sar_vv_vh_db.tif"
+        t1_db = extract_and_cache_vv_vh_db(safe_path, t1_cache)
+
+        # For the baseline (t0), use obs-001's calibrated SAR if available,
+        # otherwise fall back to the current scene (self-comparison → no change).
+        baseline_safe = find_safe_for_observation("obs-001", raw_dir)
+        if baseline_safe is not None and observation_id != "obs-001":
+            t0_cache = PROCESSED_DIR / "obs-001_sar_vv_vh_db.tif"
+            t0_db = extract_and_cache_vv_vh_db(baseline_safe, t0_cache)
+        else:
+            # obs-001 is the baseline — compare against itself (no change expected)
+            t0_db = t1_db.copy()
 
         # Resize t0 to match t1's spatial dimensions if they differ
-        # (baseline mask may be full-res, obs mask is 200x200)
-        if t0.shape[1:] != t1.shape[1:]:
+        if t0_db.shape[1:] != t1_db.shape[1:]:
             from scipy.ndimage import zoom
-            target_h, target_w = t1.shape[1], t1.shape[2]
-            zh, zw = target_h / t0.shape[1], target_w / t0.shape[2]
-            t0_resized = np.zeros((t0.shape[0], target_h, target_w), dtype=np.float32)
-            for c_idx in range(t0.shape[0]):
-                zoomed = zoom(t0[c_idx], (zh, zw), order=0)
-                # Crop or pad to exact target dimensions
+            target_h, target_w = t1_db.shape[1], t1_db.shape[2]
+            zh, zw = target_h / t0_db.shape[1], target_w / t0_db.shape[2]
+            t0_resized = np.zeros((t0_db.shape[0], target_h, target_w), dtype=np.float32)
+            for c_idx in range(t0_db.shape[0]):
+                zoomed = zoom(t0_db[c_idx], (zh, zw), order=1)
                 zh_act, zw_act = zoomed.shape
                 if zh_act > target_h:
                     zoomed = zoomed[:target_h]
@@ -286,18 +336,14 @@ def _try_ml_evidence_layer(
                 elif zw_act < target_w:
                     zoomed = np.pad(zoomed, ((0, 0), (0, target_w - zw_act)), mode="edge")
                 t0_resized[c_idx] = zoomed
-            t0 = t0_resized
+            t0_db = t0_resized
 
-        # Normalize to [0, 1]
-        t0 = np.clip(t0.astype(np.float32) / 255.0, 0, 1) if t0.max() > 1 else t0
-        t1 = np.clip(t1.astype(np.float32) / 255.0, 0, 1) if t1.max() > 1 else t1
+        # Run ML inference with calibrated VV/VH dB input.
+        # engine.predict_change_mask() calls normalize_sar() internally
+        # to clamp [-30, 0] dB → [0, 1] per the frozen contract.
+        ml_mask = engine.predict_change_mask(t0_db, t1_db)
 
-        # Run ML inference (engine handles channel adjustment internally)
-        ml_mask = engine.predict_change_mask(t0, t1)
-
-        # Compute DEM slope for physical consensus gating (Stage 3)
-        # Floodwaters cannot collect on steep terrain — slope gating
-        # eliminates ML false positives on mountain ridges
+        # Compute DEM slope for physical consensus gating (metadata only)
         dem_slope_arr = None
         if DEM_PATH.exists():
             try:
@@ -305,7 +351,6 @@ def _try_ml_evidence_layer(
                 from siren.detect.sar import dem_slope as compute_dem_slope
                 slope_full, ds = compute_dem_slope(str(DEM_PATH))
                 ds.close()
-                # Resize slope to match the mask shape
                 h, w = rule_mask.shape
                 if slope_full.shape != (h, w):
                     zh, zw = h / slope_full.shape[0], w / slope_full.shape[1]
@@ -315,40 +360,26 @@ def _try_ml_evidence_layer(
             except Exception as exc:
                 logger.warning(f"DEM slope computation failed: {exc} — consensus without slope gating")
 
-        # Compute consensus (with DEM slope if available)
+        # Compute consensus for DISPLAY/CONFIDENCE only.
+        # The rule_mask remains the load-bearing mask returned as "consensus_mask".
         result = compute_consensus_mask(ml_mask, rule_mask, dem_slope=dem_slope_arr)
-        consensus_mask = result["consensus"]
 
-        # Stage 2: SegFormer false-alarm filtering (PRD §9.2)
-        # Classifies changed regions and removes shadow/snowmelt false alarms
-        # from the consensus mask. This is load-bearing — the filtered mask
-        # replaces the raw consensus for all downstream stats.
-        segformer_class_distribution = {}
-        segformer_false_alarms = 0
-        segformer_source = "unavailable"
-        segformer_classifications: list = []
-        try:
-            segformer = _get_segformer_engine()
-            seg_result = segformer.classify_change_crops(t1, consensus_mask)
-            segformer_source = seg_result["source"]
-            segformer_class_distribution = seg_result["class_distribution"]
-            segformer_false_alarms = seg_result["false_alarm_count"]
-            segformer_classifications = seg_result["classifications"][:5]
-            # Replace consensus with filtered mask (false alarms removed)
-            pre_filter_pixels = int(consensus_mask.sum())
-            consensus_mask = seg_result["filtered_mask"]
-            post_filter_pixels = int(consensus_mask.sum())
-            if pre_filter_pixels != post_filter_pixels:
-                logger.info(
-                    f"SegFormer filtered {pre_filter_pixels - post_filter_pixels} "
-                    f"false-alarm pixels ({segformer_false_alarms} regions)"
-                )
-        except ImportError:
-            pass  # torch not installed
-        except Exception as exc:
-            logger.warning(f"SegFormer classification failed: {exc}")
+        # SegFormer classification — ARCHIVED / DISQUALIFIED (ADR-010).
+        # The SegFormer classifier was disqualified in the 2026-09-07 DL audit
+        # (it was not the SegFormer architecture and could remove real flood
+        # pixels from the mask). It is no longer instantiated or run. The
+        # classification_breakdown is retained as an empty stub so downstream
+        # consumers do not break, but no disqualified model is loaded.
+        classification_breakdown: dict[str, Any] = {
+            "source": "archived_disqualified",
+            "class_distribution": {},
+            "false_alarm_count": 0,
+            "classifications": [],
+            "note": "SegFormer archived 2026-09-07 — not instantiated per ADR-010",
+        }
 
-        # ML-derived water area (from filtered consensus mask)
+        # Water area is always computed from the RULE-BASED mask, not from
+        # any ML-filtered mask.
         with rasterio.open(rule_mask_path) as src:
             px_area_m2 = abs(src.transform[0]) * abs(src.transform[4])
             if src.crs and src.crs.is_geographic:
@@ -357,21 +388,19 @@ def _try_ml_evidence_layer(
                     abs(src.transform[0]) * 111_320 * np.cos(np.deg2rad(lat))
                     * abs(src.transform[4]) * 110_540
                 )
-        ml_water_area_km2 = float(consensus_mask.sum() * px_area_m2 / 1e6)
+        ml_water_area_km2 = float(rule_mask.sum() * px_area_m2 / 1e6)
         return {
-            "source": "siamese_unet_consensus",
-            "consensus_mask": consensus_mask,
+            "source": "ml-shadow",
+            "consensus_mask": rule_mask,  # ALWAYS the rule-based mask
+            "ml_shadow_mask": ml_mask,     # supplementary evidence, NOT load-bearing
             "confidence_map": result["confidence"],
             "confidence_mean": float(result["confidence"].mean()),
-            "consensus_pixels": int(consensus_mask.sum()),
+            "consensus_pixels": int(rule_mask.sum()),
             "ml_water_area_km2": round(ml_water_area_km2, 3),
             "ml_rule_agreement_pct": float(
                 result["agreement"].sum() / max(rule_mask.sum(), 1) * 100
             ),
-            "segformer_source": segformer_source,
-            "segformer_class_distribution": segformer_class_distribution,
-            "segformer_false_alarms": segformer_false_alarms,
-            "segformer_classifications": segformer_classifications,
+            "classification_breakdown": classification_breakdown,
         }
     except ImportError:
         # torch not installed — silent fallback to deterministic
@@ -542,22 +571,23 @@ def run_pipeline(
     change_stats["routing"] = routing
     change_stats["change_polygon"] = _change_polygon_from_mask(str(mask_path))
 
-    # 5b. ML evidence layer (optional — ADR-002)
-    # The Siamese U-Net runs as an additional evidence source, NOT a replacement.
-    # Falls back to the deterministic mask when torch is unavailable or no
-    # trained weights exist. The consensus mask fuses both sources.
+    # 5b. ML evidence layer — SHADOW MODE (ADR-010)
+    # WaterUNet runs as supplementary evidence only. It does NOT replace
+    # the rule-based mask, does NOT filter rule-detected pixels, and does
+    # NOT enter the hazard score. Falls back to deterministic when torch
+    # is unavailable or no trained weights exist.
     ml_evidence = _try_ml_evidence_layer(observation_id, str(mask_path))
     if ml_evidence is not None:
         change_stats["ml_confidence_mean"] = ml_evidence["confidence_mean"]
         change_stats["ml_consensus_pixels"] = ml_evidence["consensus_pixels"]
         change_stats["ml_source"] = ml_evidence["source"]
-        # ML-derived water area and agreement (Path A — ML is load-bearing)
+        # Water area is always from the rule-based mask (not ML-filtered)
         if "ml_water_area_km2" in ml_evidence:
             change_stats["ml_water_area_km2"] = ml_evidence["ml_water_area_km2"]
             change_stats["ml_rule_agreement_pct"] = round(
                 ml_evidence.get("ml_rule_agreement_pct", 0.0), 1
             )
-        # Generate visual heatmap for the UI
+        # Generate visual heatmap for the UI (from the rule-based mask)
         heatmap_path = PROCESSED_DIR / f"{observation_id}_change_heatmap.png"
         try:
             from siren.ml.visualize import generate_change_heatmap_png
@@ -570,14 +600,30 @@ def run_pipeline(
         except Exception:
             pass  # heatmap is a visual nicety, not critical
 
-    # 5c. SegFormer results are already integrated into the consensus mask
-    # (Stage 2 runs inside _try_ml_evidence_layer and filters false alarms).
-    # Report the classification metadata for the UI.
+        # Save the WaterUNet shadow mask as a separate PNG for the UI toggle.
+        # This is supplementary evidence only — never used for scoring or dispatch.
+        if "ml_shadow_mask" in ml_evidence:
+            shadow_mask_path = PROCESSED_DIR / f"{observation_id}_ml_shadow_mask.png"
+            try:
+                from siren.ml.visualize import generate_change_heatmap_png
+                generate_change_heatmap_png(
+                    ml_evidence["ml_shadow_mask"],
+                    shadow_mask_path,
+                )
+                change_stats["ml_shadow_mask_uri"] = f"/data/processed/{observation_id}_ml_shadow_mask.png"
+            except Exception:
+                pass  # shadow mask visualization is optional
+
+    # 5c. SegFormer classification breakdown — METADATA ONLY (ADR-010).
+    # Previously this replaced the consensus mask (load-bearing ML violation).
+    # Now it is reported as auxiliary metadata for the UI and never modifies
+    # the mask used downstream.
     if ml_evidence is not None:
-        change_stats["segformer_source"] = ml_evidence.get("segformer_source", "unavailable")
-        change_stats["segformer_class_distribution"] = ml_evidence.get("segformer_class_distribution", {})
-        change_stats["segformer_false_alarms"] = ml_evidence.get("segformer_false_alarms", 0)
-        change_stats["segformer_classifications"] = ml_evidence.get("segformer_classifications", [])
+        breakdown = ml_evidence.get("classification_breakdown", {})
+        change_stats["segformer_source"] = breakdown.get("source", "unavailable")
+        change_stats["segformer_class_distribution"] = breakdown.get("class_distribution", {})
+        change_stats["segformer_false_alarms"] = breakdown.get("false_alarm_count", 0)
+        change_stats["segformer_classifications"] = breakdown.get("classifications", [])
 
     # 6. Build corridor + exposures
     weather = _load_weather()
@@ -654,14 +700,17 @@ def run_pipeline(
     wells = sum(1 for e in exposures if e.get("asset_type") == "well")
     inundated_wells = sum(1 for e in exposures if e.get("asset_type") == "well" and e.get("inundated"))
 
-    # ML confidence from the evidence layer (0.5 = deterministic fallback)
-    ml_confidence = change_stats.get("ml_confidence_mean", 0.5)
+    # ADR-010: ML confidence is NOT passed to the hazard score. The 5-factor
+    # formula (PRD §9.5) uses only physical/deterministic inputs. ML evidence
+    # remains in change_stats as shadow metadata for the UI.
 
-    # Trend classification: use ConvLSTM if available, fall back to config
-    # The ConvLSTM classifies the temporal trend across all observations
-    # processed so far (including this one). This makes Stage 4 load-bearing.
+    # Trend classification: deterministic area-history (ADR-010).
+    # The ConvLSTM trend model was archived/disqualified in the 2026-09-07 DL
+    # audit (trained on synthetic mask progressions, not real satellite
+    # sequences). S_trend is now computed exclusively from deterministic
+    # area-history rules per PRD §9.5.
     trend_class = obs_config["trend_class"]  # deterministic fallback
-    trend_source = "config"
+    trend_source = "deterministic"
     trend_confidence = 0.0
     try:
         # Build the observation sequence up to and including this one.
@@ -692,7 +741,7 @@ def run_pipeline(
         trend_source = trend_result["source"]
         trend_confidence = trend_result["confidence"]
     except Exception as exc:
-        logger.warning(f"ConvLSTM trend classification failed: {exc} — using config fallback")
+        logger.warning(f"Deterministic trend classification failed: {exc} — using config fallback")
     change_stats["trend_source"] = trend_source
     change_stats["trend_confidence"] = trend_confidence
 
@@ -710,7 +759,6 @@ def run_pipeline(
         inundated_wells=inundated_wells,
         population_density_per_km2=200.0,  # demo basin average
         temp_index=temp_index,
-        ml_confidence=ml_confidence,
     )
 
     # 8. Write results to DB
@@ -774,13 +822,13 @@ def classify_temporal_trend(
     observation_ids: list[str] | None = None,
     repo: Repository | None = None,
 ) -> dict[str, Any]:
-    """Classify the temporal trend across multiple observations using ConvLSTM.
+    """Classify the temporal trend across multiple observations.
 
-    Collects water masks from all completed runs, builds a temporal sequence,
-    and runs the ConvLSTM trend classifier (Stage 4, PRD §9.3).
-
-    Falls back to deterministic threshold-based classification when the
-    ConvLSTM is unavailable (ADR-002 — deterministic-first).
+    Uses deterministic area-history rules per PRD §9.5 and ADR-010.
+    The ConvLSTM trend model was archived/disqualified in the 2026-09-07 DL
+    audit (trained on synthetic mask progressions, not real satellite
+    sequences). S_trend is now computed exclusively from deterministic
+    area deltas.
 
     Args:
         observation_ids: Ordered list of observation IDs to classify.
@@ -791,7 +839,7 @@ def classify_temporal_trend(
         Dict with:
           - trend_class: "stable" | "slowly" | "rapidly" | "uncertain"
           - confidence: float in [0, 1]
-          - source: "convlstm" | "deterministic_fallback"
+          - source: "deterministic"
           - sequence_length: number of timesteps used
           - water_areas: list of water areas per timestep
           - expansion_pcts: list of expansion percentages per timestep
@@ -807,9 +855,6 @@ def classify_temporal_trend(
     water_areas: list[float] = []
     expansion_pcts: list[float] = []
 
-    # Note: we don't include a zero-baseline timestep because the ConvLSTM was
-    # trained on sequences where water exists at all timesteps. A sudden jump
-    # from 0 to non-zero would be classified as "uncertain" (non-monotonic).
     # The first observation serves as the reference (T0).
 
     for obs_id in observation_ids:
@@ -830,23 +875,11 @@ def classify_temporal_trend(
                 water_areas.append(float(mask.sum()))
                 expansion_pcts.append(obs_config["expansion_pct"])
 
-    # Normalize all masks to a common shape (128x128) for the ConvLSTM
-    if water_masks:
-        from scipy.ndimage import zoom
-        target_h, target_w = 128, 128
-        normalized_masks = []
-        for m in water_masks:
-            if m.shape != (target_h, target_w):
-                zh, zw = target_h / m.shape[0], target_w / m.shape[1]
-                m = zoom(m, (zh, zw), order=0).astype(np.float32)
-            normalized_masks.append(m)
-        water_masks = normalized_masks
-
     if not water_masks:
         return {
             "trend_class": "uncertain",
             "confidence": 0.0,
-            "source": "deterministic_fallback",
+            "source": "deterministic",
             "sequence_length": 0,
             "water_areas": [],
             "expansion_pcts": [],
@@ -855,7 +888,6 @@ def classify_temporal_trend(
     # Compute expansion percentages if not already done
     # Use the first non-zero area as the reference (baseline = 0% expansion)
     if len(expansion_pcts) < len(water_areas) and len(water_areas) >= 2:
-        # Find first non-zero area as reference
         ref_area = next((a for a in water_areas if a > 0), 1.0)
         expansion_pcts = []
         for i, a in enumerate(water_areas):
@@ -864,33 +896,41 @@ def classify_temporal_trend(
             else:
                 expansion_pcts.append((a - ref_area) / ref_area * 100)
 
-    # Run the ConvLSTM trend engine (hybrid: ML + deterministic fallback)
-    try:
-        from siren.ml.trend_engine import TrendEngine
-
-        engine = TrendEngine()
-        trend_class, confidence = engine.classify_trend(water_masks)
-        source = "convlstm_hybrid" if engine.is_ready else "deterministic_fallback"
-    except ImportError:
-        # torch not installed — deterministic fallback
-        from siren.ml.trend_engine import TrendEngine
-
-        engine = TrendEngine()
-        trend_class, confidence = engine._deterministic_fallback(water_masks)
-        source = "deterministic_fallback"
-    except Exception as exc:
-        logger.warning(f"ConvLSTM trend classification failed: {exc} — using deterministic fallback")
-        from siren.ml.trend_engine import TrendEngine
-
-        engine = TrendEngine()
-        trend_class, confidence = engine._deterministic_fallback(water_masks)
-        source = "deterministic_fallback"
+    # Deterministic trend classification from area history (ADR-010).
+    # No ConvLSTM — the model is archived/disqualified.
+    # Rules (PRD §9.5):
+    #   - stable:    expansion < 5%
+    #   - slowly:    5% <= expansion < 20%
+    #   - rapidly:   expansion >= 20%
+    #   - uncertain: non-monotonic or insufficient data
+    if len(expansion_pcts) >= 2:
+        latest_exp = expansion_pcts[-1]
+        # Check monotonicity (allow small noise)
+        areas = water_areas
+        is_monotonic = all(
+            areas[i + 1] >= areas[i] * 0.95 for i in range(len(areas) - 1)
+        )
+        if not is_monotonic:
+            trend_class = "uncertain"
+            confidence = 0.3
+        elif latest_exp >= 20.0:
+            trend_class = "rapidly"
+            confidence = min(0.9, 0.5 + latest_exp / 100.0)
+        elif latest_exp >= 5.0:
+            trend_class = "slowly"
+            confidence = 0.5
+        else:
+            trend_class = "stable"
+            confidence = 0.9
+    else:
+        trend_class = "uncertain"
+        confidence = 0.3
 
     return {
         "trend_class": trend_class,
         "confidence": round(confidence, 3),
-        "source": source,
-        "ml_model_available": engine.is_ready if "engine" in dir() else False,
+        "source": "deterministic",
+        "ml_model_available": False,  # ConvLSTM archived — no ML model
         "sequence_length": len(water_masks),
         "water_areas": [round(a, 1) for a in water_areas],
         "expansion_pcts": [round(p, 1) for p in expansion_pcts],
