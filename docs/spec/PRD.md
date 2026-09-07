@@ -6,7 +6,7 @@
 
 | | |
 |---|---|
-| **Version** | 4.4 (Canonical — consolidates drafts v1.0–v3.0; v4.1 renames SafeBasin → SIREN; v4.2 adds combined D8+OSM corridor, UI design spec, verified demo assets; v4.3 reflects implemented state with pipeline orchestrator, 104 passing tests, verified DoD chain, ML evidence layer, SAR priority, SHA-256 audit hash chain; v4.4 adds auto-SOS on CONFIRM via ntfy.sh, Simple/Advanced ReviewView modes, AuditView exports + Web Crypto verification, First Responder Advisory, escalation policy badge, projector-ready UI polish) |
+| **Version** | 4.5 (Canonical — consolidates drafts v1.0–v3.0; v4.1 renames SafeBasin → SIREN; v4.2 adds combined D8+OSM corridor, UI design spec, verified demo assets; v4.3 reflects implemented state with pipeline orchestrator, 104 passing tests, verified DoD chain, ML evidence layer, SAR priority, SHA-256 audit hash chain; v4.4 adds auto-SOS on CONFIRM via ntfy.sh, Simple/Advanced ReviewView modes, AuditView exports + Web Crypto verification, First Responder Advisory, escalation policy badge, projector-ready UI polish; v4.5 adds live-service architecture audit, documents production-transition gaps, proposes ADR-006 through ADR-009, corrects known ingest defects, and adds the live service transition roadmap) |
 | **Target track** | Track 7 — *Living with Uncertainties, Building with Resilience* |
 | **Track areas** | Area ii: Communication Systems During Disasters for Effective Response · Area iii: Curbing Diseases That Arise During Disasters |
 | **Demo geography** | Dudh Koshi / Imja glacial basin, Nepal Himalaya (swap-ready to Chorabari/Kedarnath or South Lhonak if Indian terrain resonates better with judges; pipeline is basin-agnostic) |
@@ -399,7 +399,7 @@ The public-facing message avoids false certainty:
 - Sentinel-2 L2A: 2025-11-22, tile **T45RVL** (covers 100% of AOI — the clean post-monsoon optical baseline). Note: the AOI spans 4 S2 tiles; T45RVL is the correct one for this basin.
 - SRTM 30 m clip: 1188×1260, EPSG:4326, elevation 1930–8429 m, no nodata gaps.
 - OSM extract: 1100 features — 63 settlements, 92 bridges (incl. Hillary suspension bridges), 16 drinking-water points, 3 clinics, 1 hospital, Dudh Koshi/Imja rivers.
-- Weather context: `data/assets/weather_series.json` (prepared demo context; refresh with `backend/siren/ingest/openmeteo.py`).
+- Weather context: `data/assets/weather_series.json` (three-row prepared series derived from the Open-Meteo historical archive at basin centroid (27.815°N, 86.825°E); refresh with `backend/siren/ingest/openmeteo.py`). Note: this file has no embedded provenance fields. `backend/siren/ingest/imerg.py` downloads NASA GPM IMERG daily NetCDF files but is not invoked by the runtime pipeline.
 
 **Data hygiene rules.** Record OSM extraction date (completeness varies by region). Never randomly split adjacent image chips from the same event into train/test — split by event, basin, or geographic region to prevent leakage. Store label source, annotator, date, class schema, and confidence for any hand-labeled validation set.
 
@@ -506,9 +506,13 @@ For emergency use, a model with a slightly lower pixel score may still be prefer
 
 ## 18. Future Roadmap
 
-**V1 — Hackathon MVP:** prepared SAR/optical image sequence, backscatter/NDWI change detection, rainfall context, terrain and exposure overlays, disease-risk index, explainable hazard score, human confirmation, simulated resilient dispatch, audit log. *Stretch:* Search & Rescue Priority Layer (§15).
+**V1 — Hackathon MVP:** prepared SAR/optical image sequence, backscatter/NDWI change detection, rainfall context, terrain and exposure overlays, disease-risk index, explainable hazard score, human confirmation, simulated resilient dispatch, audit log. *Stretch:* Search & Rescue Priority Layer (§15). **Status: complete.**
 
-**V2 — Operational prototype:** full Copernicus API ingestion, automated quality checks, live weather ingestion, field-report validation, role-based authentication, PostGIS migration, approved alert-channel integration; productionized Search & Rescue Priority Layer; two-way alert acknowledgment (delivery confirmation and recipient check-in over constrained links); evacuation-route optimization to shelters around severed road segments.
+**V1.5 — Live acquisition service (in planning):** automated discovery and download of new satellite products from Copernicus CDSE, IMERG, OSM Overpass, and SRTM; durable job ledger with idempotency (ADR-008); acquisition-health alerting; credential management via Secrets Manager. The frozen deterministic pipeline is not changed in this phase — it receives verified registered inputs rather than being rewritten. Key defects to fix: CDSE deprecated endpoint, Overpass missing river geometry, openmeteo date window bug, and silent failure exits. See `docs/spec/BUILD_ROADMAP.md` Live Phase 1 and `docs/reference/KNOWN_LIMITATIONS.md` Production Transition Gaps.
+
+**V2 — Hosted operational service:** PostgreSQL/RDS persistence with idempotency constraints (ADR-007); S3 object storage for rasters; OIDC authentication and basin-scoped RBAC (ADR-009); paginated API; server-side delivery outbox with provider receipts; multi-instance API behind ALB; live-timeline frontend without simulation controls. PostGIS enabled for the operational asset catalogue and footprint queries — the frozen pipeline's spatial joins remain in-memory via geopandas. See ADR-006 for the connected-acquisition/isolated-execution boundary and ADR-009 for authenticated review.
+
+**Critical blocker between V1.5 and V2:** the frozen `run_pipeline()` accepts only the three hardcoded demo observation IDs. The pipeline must reject unknown observations, not silently process them with demo defaults. An approved scope decision is required to extend the observation-acceptance interface before automatic live scoring is possible. See `docs/reference/KNOWN_LIMITATIONS.md` → "Pipeline observation acceptance (Phase 4 blocker)".
 
 **V3 — Research system:** fine-tuned Siamese U-Net/ChangeFormer + SegFormer, ConvLSTM/temporal Transformer trend modeling, calibrated risk fusion with uncertainty estimation, regional transfer testing, hydrodynamic flow modeling, post-event damage assessment; what-if scenario simulation (e.g., partial lake-release planning mode for preparedness exercises); UAV/drone tasking for high-resolution local verification; landslide-susceptibility modeling.
 
