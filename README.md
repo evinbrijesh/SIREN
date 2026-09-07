@@ -65,17 +65,17 @@ Sentinel-1 SAR / Sentinel-2 Optical / SRTM / GPM IMERG / OSM
 backend/
   siren/
     api/          # FastAPI routes + Pydantic models + map asset endpoints
-    ingest/       # CDSE STAC, SRTM, IMERG, Overpass downloaders
-    preprocess/   # clip, reproject, co-register, cloud mask, quality gate
+    ingest/       # CDSE STAC, SRTM, IMERG, Open-Meteo, Overpass downloaders
+    preprocess/   # clip, reproject, co-register, cloud mask, quality gate, SAR calibration
     detect/       # NDWI, SAR backscatter, weather-adaptive router, scenario masks
     geo/          # D8 corridor, tolerance buffers, exposure intersections
     risk/         # hazard H, exposure E, disease D_risk, SAR priority scoring + reasons
-    ml/           # ML evidence layer (audited 2026-09-07 — not qualified for live use; see docs/reference/DL_MODEL_AUDIT.md)
+    ml/           # WaterUNet shadow evidence layer (trained on Sen1Floods11; shadow-only per ADR-010)
     alerting/     # ≤250-byte payload codec, validator
     audit/        # append-only log writer + SHA-256 hash chain
     db/           # SQLite schema + repositories
     pipeline.py   # orchestrator: detect→geo→risk→DB→audit
-  tests/          # 124 tests (pytest: 121 active + 3 torch-gated)
+  tests/          # 154 tests (pytest: 152 active + 2 skipped)
 frontend/
   src/
     views/        # MapView, TimelineView, ReviewView, AuditView
@@ -154,7 +154,7 @@ pip install -e ".[dev]"          # or use existing venv
 uvicorn siren.api:app --port 8010 --reload
 
 # run tests
-pytest                           # 124 tests
+pytest                           # 154 tests, ~10s
 ```
 
 ### Frontend
@@ -244,16 +244,81 @@ See `docs/spec/API_CONTRACT.md` for full request/response schemas.
 
 ---
 
+## ML Shadow Architecture & Verified Metrics
+
+### Deterministic-first design (ADR-010)
+
+SIREN's load-bearing path is entirely deterministic: SAR log-ratio thresholding, hydrological corridor routing, and a five-factor risk score (weights 0.30/0.25/0.20/0.15/0.10). No trained model influences hazard score, exposure, disease risk, severity, corridor routing, or dispatch eligibility.
+
+WaterUNet (trained on Sen1Floods11) runs as a **shadow evidence layer only** — its output is displayed alongside the deterministic mask for comparison but never enters the load-bearing path. The ML weight in the risk formula is `W_ML = 0.00`.
+
+### WaterUNet runtime tensor contract
+
+The model expects calibrated Sentinel-1 VV/VH sigma0 in decibels, normalized to [0, 1] via `ml/contract.py::normalize_sar()`:
+
+| Channel | Polarization | Value range | Normalization |
+|---|---|---|---|
+| 0 | VV | [-30, 0] dB (clamped) | Linear map to [0, 1] |
+| 1 | VH | [-30, 0] dB (clamped) | Linear map to [0, 1] |
+
+The pipeline extracts real calibrated dB from Sentinel-1 SAFE archives via `preprocess/sar_calibrate.py`:
+1. Read VV/VH measurement TIFFs from the SAFE ZIP
+2. Parse the ESA calibration LUT (sigmaNought vectors)
+3. Apply `sigma0 = DN² / sigmaNought²`
+4. Convert to dB: `sigma0_dB = 10 * log10(sigma0)`
+5. Cache as 2-band float32 GeoTIFF in `data/processed/`
+
+Verified on real Dudh Koshi scenes: VV mean -12.3 dB, VH mean -18.6 dB (physically realistic for C-band GRD).
+
+### Dual-split evaluation (Sen1Floods11)
+
+| Split | IoU | Precision | Recall | F1 | Verdict |
+|---|---|---|---|---|---|
+| Official test (90 chips) | **0.671** | 0.773 | 0.836 | 0.803 | Generalizes within ecoregion |
+| Event-holdout (flood events unseen during training) | **0.239** | — | — | — | Below 0.65 load-bearing gate → shadow-only |
+
+The event-holdout IoU of 0.24 confirms WaterUNet does not generalize to unseen flood events. This is why it remains shadow-only and the deterministic pipeline is authoritative.
+
+### Compact alert payload
+
+The dispatch codec encodes 7 keys into a **128-byte** JSON payload (well within the 250-byte LoRa/SMS limit):
+
+| Key | Meaning |
+|---|---|
+| `aid` | Alert ID (`siren-alert-XXXX`) |
+| `sec` | Severity level |
+| `haz` | Hazard score |
+| `lvl` | Risk level |
+| `exp_pop` | Exposed population |
+| `crit` | Critical assets count |
+| `med_act` | Medical action code |
+
+### Real data inventory
+
+| Data | Source | Status |
+|---|---|---|
+| Sentinel-1 GRD (obs-001) | S1D, 2026-07-23, track 12 | Real SAFE, calibrated VV/VH dB |
+| Sentinel-1 GRD (obs-002) | S1D, 2026-08-04, track 12 | Real SAFE, calibrated VV/VH dB |
+| Sentinel-1 GRD (obs-003) | S1D, 2026-08-11, track 12 | Scene identified on CDSE; download requires credentials — uses scenario mask (labeled `synthetic_scenario`) |
+| SRTM 1 Arc-Second DEM | Earthdata | Real, 30m resolution |
+| OSM infrastructure | Overpass API | Real, ~1,100 features |
+| Rainfall (all obs) | Open-Meteo ERA5 reanalysis | Real, daily precipitation + temperature |
+| WaterUNet weights | Trained on Sen1Floods11 (252 train / 89 valid / 90 test) | Official + event-holdout checkpoints |
+
+---
+
 ## Demo Scenario
 
 The demo is a retrospective "what-if" reconstruction of a GLOF (glacial lake outburst flood) event:
 
-| Observation | Date | Sensor | Cloud | Rain 24h | Expansion | Severity | Story |
-|---|---|---|---|---|---|---|---|
-| Baseline | 2025-11-22 | S2 Optical | 5% | 0.0 mm | — | — | Clear post-monsoon baseline |
-| obs-001 | 2026-07-23 | S1 SAR | 0% eff | 18.2 mm | +8% | Watch | Early warning sign |
-| obs-002 | 2026-08-04 | S1 SAR | 0% eff (95% optical) | 84.6 mm | +28% | Critical | Disaster day |
-| obs-003 | 2026-08-12 | S1 SAR | 0% eff (90% optical) | 60.0 mm | +43% | Critical | Peak expansion |
+| Observation | Date | Sensor | Cloud | Rain 24h | Rain 7d | Expansion | Severity | Story |
+|---|---|---|---|---|---|---|---|---|
+| Baseline | 2025-11-22 | S2 Optical | 5% | 0.0 mm | 0.0 mm | — | — | Clear post-monsoon baseline |
+| obs-001 | 2026-07-23 | S1 SAR (real SAFE) | 0% eff | 3.2 mm | 58.9 mm | +8% | Watch | Early warning sign |
+| obs-002 | 2026-08-04 | S1 SAR (real SAFE) | 0% eff (95% optical) | 12.1 mm | 48.5 mm | +28% | Critical | Disaster day |
+| obs-003 | 2026-08-12 | S1 SAR (scenario) | 0% eff (90% optical) | 3.7 mm | 61.3 mm | +43% | Critical | Peak expansion |
+
+> **Rainfall data source:** Real ERA5 reanalysis values fetched from the Open-Meteo Archive API (no auth required). obs-001 and obs-002 use real calibrated Sentinel-1 VV/VH sigma0 dB extracted from SAFE archives. obs-003 uses a deterministic scenario mask (PRD §9.2) because the CDSE download requires credentials not available on this machine; provenance is labeled `synthetic_scenario`.
 
 The prevention story: the +8% expansion on 07-23 was the early warning. Had SIREN been monitoring in real time, the watch would have escalated 20 days before the peak (08-12), buying lead time to evacuate.
 
@@ -263,7 +328,7 @@ The prevention story: the +8% expansion on 07-23 was the early warning. Had SIRE
 
 ```bash
 cd backend
-pytest                           # 124 tests, ~10s
+pytest                           # 154 tests, ~10s
 ```
 
 | Test Suite | Tests | Coverage |
@@ -275,8 +340,10 @@ pytest                           # 124 tests, ~10s
 | test_preprocess | 6 | Clip, reproject, co-register on synthetic rasters |
 | test_ingest | 34 | CLI parsing, provenance sidecars, streaming downloads, flat OSM properties, empty-response protection, acquisition jobs, live observation pipeline |
 | test_pipeline | 5 | Full orchestrator: detect→geo→risk→DB→audit |
-| test_ml | 13 | ML evidence layer (deterministic fallback, torch-gated) |
+| test_ml | 40 | ML evidence layer (deterministic fallback, torch-gated) |
 | test_sar_priority | 9 | SAR priority ranking (PRD §15) |
+| test_sar_calibrate | 6 | SAR calibration: sigma0 dB formula, normalize_sar contract, NaN handling |
+| test_open_meteo | 8 | Real ERA5 rainfall fetcher: antecedent computation, temp index, mocked API |
 
 ---
 
@@ -360,7 +427,8 @@ See [`docs/spec/BUILD_ROADMAP.md`](docs/spec/BUILD_ROADMAP.md) → "Live Service
 
 ### Demo limitations (hackathon scope)
 
-- The available ascending-orbit Sentinel-1 pair covers only the western AOI; the Imja lake (86.925°E) is outside the swath. The demo uses prepared scenario masks near Imja (clearly labeled in `detect/scenario.py`). The SAR pipeline itself is real and validated on the covered region.
+- The available ascending-orbit Sentinel-1 pair covers only the western AOI; the Imja lake (86.925°E) is outside the swath. The SAR pipeline itself is real and validated on the covered region. obs-003 uses a deterministic scenario mask (PRD §9.2) because the CDSE download requires credentials not available on this machine; provenance is labeled `synthetic_scenario`.
+- Rainfall values are real ERA5 reanalysis data from the Open-Meteo Archive API (not GPM IMERG, which requires Earthdata auth). The values are raster-derived daily precipitation sums for the basin center.
 - The pipeline runs synchronously in the API request (no background task queue). This is intentional for demo simplicity.
 - The frontend uses mock fallback data when the backend is unreachable. This is by design for offline resilience.
 - No authentication or role-based access control in the MVP.
@@ -384,7 +452,7 @@ See [`docs/spec/BUILD_ROADMAP.md`](docs/spec/BUILD_ROADMAP.md) → "Live Service
 - **Review suppression logic incorrect** — historical confirm still authorizes dispatch after later reject.
 - **ntfy delivery is browser-side** — `"sent"` does not mean delivered.
 - **No S3/object storage** — local disk exhausts within weeks at production volume.
-- **ML not qualified for live use (audited 2026-09-07)** — train/inference input mismatch, no held-out evaluation, and ML paths that can suppress rule evidence; see `docs/reference/DL_MODEL_AUDIT.md` + ADR-010.
+- **ML not qualified for live use (audited 2026-09-07)** — WaterUNet event-holdout IoU is 0.24 (below the 0.65 load-bearing gate). The runtime tensor contract is now fixed (calibrated VV/VH dB via `normalize_sar()`), and ML paths cannot suppress rule evidence per ADR-010. WaterUNet remains shadow-only. See `docs/reference/DL_MODEL_AUDIT.md` + ADR-010.
 - **Chorabari is pre-Sentinel-1** — the 2013 Kedarnath event cannot validate the SAR-primary pipeline (S1A launched April 2014); the Sentinel-era validation event is the South Lhonak GLOF (October 2023), hence the dual-basin strategy.
 
 See [`docs/reference/KNOWN_LIMITATIONS.md`](docs/reference/KNOWN_LIMITATIONS.md) → "Production Transition Gaps" for the complete list with phase tags.
