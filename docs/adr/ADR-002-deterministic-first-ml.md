@@ -39,3 +39,20 @@ The deterministic fallback runs without torch installed. When torch is available
 **Test coverage:** 13 tests in `tests/test_ml.py` (3 torch-gated, 10 deterministic).
 
 **Dependency note:** torch/torchvision are an optional `[ml]` extra in `pyproject.toml`, outside the original AGENTS.md dependency whitelist. This is an approved exception (AGENTS.md rule 8 addendum).
+
+---
+
+## Addendum 2 — 2026-09-07 audit findings (implementation divergence)
+
+**Status:** Accepted + Implemented-as-optional-layer (unchanged) · **Companions:** [`docs/reference/DL_MODEL_AUDIT.md`](../reference/DL_MODEL_AUDIT.md), [ADR-010](ADR-010-ml-evidence-isolation-and-retraining-path.md) (Proposed)
+
+A full audit of the implemented ML layer against this ADR found:
+
+1. **The rule-based critical path is not preserved as specified.** `risk/fusion.py` implements a six-factor H with a 0.20-weight ML-confidence term (0.25/0.20/0.15/0.10/0.10/0.20), diverging from the PRD §9.5 five-factor weights (0.30/0.25/0.20/0.15/0.10). The default 0.5 neutral value does not restore the original formula.
+2. **Trend classification can be replaced by a trained model.** `run_pipeline()` starts from the configured deterministic trend but overwrites it with the ConvLSTM hybrid result, which feeds H directly. The ConvLSTM was trained on synthetic water-mask progressions and its inference wrapper fabricates missing timesteps by dilating the last mask.
+3. **"ChangeFormer" is not implemented.** It is named in this ADR and the PRD, but no code or checkpoint exists.
+4. **"SegFormer" is not the SegFormer architecture.** `ml/model.py::SegFormerHead` is a patch-embedding crop classifier (one attention block, global pooling, one class per crop), trained on threshold-generated weak labels with an unreachable "shadow" class, whose false-alarm filtering can remove rule-detected pixels from the consensus evidence mask.
+5. **The Siamese U-Net exists but its training and runtime inputs do not match.** Training synthesizes "before" images by replacing labeled water with median land backscatter (the label leaks into the input); runtime feeds binary water masks, not SAR σ0.
+6. **No held-out evaluation exists.** All three checkpoints report training-set metrics; model selection is by training loss; there is no event-level split, no held-out test set, and no prospective evaluation.
+
+ADR-010 (Proposed) records the response: ML evidence isolation (shadow mode, immutable rule assessment, separately recorded ML evidence), restoration of the documented five-factor fusion weights, and a retraining path starting with a compact single-date SAR water-segmentation model on real labels with event-level splits.
