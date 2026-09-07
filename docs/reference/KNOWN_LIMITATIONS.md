@@ -52,3 +52,63 @@
 ---
 
 **Bottom line for judges:** The detection, corridor, exposure, scoring, and audit chain is real code on real data. The SMS channel is live via ntfy.sh (when online); LoRa and Satellite are simulated. The First Responder Advisory and escalation policy badge communicate the two-tier routing concept without violating the human gate. SIREN is a decision-support and resilience layer, not a replacement for emergency infrastructure. The system deploys via Docker Compose (`./start.sh`) for a one-command demo.
+
+---
+
+## Production Transition Gaps
+
+The following gaps were identified during the live-service architecture audit (2026-09-07). They do not affect the hackathon demo but must be resolved before the service runs unattended. Each item maps to a phase in the Live Service Transition Roadmap (`docs/spec/BUILD_ROADMAP.md`).
+
+### Pipeline observation acceptance (Phase 4 blocker)
+`run_pipeline()` accepts only the three hardcoded demo observation IDs (`obs-001`, `obs-002`, `obs-003`). Registering a new satellite product in the database does not make it processable. A live acquisition service can download and store real products, but the frozen pipeline will reject them with `ValueError: Unknown observation`. This must be resolved by an explicit scope decision before automatic live scoring is possible.
+
+### Ingest scripts exit 0 on failure (Phase 1)
+All four ingest scripts (`cdse.py`, `srtm.py`, `imerg.py`, `overpass.py`) return exit code 0 for many failure conditions. A scheduler that checks exit codes for success will silently miss failed downloads. Failure must produce a non-zero exit and a durable failure record.
+
+### CDSE uses deprecated endpoint (Phase 1)
+`backend/siren/ingest/cdse.py` targets `catalogue.dataspace.copernicus.eu/stac/search`. Current Copernicus documentation identifies `stac.dataspace.copernicus.eu/v1/search` as the active endpoint. The legacy endpoint is marked for deprecation and may stop returning results without warning.
+
+### CDSE downloads entire archive into memory (Phase 1)
+The download loop reads the full response body before writing. A Sentinel-1 GRD archive is approximately 1.7 GB. This will exhaust memory on a typical Lambda or small container. Downloads must stream to a temporary file.
+
+### Overpass query missing river geometry (Phase 1, ADR-005 blocker)
+`backend/siren/ingest/overpass.py` does not query `waterway=river` or `waterway=stream`. A live Overpass refresh would produce an extract without river geometry, breaking the corridor module's OSM river selection step. The committed `osm_infrastructure.geojson` was manually prepared and contains rivers; automated refresh would remove them.
+
+### Overpass output format incompatible with corridor module (Phase 1)
+The script emits `properties.tags` (nested). The corridor module expects flat properties (`waterway`, `highway`, `@id`). Automated refresh with the current script would produce a structurally incompatible extract that silently produces no corridor results.
+
+### `openmeteo.py` date window walks forward, not backward (Phase 1)
+The `_days_before(obs_date, -offset)` call in `openmeteo.py` moves the window forward in time. The seven-day antecedent rainfall accumulation is computed over the wrong dates. Missing precipitation is filled with zero. This makes the weather feature unreliable for any observation where the window does not coincide with available data.
+
+### No job ledger or idempotency constraints (Phase 1)
+There is no durable record of download attempts. A scheduler retry creates a duplicate `observations` row. The count-based run ID (`SELECT COUNT(*) + 1`) produces collisions under concurrent requests. Both must be fixed before any multi-instance deployment.
+
+### SRTM uses outdated access URL (Phase 1)
+`backend/siren/ingest/srtm.py` uses the old LP DAAC Data Pool URL format. NASA has migrated SRTM access to Earthdata Cloud with updated endpoints and requires Earthdata authentication for downloads. The current URL may return 404 or redirect incorrectly.
+
+### Downloaded Sentinel-1 pair misses Imja Lake (known, documented)
+The two downloaded Sentinel-1 archives (orbit 85, ascending) do not cover Imja Lake at 86.925°E. Scenario masks near Imja are used for demo observations 2 and 3. For operational monitoring, orbit 12 (ascending) and orbit 121 (descending) are the covering tracks, each with a 12-day repeat. The downloaded orbit-85 pair should not be used for Imja assessments.
+
+### Population defaults are fabricated (Phase 2)
+Unknown assets are inserted with `population = 1,240` (a hardcoded default). There is no measured or authority-verified population figure for most exposed settlements. The OSM extract has one `population` field across 1,100 features, and no `survey:date` or `check_date` tags. Exposure reports must label population figures with their source and confidence.
+
+### SQLite not suitable for multi-instance hosted operation (Phase 3, ADR-001 addendum)
+The current in-memory-default SQLite configuration, count-based IDs, and WAL limitations are incompatible with a multi-process, multi-instance hosted service. See ADR-001 addendum and ADR-007.
+
+### Review suppression logic incorrect (Phase 3)
+Any historical `confirm` review qualifies a dispatch, even if a later `reject` or `postpone` was recorded. A confirmed-then-rejected alert can still be dispatched. The latest review decision must be checked.
+
+### ntfy.sh delivery is browser-side and unverified (Phase 3, ADR-009)
+Live alert delivery is a browser-side HTTP call. `"status": "sent"` in the database does not mean the message was delivered. Closing the browser tab or a network error during the ntfy POST silently loses the alert. A server-side delivery outbox with receipts and retry is required for operational use.
+
+### Frontend automatic mock fallback on any API error (Phase 3)
+The frontend API client falls back to mock data on any HTTP error, including server errors and authentication failures. In a live service, this can display stale or simulated assessments without any indication that the backend is unavailable.
+
+### Audit `_audit()` call does not commit (Phase 3)
+The final `_audit()` call in the pipeline does not commit the transaction. The last audit entry may be lost on connection close or crash, and can hold a writer lock on SQLite. The final audit event must be committed as part of the run-completion transaction.
+
+### Audit hash verification uses recomputed hashes (Phase 3)
+The `/audit` endpoint recomputes hashes from current field values rather than comparing against stored `prev_hash`/`event_hash`. This can conceal discrepancies in stored records rather than report them. Verification must use stored values.
+
+### No S3 or object-storage integration (Phase 3)
+Raw SAFE archives (approximately 1.7 GB per SAR product) are stored on the local container filesystem. At 5–10 SAR products per month, local storage will exhaust typical ECS ephemeral limits within weeks. S3 with immutable keys and lifecycle rules is required for durable raster storage.
