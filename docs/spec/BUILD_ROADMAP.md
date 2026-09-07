@@ -174,7 +174,7 @@ The following enhancements were added after the core build was complete and the 
 
 **Principle:** the frozen deterministic pipeline is not changed. What changes is what feeds it and how often it is triggered. Phases build on each other — do not skip a go/no-go gate.
 
-> **Critical blocker that applies to all phases:** `run_pipeline()` currently accepts only the three hardcoded demo observation IDs (`obs-001`, `obs-002`, `obs-003`). A live acquisition service can discover and download real satellite products, but the pipeline will reject them until the observation-acceptance interface is extended under an approved scope decision. Phase 4 is explicitly blocked until this is resolved. Phases 1–3 can proceed independently.
+> **Critical blocker that applies to all phases:** ~~`run_pipeline()` currently accepts only the three hardcoded demo observation IDs (`obs-001`, `obs-002`, `obs-003`). A live acquisition service can discover and download real satellite products, but the pipeline will reject them until the observation-acceptance interface is extended under an approved scope decision. Phase 4 is explicitly blocked until this is resolved. Phases 1–3 can proceed independently.~~ **RESOLVED 2026-09-07:** `run_pipeline()` now accepts both demo observations and live observations registered in the database via `repo.register_observation()`. See Live Phase 4 below.
 
 ---
 
@@ -186,7 +186,7 @@ The following enhancements were added after the core build was complete and the 
 |---|---|
 | Pin the exact engine container image and processing version | A tagged, reproducible image exists; its digest is committed |
 | Document every code/spec discrepancy | KNOWN_LIMITATIONS.md updated; all conflicts between PRD and implementation recorded |
-| Verify the observation-acceptance interface | `run_pipeline("live-new-scene", repo)` → `ValueError` reproduced and documented; blocker formally recorded |
+| Verify the observation-acceptance interface | ✅ Resolved 2026-09-07: `run_pipeline()` now accepts live observations registered via `repo.register_observation()`; demo observations unchanged; frozen deterministic semantics preserved |
 | Confirm storage/API adapter boundary | Written agreement on which interfaces can change (storage adapter, API layer) vs. which are frozen (pipeline internals) |
 | Confirm ADR-002 compliance | ✅ Audit completed 2026-09-07: fusion weights diverge from PRD §9.5 (0.20 ML term), trend can be replaced by ConvLSTM, "SegFormer" is not SegFormer, ChangeFormer unimplemented — findings in `docs/reference/DL_MODEL_AUDIT.md`; ADR-010 proposed; accept/reject ADR-010 as part of the Phase 0 GO |
 
@@ -204,12 +204,12 @@ The following enhancements were added after the core build was complete and the 
 
 | Task | Done when |
 |---|---|
-| Fix `cdse.py`: current STAC endpoint, pagination, asset-role selection, atomic streaming download | Repeated discovery+download creates one canonical, verified local file; no partial files at destination |
-| Add `acquisition_jobs` table (ADR-008 schema) | DB migration tested; `UNIQUE(source, provider_product_id)` prevents duplicates on scheduler retry |
-| Wrap each ingest script in job-ledger logic | Every download attempt is recorded; failures are visible; exit 0 is never returned for a failed download |
-| Fix `overpass.py`: add `waterway=river/stream`, emit flat properties, do not overwrite on empty response | Updated extract is compatible with the corridor module; an empty Overpass response is quarantined |
-| Fix `openmeteo.py`: correct the backward date bug, make date window dynamic | Seven-day antecedent rainfall is computed correctly; missing precipitation is `null`, not `0` |
-| Fix `srtm.py`: update to current Earthdata Cloud access URLs | Download completes without redirect failure |
+| ✅ Fix `cdse.py`: current STAC endpoint, pagination, asset-role selection, atomic streaming download | Done 2026-09-07: uses `stac.dataspace.copernicus.eu/v1/search`, paginates via `links[].rel=="next"`, streams to disk in 64 KiB chunks |
+| ✅ Add `acquisition_jobs` table (ADR-008 schema) | Done 2026-09-07: schema added with `UNIQUE(source, provider_product_id)`; repo methods tested |
+| ☐ Wrap each ingest script in job-ledger logic | Every download attempt is recorded; failures are visible; `--strict` flag added but full job-ledger wrapping pending |
+| ✅ Fix `overpass.py`: add `waterway=river/stream`, emit flat properties, do not overwrite on empty response | Done 2026-09-07: rivers+streams queried, flat properties, empty-response protection tested |
+| ✅ Fix `openmeteo.py`: correct the backward date bug, make date window dynamic | Done 2026-09-07: backward 7-day window `[obs_date-6, obs_date]`, null for missing precip, CLI args added |
+| ✅ Fix `srtm.py`: update to current Earthdata Cloud access URLs | Done 2026-09-07: uses `lpdaac.earthdatacloud.nasa.gov`, Bearer token auth, streaming downloads |
 | Add a simple scheduler (EventBridge or systemd timer) | Each source is polled at the recommended interval; missed polls are logged |
 | Add credential management | Provider credentials stored in AWS Secrets Manager; never in source or environment variables committed to git |
 | Add ingestion-health alerting | Missed heartbeats, persistent 401/403, and dead-letter jobs produce operator notifications on a separate channel from hazard alerts |
@@ -289,13 +289,13 @@ The following enhancements were added after the core build was complete and the 
 
 ### Live Phase 4 — Automatic scoring integration
 
-**Prerequisite:** Live Phase 0 GO criterion must be met. **Currently blocked** by `run_pipeline()` accepting only demo observation IDs.
+**Prerequisite:** Live Phase 0 GO criterion must be met. ~~Currently blocked~~ **Blocker resolved 2026-09-07** — `run_pipeline()` now accepts live observations registered via `repo.register_observation()`.
 
 **Goal:** a verified, ready observation automatically triggers an authenticated pipeline run, producing a scored result for human review — without any browser action.
 
 | Task | Done when |
 |---|---|
-| Resolve live-observation interface blocker | Scope decision made: either the observation-acceptance interface is extended, or an approved adapter is defined outside the frozen boundary |
+| ✅ Resolve live-observation interface blocker | Done 2026-09-07: `_load_observation_config()` loads demo config or DB record; live observations use `raster_uri` for change mask; frozen deterministic semantics unchanged; tested with `live-test-001` |
 | Implement input materialization | Processing worker copies pinned inputs from S3 to task-local ephemeral storage; never reads from a shared mutable path |
 | Implement authenticated `POST /runs` trigger | Ready-input event submits an idempotent run request with a stable idempotency key |
 | Implement processing worker | Worker acquires a lease; executes the frozen callable; publishes the complete result before releasing the lease |
@@ -372,7 +372,7 @@ The following enhancements were added after the core build was complete and the 
 | 1 | Are downloads atomic, verified, and idempotent? | Fix before scheduling |
 | 2 | Do real acquisitions produce corridor-compatible inputs? | No automatic triggering until yes |
 | 3 | Does multi-instance operation produce no ID collisions? | Fix before adding more instances |
-| 4 | Is the live-observation blocker resolved? | Phase 4 stays blocked |
+| 4 | Is the live-observation blocker resolved? | ✅ Resolved 2026-09-07 |
 | 5 | Are data gaps, duplicates, and growth bounded after 30 days? | Extend shadow period |
 | 6 | Has a real dispatch been confirmed, delivered, and receipted? | No public pilot |
 

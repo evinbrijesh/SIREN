@@ -4,17 +4,21 @@ Usage:
     python -m siren.ingest.srtm --bbox 86.65,27.65,87.00,27.98 --out data/raw/
 
 Downloads SRTM 1-arc-second (~30 m) tiles covering the bbox from NASA Earthdata
-(https://e4ftl01.cr.usgs.gov/MEASURES/SRTMGL1.003/). A provenance sidecar
-`<file>.json` is written beside every downloaded file:
+Cloud. The legacy LP DAAC Data Pool URL (e4ftl01.cr.usgs.gov) has been retired;
+SRTM is now served from the LP DAAC Earthdata Cloud endpoint.
+
+A provenance sidecar `<file>.json` is written beside every downloaded file:
     {source, bbox, acquired_at, retries, scene_id, download_url}
 
 Retry logic with exponential backoff on transient failures (max 3 retries).
 
 Offline-safe (ADR-004): if the network is unavailable, prints a clear message
 and exits with code 0 — never crashes. Prep-time acquisition script only.
+Use --strict to get non-zero exit codes on any failure (for scheduler use).
 
-Auth: set EARTHDATA_USERNAME + EARTHDATA_PASSWORD (free account at
-urs.earthdata.nasa.gov). NASA Earthdata accepts HTTP Basic auth.
+Auth: set EARTHDATA_TOKEN (Bearer token from urs.earthdata.nasa.gov), or
+EARTHDATA_USERNAME + EARTHDATA_PASSWORD (free account at urs.earthdata.nasa.gov).
+NASA Earthdata Cloud accepts Bearer tokens for direct downloads.
 """
 
 from __future__ import annotations
@@ -30,10 +34,14 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-SRTM_BASE = "https://e4ftl01.cr.usgs.gov/MEASURES/SRTMGL1.003/2000.02.11/"
+# Earthdata Cloud LP DAAC endpoint for SRTMGL1 V003
+# The legacy e4ftl01.cr.usgs.gov URL has been retired; data is now served
+# from the LP DAAC Earthdata Cloud protected bucket.
+SRTM_BASE = "https://lpdaac.earthdatacloud.nasa.gov/lp-prod-protected/MEASURES/SRTMGL1.003/2000.02.11/"
 SRTM_ACQUIRED = "2000-02-11"
 MAX_RETRIES = 3
 BASE_DELAY = 1.0
+CHUNK_SIZE = 65536  # 64 KiB streaming chunks
 
 
 # --------------------------------------------------------------------------- #
@@ -124,28 +132,50 @@ def tile_names(bbox: tuple[float, float, float, float]) -> list[str]:
 
 
 def _auth_headers() -> dict:
+    """Build auth headers for NASA Earthdata.
+
+    Priority: Bearer token (EARTHDATA_TOKEN) > Basic auth (username/password).
+    Earthdata Cloud accepts Bearer tokens from urs.earthdata.nasa.gov.
+    """
+    token = os.environ.get("EARTHDATA_TOKEN")
+    if token:
+        return {"Authorization": f"Bearer {token}"}
     user = os.environ.get("EARTHDATA_USERNAME")
     pw = os.environ.get("EARTHDATA_PASSWORD")
     if not (user and pw):
         return {}
-    token = base64.b64encode(f"{user}:{pw}".encode()).decode()
-    return {"Authorization": f"Basic {token}"}
+    token_b64 = base64.b64encode(f"{user}:{pw}".encode()).decode()
+    return {"Authorization": f"Basic {token_b64}"}
 
 
-def _http_get_bytes(url: str, timeout: int = 600, headers: dict | None = None) -> bytes:
+def _http_stream_to_file(
+    url: str, out_path: Path, timeout: int = 600, headers: dict | None = None
+) -> int:
+    """Stream an HTTP response body to a file on disk."""
     req = urllib.request.Request(url, headers=headers or {})
     with urllib.request.urlopen(req, timeout=timeout) as resp:
-        return resp.read()
+        with open(out_path, "wb") as f:
+            total = 0
+            while True:
+                chunk = resp.read(CHUNK_SIZE)
+                if not chunk:
+                    break
+                f.write(chunk)
+                total += len(chunk)
+            return total
 
 
 def download_tile(name: str, out_dir: Path, bbox) -> tuple[Path, int, str]:
-    """Download one SRTM tile. Returns (path, retries, url)."""
+    """Download one SRTM tile. Returns (path, retries, url).
+
+    Streams to disk to avoid loading large tiles into memory.
+    """
     url = SRTM_BASE + name
     out_path = out_dir / name
     headers = _auth_headers()
 
     def _fetch() -> Path:
-        out_path.write_bytes(_http_get_bytes(url, headers=headers))
+        _http_stream_to_file(url, out_path, headers=headers)
         return out_path
 
     path, retries = retry(_fetch)
@@ -158,11 +188,13 @@ def download_tile(name: str, out_dir: Path, bbox) -> tuple[Path, int, str]:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="python -m siren.ingest.srtm",
-        description="Download SRTM 1-arc-second DEM tiles from NASA Earthdata.",
+        description="Download SRTM 1-arc-second DEM tiles from NASA Earthdata Cloud.",
     )
     p.add_argument("--bbox", required=True, type=parse_bbox,
                    help="bbox 'lon_min,lat_min,lon_max,lat_max'")
     p.add_argument("--out", default="data/raw", help="output directory (default: data/raw)")
+    p.add_argument("--strict", action="store_true",
+                   help="exit non-zero on any failure (for scheduler use)")
     return p
 
 
@@ -174,6 +206,7 @@ def main(argv: list[str] | None = None) -> int:
     names = tile_names(args.bbox)
     print(f"Need {len(names)} SRTM tile(s): {', '.join(names)}")
     n = 0
+    failures = 0
     try:
         for name in names:
             out_path = out_dir / name
@@ -181,7 +214,7 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"  ✓ already present: {name}")
                 write_provenance(
                     provenance_path_for(out_path),
-                    source="nasa-earthdata-srtm",
+                    source="nasa-earthdata-cloud-srtm",
                     bbox=args.bbox,
                     acquired_at=SRTM_ACQUIRED,
                     retries=0,
@@ -193,7 +226,7 @@ def main(argv: list[str] | None = None) -> int:
             path, retries, url = download_tile(name, out_dir, args.bbox)
             write_provenance(
                 provenance_path_for(path),
-                source="nasa-earthdata-srtm",
+                source="nasa-earthdata-cloud-srtm",
                 bbox=args.bbox,
                 acquired_at=SRTM_ACQUIRED,
                 retries=retries,
@@ -205,8 +238,10 @@ def main(argv: list[str] | None = None) -> int:
     except (urllib.error.URLError, OSError) as exc:
         print(f"✗ Network unavailable or Earthdata error: {exc}", file=sys.stderr)
         print("  Offline-safe exit (partial files may remain).", file=sys.stderr)
-        return 0
+        return 1 if args.strict else 0
     print(f"✓ Downloaded {n}/{len(names)} tile(s) to {out_dir}")
+    if failures > 0:
+        return 1 if args.strict else 0
     return 0
 
 

@@ -12,6 +12,11 @@ GeoJSON FeatureCollection to --out:
   - clinics / hospitals (amenity=hospital/clinic)
   - schools (amenity=school)
   - shelters (amenity=shelter)
+  - rivers / streams (waterway=river/stream)  — required by the corridor module
+
+Properties are emitted FLAT (tags merged into top-level properties) so the
+corridor module can filter on `waterway`, `highway`, etc. directly. The OSM
+`@id` is included as `id` and `osm_type` indicates node/way.
 
 A provenance sidecar `<out>.json` is written beside the output:
     {source, bbox, acquired_at, retries, scene_id, download_url}
@@ -20,6 +25,10 @@ Retry logic with exponential backoff on transient failures (max 3 retries).
 
 Offline-safe (ADR-004): if the network is unavailable, prints a clear message
 and exits with code 0 — never crashes. Prep-time acquisition script only.
+Use --strict to get non-zero exit codes on any failure (for scheduler use).
+
+Empty-response protection: if Overpass returns zero elements, the existing
+output file is NOT overwritten (prevents destroying a known-good extract).
 """
 
 from __future__ import annotations
@@ -117,7 +126,12 @@ def _now_iso() -> str:
 # Overpass operations
 # --------------------------------------------------------------------------- #
 def build_query(bbox: tuple[float, float, float, float]) -> str:
-    """Build an Overpass QL query for critical facilities (out:json, out geom)."""
+    """Build an Overpass QL query for critical facilities + rivers (out:json, out geom).
+
+    Includes waterway=river and waterway=stream — required by the corridor
+    module's OSM river selection step (geo/corridor.py filters on the flat
+    `waterway` property).
+    """
     lon_min, lat_min, lon_max, lat_max = bbox
     # Overpass bbox order: south, west, north, east
     b = f"{lat_min},{lon_min},{lat_max},{lon_max}"
@@ -139,6 +153,10 @@ def build_query(bbox: tuple[float, float, float, float]) -> str:
   way["amenity"="school"]({b});
   node["amenity"="shelter"]({b});
   way["amenity"="shelter"]({b});
+  way["waterway"="river"]({b});
+  way["waterway"="stream"]({b});
+  node["waterway"="river"]({b});
+  node["waterway"="stream"]({b});
 );
 out geom;"""
 
@@ -152,7 +170,13 @@ def query_overpass(bbox: tuple[float, float, float, float]) -> dict:
 
 
 def overpass_to_geojson(elements: list[dict]) -> dict:
-    """Convert Overpass JSON elements to a GeoJSON FeatureCollection."""
+    """Convert Overpass JSON elements to a GeoJSON FeatureCollection.
+
+    Properties are FLAT: OSM tags are merged into the top-level properties dict
+    so downstream consumers (corridor module) can filter on `waterway`,
+    `highway`, `amenity`, etc. directly without navigating a nested `tags` key.
+    The `id` field is the OSM element ID and `osm_type` is node/way.
+    """
     features = []
     for el in elements:
         etype = el.get("type")
@@ -170,15 +194,24 @@ def overpass_to_geojson(elements: list[dict]) -> dict:
                 geom = {"type": "LineString", "coordinates": coords}
         else:
             continue
+
+        # Flatten: merge tags into top-level properties
+        tags = el.get("tags", {})
+        props: dict = {
+            "id": el.get("id"),
+            "osm_type": etype,
+        }
+        # Promote all tags to top-level properties (waterway, highway, amenity, etc.)
+        for k, v in tags.items():
+            props[k] = v
+        # Keep original tags as a nested key for full-fidelity access
+        props["tags"] = tags
+
         features.append(
             {
                 "type": "Feature",
                 "geometry": geom,
-                "properties": {
-                    "id": el.get("id"),
-                    "osm_type": etype,
-                    "tags": el.get("tags", {}),
-                },
+                "properties": props,
             }
         )
     return {"type": "FeatureCollection", "features": features}
@@ -190,12 +223,14 @@ def overpass_to_geojson(elements: list[dict]) -> dict:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="python -m siren.ingest.overpass",
-        description="Extract critical facilities from OpenStreetMap via the Overpass API.",
+        description="Extract critical facilities + rivers from OpenStreetMap via the Overpass API.",
     )
     p.add_argument("--bbox", required=True, type=parse_bbox,
                    help="bbox 'lon_min,lat_min,lon_max,lat_max'")
     p.add_argument("--out", default="data/assets/osm_infrastructure.geojson",
                    help="output GeoJSON path")
+    p.add_argument("--strict", action="store_true",
+                   help="exit non-zero on any failure (for scheduler use)")
     return p
 
 
@@ -206,12 +241,27 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         data, retries = retry(query_overpass, args.bbox)
-    except (urllib.error.URLError, OSError, json.JSONDecodeError) as exc:
+    except (urllib.error.URLError, OSError) as exc:
         print(f"✗ Network unavailable or Overpass error: {exc}", file=sys.stderr)
         print("  Offline-safe exit (no file written).", file=sys.stderr)
-        return 0
+        return 1 if args.strict else 0
+    except json.JSONDecodeError as exc:
+        print(f"✗ Overpass returned invalid JSON: {exc}", file=sys.stderr)
+        return 1
 
-    fc = overpass_to_geojson(data.get("elements", []))
+    elements = data.get("elements", [])
+    if not elements:
+        # Empty response — do NOT overwrite an existing extract
+        if out_path.exists():
+            print(
+                f"✗ Overpass returned 0 elements — keeping existing {out_path}",
+                file=sys.stderr,
+            )
+        else:
+            print("✗ Overpass returned 0 elements — no file written.", file=sys.stderr)
+        return 1 if args.strict else 0
+
+    fc = overpass_to_geojson(elements)
     out_path.write_text(json.dumps(fc, indent=2))
     write_provenance(
         provenance_path_for(out_path),

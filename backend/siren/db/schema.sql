@@ -180,6 +180,27 @@ BEGIN
 END;
 
 -- ---------------------------------------------------------------------------
+-- Acquisition jobs (ADR-008: durable orchestration and immutable manifests)
+-- Tracks every download attempt for satellite, weather, and OSM data.
+-- Idempotency: UNIQUE(source, provider_product_id) prevents duplicate downloads
+-- on scheduler retry.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS acquisition_jobs (
+    job_id              TEXT PRIMARY KEY,          -- e.g. 'acq-0001'
+    source              TEXT NOT NULL,             -- 'cdse-s1' | 'cdse-s2' | 'srtm' | 'imerg' | 'overpass'
+    provider_product_id TEXT NOT NULL,             -- scene ID, tile name, or date key
+    status              TEXT NOT NULL DEFAULT 'pending',  -- pending|downloading|verified|ready|failed|dead_letter
+    download_url        TEXT,
+    local_path          TEXT,                      -- path under data/raw/ or data/assets/
+    acquired_at         TEXT,                      -- ISO-8601 UTC of the source product
+    attempts            INTEGER NOT NULL DEFAULT 0,
+    last_error          TEXT,
+    created_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+    updated_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+    UNIQUE(source, provider_product_id)
+);
+
+-- ---------------------------------------------------------------------------
 -- Indexes
 -- ---------------------------------------------------------------------------
 CREATE INDEX IF NOT EXISTS idx_obs_basin ON observations(basin_id);
@@ -187,3 +208,5 @@ CREATE INDEX IF NOT EXISTS idx_runs_obs ON runs(observation_id);
 CREATE INDEX IF NOT EXISTS idx_scores_run ON scores(run_id);
 CREATE INDEX IF NOT EXISTS idx_exposures_run ON exposures(run_id);
 CREATE INDEX IF NOT EXISTS idx_audit_alert ON audit_log(alert_id);
+CREATE INDEX IF NOT EXISTS idx_acq_status ON acquisition_jobs(status);
+CREATE INDEX IF NOT EXISTS idx_acq_source ON acquisition_jobs(source);
