@@ -63,8 +63,17 @@ _FITTING_ALERTS = [ALERT_MINIMAL, ALERT_DEMO]
 
 
 def _expected_round_trip(alert: dict) -> dict:
-    """The alert as it should look after a round trip (siren- prefix added)."""
-    expected = dict(alert)
+    """The alert as it should look after a round trip (siren- prefix added).
+    Only the 7 canonical keys are preserved (v4.6 spec)."""
+    expected = {
+        "alert_id": alert["alert_id"],
+        "geofence_id": alert["geofence_id"],
+        "hazard_type": alert["hazard_type"],
+        "severity": alert["severity"],
+        "exposed_population": alert["exposed_population"],
+        "critical_assets": list(alert["critical_assets"]),
+        "disease_flags": list(alert["disease_flags"]),
+    }
     if not expected["alert_id"].startswith("siren-"):
         expected["alert_id"] = "siren-" + expected["alert_id"]
     return expected
@@ -99,9 +108,12 @@ def test_round_trip_all_severities():
 
 
 def test_oversize_verbose_alert_raises():
-    """The verbose PRD §10.3 alert exceeds 250 bytes and must raise."""
+    """An alert with very long field values exceeds 250 bytes and must raise."""
+    big = dict(ALERT_DEMO)
+    big["critical_assets"] = [f"asset-{i:04d}-longname" for i in range(40)]
+    big["disease_flags"] = ["BOIL_WATER_NOW"] * 20
     with pytest.raises(PayloadTooLargeError):
-        encode(ALERT_VERBOSE)
+        encode(big)
 
 
 def test_oversize_many_assets_raises():
@@ -163,14 +175,14 @@ def test_validate_size_custom_limit():
 
 
 def test_demo_payload_within_budget():
-    """The PRD §10.4 demo alert encodes to <=250 bytes."""
+    """The v4.6 demo alert encodes to <=130 bytes with 7 canonical keys."""
     payload = encode(ALERT_DEMO)
-    assert len(payload) <= 250
-    # Sanity: it is valid JSON with the expected short keys.
+    assert len(payload) <= 130, f"payload is {len(payload)} bytes, expected <=130"
+    # Sanity: it is valid JSON with the 7 canonical short keys.
     obj = json.loads(payload)
     assert set(obj.keys()) == {
-        "aid", "sec", "haz", "lvl", "conf",
-        "exp_pop", "crit", "med_act", "act", "req",
+        "aid", "sec", "haz", "lvl",
+        "exp_pop", "crit", "med_act",
     }
     assert obj["lvl"] == 3  # elevated
 

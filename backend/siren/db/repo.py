@@ -697,6 +697,7 @@ class Repository:
             e["asset_id"] for e in exposures
             if e.get("asset_type") == "well" and e.get("inundated")
         ][:3]
+        # med_act: the medical action code (v4.6 spec: "BOIL_WATER_NOW" or "MONITOR")
         med_act = "BOIL_WATER_NOW" if disease_flags else "MONITOR"
 
         alert = {
@@ -704,12 +705,9 @@ class Repository:
             "geofence_id": recipient_group[-1].upper() if recipient_group else "B",
             "severity": score["severity"],
             "hazard_type": "GLOF_FL",
-            "confidence": score["confidence"],
             "exposed_population": exposed_pop,
             "critical_assets": critical_assets,
-            "disease_flags": disease_flags,
-            "recommended_action": "VERIFY_AND_WARN",
-            "human_review_required": True,
+            "disease_flags": [med_act],  # action code, not well IDs (v4.6 spec)
         }
 
         from siren.alerting.codec import encode

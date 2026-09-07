@@ -198,6 +198,20 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
         exposures = repo.list_exposures(run_id)
         return compute_sar_priority(exposures)
 
+    # GET /runs/{run_id}/personnel-registry — Personnel accountability (Track 7 Area i)
+    # Returns per-settlement headcounts, severed routes, responder units,
+    # and a plain-text muster manifest for offline export.
+    @app.get("/runs/{run_id}/personnel-registry")
+    def get_personnel_registry(run_id: str) -> Any:
+        if not repo.run_exists(run_id):
+            raise HTTPException(
+                status_code=404,
+                detail={"error": "not_found", "detail": f"run {run_id} not found"},
+            )
+        from siren.risk.personnel import compute_personnel_registry
+        exposures = repo.list_exposures(run_id)
+        return compute_personnel_registry(exposures, run_id)
+
     # GET /runs/{run_id}/ml-evidence — ML change detection evidence layer (ADR-002)
     @app.get("/runs/{run_id}/ml-evidence")
     def get_ml_evidence(run_id: str) -> Any:
@@ -222,7 +236,7 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
         return {
             "run_id": run_id,
             "observation_id": obs_id,
-            "ml_source": stats.get("ml_source", "deterministic_fallback"),
+            "ml_source": stats.get("ml_source", "deterministic-fallback"),
             "ml_confidence_mean": stats.get("ml_confidence_mean", 0.0),
             "ml_consensus_pixels": stats.get("ml_consensus_pixels", 0),
             "heatmap_uri": heatmap_uri,
@@ -233,7 +247,8 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
             "baseline_mask_bounds": _image_bounds(baseline_uri),
             "preview_baseline_uri": preview_baseline_uri,
             "preview_after_uri": preview_after_uri,
-            "model_available": stats.get("ml_source", "deterministic_fallback") != "deterministic_fallback",
+            "ml_shadow_mask_uri": stats.get("ml_shadow_mask_uri"),
+            "model_available": stats.get("ml_source", "deterministic-fallback") not in ("deterministic-fallback", "deterministic_fallback"),
             "change_polygon": stats.get("change_polygon"),
         }
 
@@ -307,6 +322,54 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
     def get_model_status() -> Any:
         from siren.ml.registry import get_model_status
         return {"models": get_model_status()}
+
+    # GET /ml/evaluation — dual-split evaluation report (ADR-010 transparency)
+    # Serves the honest official vs event-holdout metrics so the dashboard
+    # can show why the WaterUNet is locked in shadow mode.
+    @app.get("/ml/evaluation")
+    def get_ml_evaluation() -> Any:
+        import json
+        from pathlib import Path
+        eval_path = _project_root() / "data" / "processed" / "water_unet_eval_report.json"
+        if not eval_path.exists():
+            raise HTTPException(
+                status_code=404,
+                detail={"error": "not_found", "detail": "evaluation report not found"},
+            )
+        with open(eval_path) as f:
+            report = json.load(f)
+        # Return a compact summary for the UI
+        official = report.get("official", {})
+        event = report.get("event_holdout", {})
+        return {
+            "official": {
+                "strategy": "official",
+                "test_iou": official.get("test_metrics", {}).get("iou", 0.0),
+                "test_precision": official.get("test_metrics", {}).get("precision", 0.0),
+                "test_recall": official.get("test_metrics", {}).get("recall", 0.0),
+                "test_f1": official.get("test_metrics", {}).get("f1", 0.0),
+                "n_test": official.get("n_test", 0),
+                "best_val_iou": official.get("best_val_iou", 0.0),
+                "best_epoch": official.get("best_epoch", 0),
+                "leakage_note": "All 10 flood events appear in train, val, and test — chip-level split only",
+            },
+            "event_holdout": {
+                "strategy": "event_holdout",
+                "test_iou": event.get("test_metrics", {}).get("iou", 0.0),
+                "test_precision": event.get("test_metrics", {}).get("precision", 0.0),
+                "test_recall": event.get("test_metrics", {}).get("recall", 0.0),
+                "test_f1": event.get("test_metrics", {}).get("f1", 0.0),
+                "n_test": event.get("n_test", 0),
+                "best_val_iou": event.get("best_val_iou", 0.0),
+                "best_epoch": event.get("best_epoch", 0),
+                "train_events": event.get("train_events", []),
+                "val_events": event.get("val_events", []),
+                "test_events": event.get("test_events", []),
+                "leakage_note": "Zero event overlap between train, val, and test — honest generalization measure",
+            },
+            "deployment_gate": "event_holdout",
+            "shadow_mode_reason": "Event-holdout IoU 0.24 is below the 0.65 load-bearing gate. ML is shadow evidence only.",
+        }
 
     # Mount data/processed/ as static files so the frontend can fetch rasters
     data_processed = _project_root() / "data" / "processed"

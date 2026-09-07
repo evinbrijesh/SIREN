@@ -4,17 +4,14 @@ Maps verbose Alert fields (PRD §10.3 / API_CONTRACT.md) to short keys and
 emits compact JSON encoded as UTF-8 bytes, suitable for LoRa mesh, satellite
 messenger, or low-bandwidth SMS transport (Track 7.ii).
 
-Key mapping (verbose -> compact):
+Key mapping (verbose -> compact) — 7 canonical keys (v4.6 spec):
     alert_id             -> aid   (always prefixed with "siren-")
     geofence_id          -> sec
     hazard_type          -> haz
     severity             -> lvl   (CRITICAL=4, HIGH=3, MEDIUM=2, LOW=1)
-    confidence           -> conf
     exposed_population   -> exp_pop
     critical_assets      -> crit
     disease_flags        -> med_act
-    recommended_action   -> act
-    human_review_required-> req
 
 Encoding is deterministic: the same alert always produces the same bytes
 (fixed key order, shortest JSON separators, no unseeded randomness).
@@ -52,17 +49,15 @@ LVL_TO_SEVERITY: dict[int, str] = {
 }
 
 # Fixed key order for deterministic encoding (same alert -> same bytes).
+# 7 canonical keys per v4.6 spec (trimmed from 10 to hit ~118-byte target).
 _KEY_ORDER = (
     "aid",
     "sec",
     "haz",
     "lvl",
-    "conf",
     "exp_pop",
     "crit",
     "med_act",
-    "act",
-    "req",
 )
 
 _SIREN_PREFIX = "siren-"
@@ -81,9 +76,8 @@ def encode(alert: dict) -> bytes:
     """Encode an alert dict to a <=250-byte compressed payload.
 
     The alert dict has fields per PRD §10.3 / API_CONTRACT.md Alert model:
-        alert_id, geofence_id, severity, hazard_type, confidence,
-        exposed_population, critical_assets, disease_flags,
-        recommended_action, human_review_required
+        alert_id, geofence_id, severity, hazard_type,
+        exposed_population, critical_assets, disease_flags
 
     Returns:
         UTF-8 encoded JSON bytes, <=250 bytes, with short keys and the
@@ -103,12 +97,9 @@ def encode(alert: dict) -> bytes:
         "sec": alert["geofence_id"],
         "haz": alert["hazard_type"],
         "lvl": SEVERITY_TO_LVL[severity],
-        "conf": alert["confidence"],
         "exp_pop": alert["exposed_population"],
         "crit": list(alert["critical_assets"]),
         "med_act": list(alert["disease_flags"]),
-        "act": alert["recommended_action"],
-        "req": bool(alert["human_review_required"]),
     }
     # Deterministic, fixed key order -> identical bytes for identical alerts.
     ordered = {k: compact[k] for k in _KEY_ORDER}
@@ -148,10 +139,7 @@ def decode(payload: bytes) -> dict:
         "geofence_id": obj["sec"],
         "hazard_type": obj["haz"],
         "severity": LVL_TO_SEVERITY[lvl],
-        "confidence": obj["conf"],
         "exposed_population": obj["exp_pop"],
         "critical_assets": list(obj["crit"]),
         "disease_flags": list(obj["med_act"]),
-        "recommended_action": obj["act"],
-        "human_review_required": bool(obj["req"]),
     }
