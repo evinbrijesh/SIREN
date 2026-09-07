@@ -5,7 +5,7 @@
 Copy-paste each brief into Devin as a task. **Dispatch order: D4, D3, D5, D2, D1, D6, D7** (D8 is already satisfied — see below; API scaffold unblocks the rest).
 
 **Rules for every task:**
-- Work from `docs/spec/PRD.md` (v4.3) and `backend/siren/db/schema.sql` — they are authoritative.
+- Work from `docs/spec/PRD.md` (v4.5) and `backend/siren/db/schema.sql` — they are authoritative.
 - Test against `backend/tests/fixtures/` only. **Never** against real basin data in `data/`.
 - Land as a PR with passing tests. Do not batch-merge.
 - Dependency whitelist: rasterio, geopandas, shapely, numpy, xarray, pysheds, fastapi, pydantic, pytest. Anything else: stop and ask.
