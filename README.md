@@ -52,8 +52,10 @@ Sentinel-1 SAR / Sentinel-2 Optical / SRTM / GPM IMERG / OSM
 | Backend | Python 3.11+, FastAPI, Pydantic, SQLite |
 | Geospatial | rasterio, geopandas, shapely, numpy, pysheds |
 | Frontend | React, Vite, TypeScript, Tailwind CSS, MapLibre GL JS, TanStack Query |
-| Storage | SQLite + GeoJSON + GeoTIFF on disk (no PostGIS, no Redis) |
-| Deployment | Docker Compose (one-command: backend + frontend) |
+| Storage (demo) | SQLite + GeoJSON + GeoTIFF on disk (no PostGIS, no Redis) |
+| Storage (hosted, planned) | PostgreSQL/RDS + PostGIS, S3 object storage (ADR-007) |
+| Deployment (demo) | Docker Compose (one-command: backend + frontend) |
+| Deployment (hosted, planned) | ECS Fargate + ALB + EventBridge + SQS (ADR-006/008) |
 
 ---
 
@@ -88,12 +90,18 @@ data/
   processed/      # masks, aligned rasters (gitignored, pipeline-written)
   assets/         # basin GeoJSON, OSM extracts, weather series (committed)
 docs/
-  PRD.md          # Product Requirements Document (v4.3)
-  BUILD_ROADMAP.md # 36-hour build plan with phase checkpoints
-  API_CONTRACT.md  # HTTP API surface
-  UI_DESIGN.md     # Coordinator console design spec
-  DEVIN_BRIEFS.md  # Devin task dispatch briefs (D1-D8, archived)
-  ADR-001..005     # Architecture decision records
+  spec/
+    PRD.md           # Product Requirements Document (v4.5)
+    BUILD_ROADMAP.md # 36-hour build plan + live service transition roadmap
+    API_CONTRACT.md  # HTTP API surface
+    DEVIN_BRIEFS.md  # Devin task dispatch briefs (D1-D8, archived)
+  design/
+    UI_DESIGN.md     # Coordinator console design spec
+  adr/
+    ADR-001..005     # Architecture decision records (hackathon, accepted)
+    ADR-006..009     # Architecture decision records (live service, proposed)
+  reference/
+    KNOWN_LIMITATIONS.md  # Demo limitations + production transition gaps
 Dockerfile.backend  # Backend image (Python + GDAL + geospatial stack)
 Dockerfile.frontend # Frontend image (Node build → nginx serve)
 docker-compose.yml  # One-command orchestration
@@ -213,6 +221,8 @@ See `docs/spec/API_CONTRACT.md` for full request/response schemas.
 
 ## Key Design Decisions
 
+### Hackathon MVP (ADR-001 → ADR-005, Accepted)
+
 - **Deterministic-first.** No trained ML in the critical path. Rule-based masks and weighted scores (ADR-002).
 - **Offline demo.** Zero network calls at runtime for pipeline data. All data loads from `data/` (ADR-004). The only live network call is the ntfy.sh phone push on CONFIRM, gated by `navigator.onLine`.
 - **SAR-first.** Weather-adaptive router switches to SAR when cloud ≥20% (ADR-003).
@@ -223,6 +233,14 @@ See `docs/spec/API_CONTRACT.md` for full request/response schemas.
 - **≥3 reasons on elevated+.** Every elevated/critical score carries at least three evidence factors.
 - **Two-tier alert routing.** First responders receive an advisory (simulated, pre-confirmation); public broadcast requires human confirmation. An escalation policy badge in ReviewView communicates this clearly.
 - **Live phone alerts via ntfy.sh.** Clicking CONFIRM fires a real push notification to the coordinator's phone. A secondary manual SEND TO PHONE button exists in AuditView.
+
+### Live Service Transition (ADR-006 → ADR-009, Proposed)
+
+- **Connected acquisition, isolated execution.** A dedicated acquisition service makes all network calls; the frozen pipeline consumes only locally materialized, verified inputs (ADR-006, supersedes ADR-004 for hosted deployment).
+- **PostgreSQL for hosted operation.** SQLite retained for demo; RDS PostgreSQL + PostGIS for multi-instance hosted service with concurrent writers, idempotency constraints, and managed backups (ADR-007, supersedes ADR-001 for hosted deployment).
+- **Durable orchestration.** Acquisition job ledger with `UNIQUE(source, provider_product_id)` idempotency; atomic download → verify → publish; immutable input manifests binding each run to exact raster/weather/DEM/OSM versions (ADR-008).
+- **Authenticated review and server-side delivery.** OIDC roles separate ingestion workers from coordinators; transactional delivery outbox with provider receipts replaces browser-side ntfy (ADR-009).
+- **Frozen pipeline unchanged.** The deterministic quality gate → router → change detection → corridor → risk fusion → DB → audit chain is not modified. What changes is what feeds it and how often it is triggered.
 
 ---
 
@@ -264,16 +282,80 @@ pytest                           # 104 tests, ~20s
 
 ## Documentation
 
-- [`docs/spec/PRD.md`](docs/spec/PRD.md) — Product Requirements Document (v4.3)
-- [`docs/spec/BUILD_ROADMAP.md`](docs/spec/BUILD_ROADMAP.md) — 36-hour build plan
+### Specs
+
+- [`docs/spec/PRD.md`](docs/spec/PRD.md) — Product Requirements Document (v4.5)
+- [`docs/spec/BUILD_ROADMAP.md`](docs/spec/BUILD_ROADMAP.md) — 36-hour build plan + live service transition roadmap (Phases 0–6)
 - [`docs/spec/API_CONTRACT.md`](docs/spec/API_CONTRACT.md) — HTTP API surface
 - [`docs/design/UI_DESIGN.md`](docs/design/UI_DESIGN.md) — Coordinator console design spec
-- [`docs/spec/DEVIN_BRIEFS.md`](docs/spec/DEVIN_BRIEFS.md) — Devin task briefs
-- [`docs/adr/`](docs/adr/) — Architecture decision records (ADR-001 → ADR-005)
+- [`docs/spec/DEVIN_BRIEFS.md`](docs/spec/DEVIN_BRIEFS.md) — Devin task dispatch briefs (archived)
+
+### Architecture Decision Records
+
+| ADR | Status | Topic |
+|---|---|---|
+| [ADR-001](docs/adr/ADR-001-sqlite-over-postgis.md) | Accepted (demo) | SQLite over PostGIS |
+| [ADR-002](docs/adr/ADR-002-deterministic-first-ml.md) | Accepted | Deterministic-first, ML as optional evidence layer |
+| [ADR-003](docs/adr/ADR-003-sar-first-weather-adaptive.md) | Accepted | SAR-first, weather-adaptive routing |
+| [ADR-004](docs/adr/ADR-004-offline-first-demo.md) | Accepted (demo) | Offline-first demo |
+| [ADR-005](docs/adr/ADR-005-combined-d8-osm-corridor.md) | Accepted | Combined D8 + OSM corridor |
+| [ADR-006](docs/adr/ADR-006-connected-acquisition-isolated-execution.md) | **Proposed** | Connected acquisition, isolated execution (hosted) |
+| [ADR-007](docs/adr/ADR-007-postgresql-operational-persistence.md) | **Proposed** | PostgreSQL operational persistence (hosted) |
+| [ADR-008](docs/adr/ADR-008-durable-orchestration-immutable-manifests.md) | **Proposed** | Durable orchestration, job ledger, immutable manifests |
+| [ADR-009](docs/adr/ADR-009-authenticated-review-server-side-delivery.md) | **Proposed** | Authenticated review, server-side delivery outbox |
+
+### Reference
+
+- [`docs/reference/KNOWN_LIMITATIONS.md`](docs/reference/KNOWN_LIMITATIONS.md) — Demo limitations + production transition gaps (15 items, phase-tagged)
+
+---
+
+## Live Service Transition
+
+The hackathon MVP is an offline demo with prepared data. The project is being evaluated for transition to a continuously running hosted service that polls live satellite, weather, and OSM sources. The frozen deterministic pipeline is not changed — what changes is what feeds it and how often it is triggered.
+
+### Two deployment profiles
+
+| Profile | Network | Database | Storage | Auth | Delivery |
+|---|---|---|---|---|---|
+| **Offline/demo** (current) | Zero runtime calls | SQLite | Local disk | None | Browser-side ntfy |
+| **Hosted/live** (planned) | Acquisition service polls sources | PostgreSQL/RDS | S3 + local ephemeral | OIDC + RBAC | Server-side outbox |
+
+### Transition roadmap (7 phases)
+
+| Phase | Goal | Status |
+|---|---|---|
+| 0 | Frozen release and acceptance boundary | Pending |
+| 1 | Reliable acquisition-only service | Pending |
+| 2 | Basin and input qualification | Pending |
+| 3 | Hosted persistence, security, live UI | Pending |
+| 4 | Automatic scoring integration | **Blocked** |
+| 5 | Extended shadow operation (30-day) | Pending |
+| 6 | Authority-supervised operational pilot | Pending |
+
+> **Phase 4 blocker:** `run_pipeline()` currently accepts only the three hardcoded demo observation IDs (`obs-001`, `obs-002`, `obs-003`). A live acquisition service can download real satellite products, but the frozen pipeline will reject them with `ValueError: Unknown observation`. An approved scope decision is required to extend the observation-acceptance interface before automatic live scoring is possible.
+
+See [`docs/spec/BUILD_ROADMAP.md`](docs/spec/BUILD_ROADMAP.md) → "Live Service Transition Roadmap" for full task tables, GO/NO-GO criteria, and rollback plans per phase.
+
+### Source-specific polling cadence (planned)
+
+| Source | Recommended interval | Rationale |
+|---|---|---|
+| Sentinel-1 catalogue | Hourly | Orbit 12 (ascending) and orbit 121 (descending) cover Imja with ~12-day repeat each; hourly metadata checks minimize publication latency |
+| Sentinel-2 catalogue | Every 2 hours | ~5-day tile repeat; monsoon cloud cover makes usable observations much less frequent |
+| IMERG Early (half-hourly) | Hourly | ~4-hour publication latency; daily polling discards most of the operational value |
+| OSM / Overpass | Daily (small area) | Editing is continuous but irregular; frequent polling cannot discover unmapped infrastructure |
+| SRTM | Once, then weekly integrity check | Static historical DEM; not a daily observation |
+
+### Rough AWS cost estimate (hosted profile)
+
+~$300–450/month for a single-basin pilot (Multi-AZ RDS, two API tasks, batch workers, ALB, S3, NAT, monitoring). ~$100–200/month for a reduced-availability shadow pilot. See the architecture assessment for the full breakdown.
 
 ---
 
 ## Known Limitations
+
+### Demo limitations (hackathon scope)
 
 - The available ascending-orbit Sentinel-1 pair covers only the western AOI; the Imja lake (86.925°E) is outside the swath. The demo uses prepared scenario masks near Imja (clearly labeled in `detect/scenario.py`). The SAR pipeline itself is real and validated on the covered region.
 - The pipeline runs synchronously in the API request (no background task queue). This is intentional for demo simplicity.
@@ -282,6 +364,23 @@ pytest                           # 104 tests, ~20s
 - **SMS** is the only live alert channel (via ntfy.sh push when online). **LoRa** and **Satellite** remain simulated state machines (QUEUED → TRANSMITTING → DELIVERED). No real radio or Iridium modem transmission occurs.
 - The **First Responder Advisory** row in AuditView is a simulated visual — no real pre-confirmation notification is sent to hospitals or fire crews. It communicates the two-tier routing concept for the demo.
 - The **escalation policy badge** in ReviewView is informational only — no auto-escalation dispatch fires without human confirmation (Hard Rule #3).
+
+### Production transition gaps (must fix before unattended operation)
+
+15 specific gaps were identified during the live-service architecture audit, including:
+
+- **Phase 4 blocker:** `run_pipeline()` accepts only the three demo observation IDs. Live scoring is impossible without an approved scope decision.
+- **Ingest scripts exit 0 on failure** — silent data loss under a scheduler.
+- **CDSE uses deprecated endpoint** — may stop returning results.
+- **Overpass query missing river geometry** — automated OSM refresh would break the corridor.
+- **openmeteo.py date window bug** — seven-day antecedent rainfall computed over wrong dates.
+- **No job ledger or idempotency** — duplicate observations on scheduler retry.
+- **SQLite unsuitable for multi-instance** — WAL/network filesystem limitation.
+- **Review suppression logic incorrect** — historical confirm still authorizes dispatch after later reject.
+- **ntfy delivery is browser-side** — `"sent"` does not mean delivered.
+- **No S3/object storage** — local disk exhausts within weeks at production volume.
+
+See [`docs/reference/KNOWN_LIMITATIONS.md`](docs/reference/KNOWN_LIMITATIONS.md) → "Production Transition Gaps" for the complete list with phase tags.
 
 ---
 
