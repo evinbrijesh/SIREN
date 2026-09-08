@@ -287,10 +287,10 @@ project/
 
 ### Prepared demo dataset (on disk, `data/`)
 
-- **Sentinel-1 GRD triplet:** 2026-07-23 (obs-001) + 2026-08-04 (obs-002) + 2026-08-12 (obs-003), IW dual-pol VV/VH, full AOI coverage.
+- **Sentinel-1 GRD triplet:** 2026-07-23 (obs-001) + 2026-08-04 (obs-002) + 2026-08-11 (obs-003), IW dual-pol VV/VH, real ESA SAFE archives calibrated via `preprocess/sar_calibrate.py`. A descending-pass pair (2026-07-02 + 07-14) covers Imja lake (86.925°E) outside the ascending swath.
 - **Sentinel-2 L2A:** 2025-11-22, tile **T45RVL** (covers 100% of AOI — the clean post-monsoon optical baseline). Note: the AOI spans 4 S2 tiles; T45RVL is the correct one for this basin.
 - **SRTM 30 m clip:** 1188×1260, EPSG:4326, elevation 1930–8429 m, no nodata gaps.
-- **OSM extract:** 1100 features — 63 settlements, 92 bridges (incl. Hillary suspension bridges), 16 drinking-water points, 3 clinics, 1 hospital, Dudh Koshi/Imja rivers.
+- **OSM extract:** 5,691 features — 51 bridges, 23 settlements, 3 wells, 1,536 roads, 1 health facility, Dudh Koshi/Imja rivers (refreshed 2026-09-08 via Overpass).
 - **Weather context:** `data/assets/weather_series.json` (prepared demo context; refresh with `backend/siren/ingest/openmeteo.py`).
 
 ### Data hygiene rules (Hard Rule 7)
@@ -409,7 +409,7 @@ SIREN uses a **hybrid, weather-adaptive** change detection approach with two par
 
 **File:** `backend/siren/detect/scenario.py`
 
-When the available SAR swath doesn't cover the change source (Imja lake at 86.925°E is outside the ascending-orbit S1 swath), deterministic scenario masks are used. These are clearly labeled in the code and produce reproducible results.
+When the available SAR swath doesn't cover the change source (Imja lake at 86.925°E is outside the ascending-orbit S1 swath), deterministic scenario masks are used as the rule-based detection layer. All 3 demo observations now have real ESA Sentinel-1 SAFE archives — calibrated VV/VH sigma0 dB feeds the ML shadow layer. A descending-pass pair (2026-07-02 + 07-14) provides Imja lake coverage for future wiring.
 
 ---
 
@@ -1240,7 +1240,7 @@ The MVP is done when, **offline**, in one click-chain:
 
 - Change detection: NDWI + SAR backscatter ratio thresholding on actual downloaded scenes.
 - D8 flow corridor: pysheds on real SRTM 1-arc-second DEM.
-- Tolerance-buffer intersections: computed against real OSM extract (1100 features).
+- Tolerance-buffer intersections: computed against real OSM extract (5,691 features).
 - Risk fusion: fixed PRD §9.5 weights. Same inputs → identical outputs. No unseeded randomness.
 - Payload codec: real encoder/decoder with round-trip tests. 118 bytes actual.
 - Audit log: append-only, enforced by SQLite triggers. SHA-256 hash chain.
@@ -1261,7 +1261,7 @@ The MVP is done when, **offline**, in one click-chain:
 
 ### Known data gaps
 
-- **Sentinel-1 swath coverage:** The available ascending-orbit S1 pair covers only the western AOI; the Imja lake proper (86.925°E) is outside the swath. Demo uses prepared scenario masks near Imja (clearly labeled in `detect/scenario.py`).
+- **Sentinel-1 swath coverage:** The ascending-orbit S1 pair (relative orbit 85) covers only the western AOI; the Imja lake proper (86.925°E) is outside the swath. A descending-pass pair (2026-07-02 + 07-14) was downloaded from CDSE to cover Imja, but is not yet wired into the demo pipeline. All 3 demo observations use real calibrated Sentinel-1 VV/VH sigma0 dB from ESA SAFE archives.
 - **Single basin:** Only Dudh Koshi / Imja is configured. Multi-basin is V2.
 - **No ground-truth validation set:** Change masks not validated against a held-out labeled flood dataset.
 
