@@ -95,8 +95,8 @@ Unknown assets are inserted with `population = 1,240` (a hardcoded default). The
 ### SQLite not suitable for multi-instance hosted operation (Phase 3, ADR-001 addendum)
 The current in-memory-default SQLite configuration, count-based IDs, and WAL limitations are incompatible with a multi-process, multi-instance hosted service. See ADR-001 addendum and ADR-007.
 
-### Review suppression logic incorrect (Phase 3)
-Any historical `confirm` review qualifies a dispatch, even if a later `reject` or `postpone` was recorded. A confirmed-then-rejected alert can still be dispatched. The latest review decision must be checked.
+### Review suppression logic incorrect (Phase 3) — RESOLVED 2026-09-08
+`_confirm_review_for_run()` now checks the LATEST review decision for the run, not just any historical confirm. A confirm followed by a reject/postpone correctly suppresses dispatch (Hard Rule 3). Covered by `test_dispatch_after_confirm_then_reject_returns_409`.
 
 ### ntfy.sh delivery is browser-side and unverified (Phase 3, ADR-009)
 Live alert delivery is a browser-side HTTP call. `"status": "sent"` in the database does not mean the message was delivered. Closing the browser tab or a network error during the ntfy POST silently loses the alert. A server-side delivery outbox with receipts and retry is required for operational use.
@@ -104,11 +104,11 @@ Live alert delivery is a browser-side HTTP call. `"status": "sent"` in the datab
 ### Frontend automatic mock fallback on any API error (Phase 3)
 The frontend API client falls back to mock data on any HTTP error, including server errors and authentication failures. In a live service, this can display stale or simulated assessments without any indication that the backend is unavailable.
 
-### Audit `_audit()` call does not commit (Phase 3)
-The final `_audit()` call in the pipeline does not commit the transaction. The last audit entry may be lost on connection close or crash, and can hold a writer lock on SQLite. The final audit event must be committed as part of the run-completion transaction.
+### Audit `_audit()` call does not commit (Phase 3) — RESOLVED 2026-09-08
+`Repository._audit()` now commits after every insert. The pipeline's final audit entry (the "run" log) is durable regardless of whether the caller commits afterward. Covered by `test_repo_audit_commits_immediately`.
 
-### Audit hash verification uses recomputed hashes (Phase 3)
-The `/audit` endpoint recomputes hashes from current field values rather than comparing against stored `prev_hash`/`event_hash`. This can conceal discrepancies in stored records rather than report them. Verification must use stored values.
+### Audit hash verification uses recomputed hashes (Phase 3) — RESOLVED 2026-09-08
+`list_audit()` now returns the STORED `prev_hash`/`event_hash` from the DB, not recomputed values. A new `verify_hash_chain()` method recomputes from stored `detail_json` and compares against stored hashes to detect tampering. Covered by `test_list_audit_returns_stored_hashes` + `test_verify_hash_chain_detects_tampering`.
 
 ### No S3 or object-storage integration (Phase 3)
 Raw SAFE archives (approximately 1.7 GB per SAR product) are stored on the local container filesystem. At 5–10 SAR products per month, local storage will exhaust typical ECS ephemeral limits within weeks. S3 with immutable keys and lifecycle rules is required for durable raster storage.

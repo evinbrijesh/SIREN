@@ -179,3 +179,85 @@ def test_created_at_is_utc_iso8601(audit):
     assert ts.endswith("Z")
     assert len(ts) == 20  # YYYY-MM-DDTHH:MM:SSZ
     assert ts[10] == "T" and ts[19] == "Z"
+
+
+# ---------------------------------------------------------------------------
+# Repository._audit() commit + stored-hash integrity (Phase 3 bug fixes)
+# ---------------------------------------------------------------------------
+def test_repo_audit_commits_immediately(tmp_path):
+    """Repository._audit() must commit so the entry survives connection close.
+
+    Bug: the pipeline calls repo._audit() as its final operation without a
+    subsequent commit(), so the final audit entry can be lost on crash or
+    hold a write lock on SQLite.
+    """
+    import sqlite3
+    from siren.db.repo import Repository
+
+    repo = Repository(tmp_path / "test-audit-commit.db")
+    conn_before = sqlite3.connect(str(tmp_path / "test-audit-commit.db"))
+    conn_before.row_factory = sqlite3.Row
+    before = conn_before.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0]
+    conn_before.close()
+
+    repo._audit(None, "pipeline", "run", {"run_id": "test-001"})
+
+    conn_after = sqlite3.connect(str(tmp_path / "test-audit-commit.db"))
+    conn_after.row_factory = sqlite3.Row
+    after = conn_after.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0]
+    conn_after.close()
+    repo.close()
+    assert after == before + 1
+
+
+def test_list_audit_returns_stored_hashes(tmp_path):
+    """list_audit must return STORED prev_hash/event_hash, not recomputed ones.
+
+    Bug: _audit_rows_with_hashes() recomputed the entire chain from scratch,
+    so tampering with detail_json (if the trigger were bypassed) would be
+    invisible — the recomputed hash would match the tampered data.
+    """
+    import sqlite3
+    from siren.db.repo import Repository
+
+    repo = Repository(tmp_path / "test-hash.db")
+    repo._audit(None, "pipeline", "run", {"run_id": "test-001"})
+    repo._audit("alert-0001", "coordinator-01", "review", {"decision": "confirm"})
+
+    entries = repo.list_audit()
+    conn2 = sqlite3.connect(str(tmp_path / "test-hash.db"))
+    conn2.row_factory = sqlite3.Row
+    raw_rows = conn2.execute(
+        "SELECT prev_hash, event_hash FROM audit_log ORDER BY entry_id"
+    ).fetchall()
+    conn2.close()
+    repo.close()
+
+    assert len(entries) == len(raw_rows)
+    for entry, raw in zip(entries, raw_rows):
+        assert entry["prev_hash"] == raw["prev_hash"], "prev_hash must be stored, not recomputed"
+        assert entry["event_hash"] == raw["event_hash"], "event_hash must be stored, not recomputed"
+
+
+def test_verify_hash_chain_detects_tampering(tmp_path):
+    """verify_hash_chain must detect corrupted stored hashes.
+
+    Simulates a DB-level breach: drop the no-UPDATE trigger and corrupt a
+    stored event_hash. The verifier must catch the mismatch.
+    """
+    import sqlite3
+    from siren.db.repo import Repository
+
+    repo = Repository(tmp_path / "test-verify.db")
+    repo._audit(None, "pipeline", "run", {"run_id": "test-001"})
+    repo._audit("alert-0001", "coordinator-01", "review", {"decision": "confirm"})
+    assert repo.verify_hash_chain() is True
+
+    conn2 = sqlite3.connect(str(tmp_path / "test-verify.db"))
+    conn2.execute("DROP TRIGGER IF EXISTS audit_log_no_update")
+    conn2.execute("UPDATE audit_log SET event_hash = 'tampered' WHERE entry_id = 1")
+    conn2.commit()
+    conn2.close()
+
+    assert repo.verify_hash_chain() is False
+    repo.close()
