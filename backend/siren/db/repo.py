@@ -987,13 +987,42 @@ def default_db_path() -> str:
     return os.environ.get("SIREN_DB_PATH", ":memory:")
 
 
+def _database_url() -> str | None:
+    """Return the PostgreSQL DATABASE_URL if set, else None (SQLite fallback).
+
+    ADR-011: when DATABASE_URL=postgresql://... is set, the production
+    PostGIS repository is used. When unset, the SQLite repository is used
+    (offline demo / development).
+    """
+    url = os.environ.get("DATABASE_URL")
+    if url and url.startswith("postgresql://"):
+        return url
+    return None
+
+
 _repo: Repository | None = None
 
 
 def get_repository(db_path: str | None = None) -> Repository:
+    """Get the repository instance.
+
+    Auto-detects the backend:
+      - If ``DATABASE_URL`` is set to a ``postgresql://`` URL, returns a
+        ``PostgresRepository`` (PostGIS, production path).
+      - Otherwise, returns a SQLite ``Repository`` (offline demo / development).
+
+    When ``db_path`` is explicitly provided, always uses SQLite (for tests).
+    """
     global _repo
+    # Explicit db_path → always SQLite (test mode)
     if db_path is not None:
         return Repository(db_path)
+    # Auto-detect: PostgreSQL if DATABASE_URL is set
+    pg_url = _database_url()
+    if pg_url is not None:
+        from siren.db.pg_repo import PostgresRepository
+        return PostgresRepository(pg_url)
+    # Default: SQLite
     if _repo is None:
         _repo = Repository(default_db_path())
     return _repo
