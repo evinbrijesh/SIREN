@@ -29,7 +29,7 @@
 
 ## Known Data Gaps
 
-- **Sentinel-1 swath coverage.** The available ascending-orbit S1 pair covers only the western AOI; the Imja lake proper (86.925°E) is outside the swath. The demo uses prepared scenario masks near Imja for observations 2–3 (clearly labeled in `detect/scenario.py`). The SAR pipeline code is real and validated on the covered region.
+- **Sentinel-1 swath coverage.** The ascending-orbit S1 pair (relative orbit 85) covers only the western AOI; the Imja lake proper (86.925°E) is outside the swath. A descending-pass pair (2026-07-02 + 07-14) was downloaded from CDSE to cover Imja, but is not yet wired into the demo pipeline. All 3 demo observations use real calibrated Sentinel-1 VV/VH sigma0 dB from ESA SAFE archives. The SAR pipeline code is real and validated on the covered region.
 - **Single basin.** Only Dudh Koshi / Imja is configured. Multi-basin support is a V2 roadmap item.
 - **No ground-truth validation set.** Change masks are not validated against a held-out labeled flood dataset. The Sen1Floods11 benchmark is referenced in the PRD for future calibration.
 
@@ -86,11 +86,11 @@ An `acquisition_jobs` table (ADR-008 schema) has been added with `UNIQUE(source,
 ### SRTM uses outdated access URL (Phase 1) — RESOLVED 2026-09-07
 `srtm.py` now uses the LP DAAC Earthdata Cloud endpoint (`lpdaac.earthdatacloud.nasa.gov/lp-prod-protected/MEASURES/SRTMGL1.003/`). Bearer token auth (`EARTHDATA_TOKEN`) is supported alongside Basic auth. Downloads stream to disk.
 
-### Downloaded Sentinel-1 pair misses Imja Lake (known, documented)
-The two downloaded Sentinel-1 archives (orbit 85, ascending) do not cover Imja Lake at 86.925°E. Scenario masks near Imja are used for demo observations 2 and 3. For operational monitoring, orbit 12 (ascending) and orbit 121 (descending) are the covering tracks, each with a 12-day repeat. The downloaded orbit-85 pair should not be used for Imja assessments.
+### Ascending Sentinel-1 swath misses Imja Lake (partially resolved)
+The ascending-orbit S1 pair (relative orbit 85) does not cover Imja Lake at 86.925°E. A descending-pass pair (2026-07-02 + 07-14) was downloaded from CDSE to cover Imja, but is not yet wired into the demo pipeline. All 3 demo observations now use real calibrated Sentinel-1 VV/VH sigma0 dB from ESA SAFE archives (obs-003 downloaded 2026-09-08). For operational monitoring, orbit 12 (ascending) and orbit 121 (descending) are the covering tracks, each with a 12-day repeat.
 
 ### Population defaults are fabricated (Phase 2)
-Unknown assets are inserted with `population = 1,240` (a hardcoded default). There is no measured or authority-verified population figure for most exposed settlements. The OSM extract has one `population` field across 1,100 features, and no `survey:date` or `check_date` tags. Exposure reports must label population figures with their source and confidence.
+Unknown assets are inserted with `population = 1,240` (a hardcoded default). There is no measured or authority-verified population figure for most exposed settlements. The OSM extract has one `population` field across 5,691 features, and no `survey:date` or `check_date` tags. Exposure reports must label population figures with their source and confidence.
 
 ### SQLite not suitable for multi-instance hosted operation (Phase 3, ADR-001 addendum)
 The current in-memory-default SQLite configuration, count-based IDs, and WAL limitations are incompatible with a multi-process, multi-instance hosted service. See ADR-001 addendum and ADR-007.
