@@ -226,12 +226,13 @@
 
 ### Q2: *"How is this a 'prediction' system? Can satellites predict when a glacier bursts?"*
 * **The Quick Pitch (10s):**
-  > *"We don't claim to predict the exact second a moraine wall ruptures. We predict downstream hazard progression, infrastructure cutoff, and secondary disease outbreaks."*
+  > *"We don't claim to predict the exact second a moraine wall ruptures. We monitor slow, progressive pre-collapse indicators — weeks-long moraine destabilization and lake expansion — to buy preparatory lead time, coupled with rapid post-collapse asset triage."*
 * **The Technical Deep-Dive (if pressed):**
-  > *"Prediction in SIREN operates across three physical dimensions:  
-  > 1. **Downstream Flow Prediction:** Using D8 flow accumulation on 30m DEM elevation, we compute the exact physical path floodwaters must take through downstream canyons hours before the wave arrives.  
-  > 2. **Cascading Infrastructure Failure:** We predict cut-off access routes by identifying severed bridges, enabling rescue teams to pre-position along viable ridges.  
-  > 3. **Epidemic Outbreak Prediction:** By intersecting inundation vectors with municipal drinking water points, we predict high-probability waterborne outbreak clusters days before medical symptoms appear in the community."*
+  > *"SIREN operates across three time horizons:
+  > 1. **Progressive indicator monitoring (weeks):** We track lake expansion across multiple satellite passes. The +8% expansion on 07-23 was the early warning — had SIREN been running, the watch would have escalated 19 days before the peak, buying lead time to evacuate.
+  > 2. **Post-event triage (hours):** When a breach occurs, SIREN automates downstream exposure analysis — which bridges are severed, which wells are submerged, which settlements are in the path — so civil defense logistics can deploy immediately.
+  > 3. **Disease prevention (days):** By intersecting the flood corridor with drinking water points, we predict waterborne outbreak clusters before medical symptoms appear.
+  > Satellite passes cannot provide seconds-or-minutes breach forecasting. We complement — rather than replace — in-situ acoustic ground sensors."*
 
 ---
 
@@ -276,19 +277,19 @@
 
 ### Q7: *"What happens during heavy monsoon cloud cover? Doesn't satellite data fail?"*
 * **The Quick Pitch (10s):**
-  > *"Optical satellites fail, but radar does not. SIREN's weather-adaptive router automatically switches to Synthetic Aperture Radar (SAR), which pierces through 100% of clouds and rain."*
+  > *"Optical satellites fail, but radar does not. SIREN's weather-adaptive router automatically switches to Sentinel-1 C-band SAR, which penetrates clouds and darkness. But we're honest about SAR's Himalayan challenges too."*
 * **The Technical Deep-Dive (if pressed):**
-  > *"Optical satellites like Sentinel-2 cannot see through monsoon clouds. SIREN includes a Quality Gate that calculates cloud fraction. If clouds exceed 20%, the system automatically diverts to **Sentinel-1 C-band Synthetic Aperture Radar (SAR)**.*  
-  > *Radar pulses pass completely through clouds, fog, and nighttime darkness, reflecting off open water with distinct low backscatter. SIREN's automated router ensures continuous, uninterrupted monitoring regardless of weather."*
+  > *"Optical satellites like Sentinel-2 cannot see through monsoon clouds. SIREN's Quality Gate calculates cloud fraction — if it exceeds 20%, the system routes to Sentinel-1 C-band SAR, which passes through clouds, fog, and darkness.
+  > However, C-band SAR in the high Himalaya has its own challenges: wet snow on glaciers causes backscatter drops that can mimic open water, steep terrain causes layover and shadowing, and debris-covered ice alters backscatter unpredictably. That's exactly why we enforced ADR-010 — our WaterUNet model drops to 0.24 IoU on out-of-distribution Himalayan slopes, so we refused to let statistical vision dictate life-safety evacuations. The deterministic scenario masks are reproducible and labeled, not hallucinated backscatter thresholds. A glacier/snow classification mask is on the V2 roadmap."*
 
 ---
 
 ### Q8: *"What is the latency? Does Sentinel-1 deliver fast enough for emergency response?"*
 * **The Quick Pitch (10s):**
-  > *"Copernicus Near-Real-Time (NRT) products deliver within 1 to 3 hours of overpass, and SIREN processes the rasters in under 60 seconds."*
+  > *"Copernicus NRT products deliver within 1–3 hours of overpass, and SIREN processes rasters in under 60 seconds. But we're honest: Sentinel-1 has a 12-day repeat orbit. SIREN is a medium-term situational awareness and rapid post-event triage tool, not a real-time breach warning system."*
 * **The Technical Deep-Dive (if pressed):**
-  > *"For glacial lake monitoring and large basin flood expansion, a 1-to-3 hour satellite pass latency provides substantial early warning compared to manual 24-hour GIS workflows.  
-  > Furthermore, between satellite passes, SIREN fuses continuous hourly NASA GPM rainfall telemetry with terrain steepness to maintain a running hazard index, alerting coordinators if dangerous flash flood conditions are accelerating."*
+  > *"For glacial lake monitoring and progressive expansion tracking, a 1–3 hour NRT latency after a 6–12 day pass provides substantial early warning compared to manual 24-hour GIS workflows. The demo's 3 observations span 19 days (07-23 → 08-11), modeling progressive expansion — the +8% on 07-23 was the early warning that could have bought 19 days of lead time.
+  > But a moraine breach unfolds in minutes. If the lake collapses on August 6th and the next pass is August 11th, SIREN is performing post-event damage triage, not real-time warning. We complement — rather than replace — in-situ acoustic ground sensors and ultrasonic river gauges. Between passes, SIREN fuses continuous ERA5 rainfall telemetry with terrain steepness to maintain a running hazard index."*
 
 ---
 
@@ -305,13 +306,50 @@
 * **The Quick Pitch (10s):**
   > *"A fully functioning, offline-ready decision-support system with 104 passing tests and a verified end-to-end Definition of Done chain."*
 * **The Technical Deep-Dive (if pressed):**
-  > *"We built the complete pipeline:  
-  > 1. Automated ingest scripts for Sentinel-1, Sentinel-2, SRTM, and OpenStreetMap.  
-  > 2. Quality gate and weather-adaptive router.  
-  > 3. Vectorized radar and optical change detection engines.  
-  > 4. D8 hydrological flow accumulation and infrastructure exposure buffering.  
-  > 5. Composite risk scoring with human-in-the-loop review API.  
-  > 6. Sub-250 byte compact alert codec and ntfy.sh live webhook push.  
-  > 7. SHA-256 cryptographic audit log.  
-  > 8. React + MapLibre GL frontend with dual swipe-compare and dark operations console.  
+  > *"We built the complete pipeline:
+  > 1. Automated ingest scripts for Sentinel-1, Sentinel-2, SRTM, and OpenStreetMap.
+  > 2. Quality gate and weather-adaptive router.
+  > 3. Vectorized radar and optical change detection engines.
+  > 4. D8 hydrological flow accumulation and infrastructure exposure buffering.
+  > 5. Composite risk scoring with human-in-the-loop review API.
+  > 6. Sub-250 byte compact alert codec and ntfy.sh live webhook push.
+  > 7. SHA-256 cryptographic audit log.
+  > 8. React + MapLibre GL frontend with dual swipe-compare and dark operations console.
   > All backed by 104 passing automated unit and integration tests."*
+
+---
+
+### Q11: *"Wet snow on glaciers causes backscatter drops that look like open water. How do you handle that?"*
+* **The Quick Pitch (10s):**
+  > *"We're honest about this. C-band SAR in the high Himalaya has real challenges — wet snow, layover, and debris-covered ice. That's exactly why our ML model is in shadow mode and the deterministic scenario masks are the load-bearing path."*
+* **The Technical Deep-Dive (if pressed):**
+  > *"Wet snow on melting glaciers has a high dielectric constant and severe surface absorption — it causes a dramatic backscatter drop that looks identical to open water in a simple log-ratio threshold. Without an active glacier/snow classification mask, you'd flag vast swaths of melting snowfields as expanding glacial lakes.
+  > We handle this by design: the V1 demo uses deterministic, reproducible scenario masks as the rule-based detection layer — they are labeled and auditable, not hallucinated backscatter thresholds. The real calibrated SAR feeds the ML shadow layer only. Our WaterUNet model drops to 0.24 IoU on out-of-distribution Himalayan slopes — that's precisely why we enforced ADR-010 and refused to let statistical vision dictate life-safety evacuations. A glacier/snow classification mask is on the V2 roadmap."*
+
+---
+
+### Q12: *"D8 flow accumulation is steady-state. A GLOF is a dynamic dam-break wave. How is your corridor valid?"*
+* **The Quick Pitch (10s):**
+  > *"D8 validates where the water goes — it confirms the change drains into the expected sub-basin. It's a physical check, not a flood model. We combine it with surveyed OSM river geometry for the real corridor."*
+* **The Technical Deep-Dive (if pressed):**
+  > *"D8 determines where a raindrop flows on a static surface based on steepest descent. A GLOF is not standard rainfall runoff — it's an instantaneous dam-break wave carrying millions of cubic meters of water, ice, and sediment. In steep gorges, the wave superelevates at canyon bends, climbing far beyond a static 125 m buffer.
+  > In our V1 MVP, D8 serves two purposes: (1) it validates that the change source drains into the expected sub-basin (Imja lake → Imja Khola → Dudh Koshi), not an adjacent drainage divide; (2) it selects which OSM river segments are reachable, so we use the real surveyed riverbed rather than a single-pixel D8 path. The 125 m planar buffer is a V1 simplification. Our roadmap specifies transitioning to Height Above Nearest Drainage (HAND) using Copernicus GLO-30 to eliminate false elevation-exposure errors — an asset perched 80 m above the river should not be marked as exposed."*
+
+---
+
+### Q13: *"25% of your hazard score is static geographic constants. Slope and drainage proximity never change between passes. Isn't that a problem?"*
+* **The Quick Pitch (10s):**
+  > *"It's a V1 design choice for explainability. The static factors shift the baseline hazard — a lake on a 40° slope above a drainage is inherently more dangerous than one on flat terrain. The dynamic factors (trend, expansion, rainfall) drive the escalation between passes."*
+* **The Technical Deep-Dive (if pressed):**
+  > *"The 5-factor formula `H = 0.30·S_trend + 0.25·A_expansion + 0.20·R_rain + 0.15·T_slope + 0.10·D_prox` has known blind spots. Slope and drainage proximity are static — 25% of H is a constant between passes. And the linear formula penalizes a growing lake on a clear day because R_rain = 0, even though glacial lakes can burst on sunny days due to ice-core melt or moraine piping.
+  > The V1 formula is deliberately simple and explainable — every factor has a human-readable reason string that a coordinator can audit. The V3 research proposal (ADR-011) specifies a non-linear XGBoost susceptibility model with TreeSHAP attribution to capture dam-break triggers that are independent of rainfall."*
+
+---
+
+### Q14: *"If the lake collapses on August 6th and the next satellite pass is August 11th, isn't SIREN just post-event damage assessment?"*
+* **The Quick Pitch (10s):**
+  > *"For that specific scenario, yes — SIREN performs rapid post-event triage. But the value of SIREN is the 19 days of progressive warning before the collapse. The +8% expansion on 07-23 was the early signal."*
+* **The Technical Deep-Dive (if pressed):**
+  > *"SIREN is a medium-term situational awareness and rapid post-event response tool, not an in-situ ultrasonic river gauge. Satellite passes cannot provide seconds-or-minutes breach forecasting.
+  > The demo models exactly this: 3 observations over 19 days (07-23 → 08-11), tracking progressive expansion from +8% (watch) to +28% (elevated) to +43% (critical). Had SIREN been monitoring in real time, the watch on 07-23 would have escalated 19 days before the peak, buying lead time to pre-position rescue teams, warn downstream settlements, and prepare water purification supplies.
+  > After a breach, SIREN automates the triage that currently takes GIS analysts 6–24 hours: which bridges are severed, which wells are submerged, which settlements are in the path. We complement — rather than replace — acoustic ground sensors for real-time breach detection."*
