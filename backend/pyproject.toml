@@ -29,6 +29,18 @@ ml = [
     "torch>=2.2",
     "torchvision>=0.17",
 ]
+# Production extras (ADR-011, accepted 2026-09-08). Install with:
+#   pip install -e ".[production]"          # production stack only
+#   pip install -e ".[dev,ml,production]"   # everything
+# These are NOT required for the offline demo (SQLite path). They activate
+# when DATABASE_URL=postgresql://... is set at runtime.
+production = [
+    "psycopg[binary]>=3.1",
+    "geoalchemy2>=0.14",
+    "celery>=5.3",
+    "redis>=5.0",
+    "shapely>=2.0",   # already in core, listed here for clarity
+]
 
 [tool.setuptools.packages.find]
 include = ["siren*"]
