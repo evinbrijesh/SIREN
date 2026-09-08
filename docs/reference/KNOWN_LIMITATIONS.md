@@ -51,6 +51,57 @@
 
 ---
 
+## Domain Physics Limitations (Expert Review 2026-09-08)
+
+The following limitations were identified during a domain review by a hydrological engineer and remote-sensing scientist. They do not affect the hackathon demo's functional chain but represent real operational vulnerabilities if SIREN were deployed in production. Each includes the honest framing a judge or domain expert should hear.
+
+### 1. SAR Physics: Wet Snow, Layover, and Debris-Covered Ice
+
+C-band SAR penetrates clouds, but the high Himalaya introduces SAR-specific challenges that a simple log-ratio backscatter threshold does not handle:
+
+- **Wet snow false positives.** In July–August, high-altitude moraines and glaciers are covered in melting wet snow. Wet snow has a high dielectric constant and severe surface absorption — it often absorbs or specularly deflects C-band radar, causing a dramatic backscatter drop that looks identical to open water in a log-ratio threshold. Without an active glacier/snow classification mask, vast swaths of melting snowfields would be flagged as "expanding glacial lakes."
+- **Geometric distortion (layover and shadow).** In steep terrain (slopes >30°), side-looking SAR suffers from foreshortening, layover, and shadowing. A moraine dam in radar shadow on an ascending pass cannot be resolved. Combining ascending and descending passes is necessary; single-swath change detection in deep Himalayan gorges produces significant artifact rates.
+- **Debris-covered ice.** GLOFs frequently originate from supraglacial ponds expanding on debris-covered glaciers (such as Imja). Debris-covered ice does not behave like clean open water — floating moraine sediment, ice hummocks, and turbidity alter backscatter unpredictably compared to flat water.
+
+**V1 MVP status:** The demo uses deterministic scenario masks as the rule-based detection layer. Real calibrated SAR feeds the ML shadow layer only. No glacier/snow classification mask is applied.
+
+**Defensible framing:** "We know radar layover and wet snow degrade C-band segmentation to 0.24 IoU on out-of-distribution Himalayan slopes. That is precisely why we enforced ADR-010 and refused to let statistical vision dictate life-safety evacuations. The deterministic scenario masks are reproducible and labeled — they are not hallucinated backscatter thresholds."
+
+### 2. Hydrology: D8 Flow Accumulation vs. GLOF Dynamics
+
+Using D8 flow accumulation and static 125 m buffer zones as a proxy for a GLOF has severe physical limitations:
+
+- **D8 is steady-state, not dynamic.** D8 determines where a raindrop flows on a static surface based on steepest descent. A GLOF is not standard rainfall runoff — it is an instantaneous dam-break wave carrying millions of cubic meters of water, ice, and sediment (a debris flow).
+- **Superelevation and channel choking.** In steep Himalayan gorges, sudden surges hit canyon bends and superelevate (climb up the outer valley walls far beyond a static 125 m buffer). Large boulders and moraine debris can dam narrow choke points, temporarily impounding water and then releasing a secondary catastrophic wave.
+- **Static buffers miss elevation.** A 125 m horizontal buffer does not account for vertical clearance. An asset 110 m horizontally from the riverbed but perched 80 m above on a granite cliff is marked as exposed, while a village 140 m away on a flat low floodplain is marked safe. A true exposure engine requires a Height Above Nearest Drainage (HAND) model, not just a Euclidean buffer.
+
+**V1 MVP status:** The corridor uses planar buffering along surveyed OSM waterways. No HAND model is implemented.
+
+**Defensible framing:** "In our V1 MVP, we use planar buffering along surveyed OSM waterways, but our roadmap specifies transitioning to Height Above Nearest Drainage (HAND) using Copernicus GLO-30 to eliminate false elevation-exposure errors."
+
+### 3. Temporal Latency vs. Flash Flood Mechanics
+
+- **Revisit time mismatch.** Sentinel-1 has a 12-day repeat orbit over the exact same geometry (or ~6 days combining constellations when both satellites operate).
+- **Physics of failure.** A moraine breach, ice avalanche-induced displacement wave, or flash flood unfolds in minutes to hours, not days.
+- **Operational truth.** If the lake collapses on August 6th and the next pass is August 11th, the system is performing post-event damage triage, not early warning.
+
+**V1 MVP status:** The demo is a retrospective reconstruction. The 3 observations span 19 days (07-23 → 08-11), modeling progressive expansion, not real-time breach detection.
+
+**Defensible framing:** "SIREN is a medium-term situational awareness and rapid post-event response tool, not an in-situ ultrasonic river gauge. We detect weeks-long progressive dam deterioration and automate downstream civil defense logistics; we complement — rather than replace — acoustic ground sensors."
+
+### 4. Scoring Formula: Linear Weights and Static Factors
+
+The 5-factor hazard score `H = 0.30·S_trend + 0.25·A_expansion + 0.20·R_rain + 0.15·T_slope + 0.10·D_prox` has known blind spots:
+
+- **Non-linear dam-break factor.** Glacial lakes can burst on sunny, clear days without a drop of rain (R_rain = 0) due to internal ice-core melt, moraine piping failure, or hanging ice avalanches. Under this linear formula, a rapidly growing lake on steep terrain would suffer a score penalty simply because it wasn't raining that day.
+- **Static geographic constants.** Slope (T_slope) and drainage proximity (D_prox) are static geographic attributes that do not change between passes. Therefore 25% of the hazard score is a constant — it shifts the baseline but does not contribute to temporal escalation.
+
+**V1 MVP status:** The weights are fixed per PRD §9.5. The formula is deliberately simple and explainable — every factor has a human-readable reason string. A non-linear model (e.g., XGBoost with SHAP) is a V3 roadmap item (ADR-011).
+
+**Defensible framing:** "The linear formula is a V1 design choice for explainability — every score carries a deterministic reasons array that a coordinator can audit. The V3 research proposal (ADR-011) specifies a non-linear susceptibility model with TreeSHAP attribution to capture dam-break triggers that are independent of rainfall."
+
+---
+
 **Bottom line for judges:** The detection, corridor, exposure, scoring, and audit chain is real code on real data. The SMS channel is live via ntfy.sh (when online); LoRa and Satellite are simulated. The First Responder Advisory and escalation policy badge communicate the two-tier routing concept without violating the human gate. SIREN is a decision-support and resilience layer, not a replacement for emergency infrastructure. The system deploys via Docker Compose (`./start.sh`) for a one-command demo.
 
 ---
