@@ -666,14 +666,18 @@ class Repository:
         }
 
     def _confirm_review_for_run(self, run_id: str) -> str | None:
+        # Hard Rule 3: the LATEST review decision gates dispatch.
+        # A confirm followed by a reject/postpone must suppress dispatch.
         row = self._conn.execute(
-            """SELECT r.review_id FROM reviews r
+            """SELECT r.review_id, r.decision FROM reviews r
                JOIN scores s ON r.score_id = s.score_id
-               WHERE s.run_id=? AND r.decision='confirm'
-               ORDER BY r.decided_at DESC LIMIT 1""",
+               WHERE s.run_id=?
+               ORDER BY r.decided_at DESC, r.review_id DESC LIMIT 1""",
             (run_id,),
         ).fetchone()
-        return row["review_id"] if row is not None else None
+        if row is None or row["decision"] != "confirm":
+            return None
+        return row["review_id"]
 
     # --- dispatches (human gate enforced by schema trigger, NOT bypassed) ---
 
@@ -909,8 +913,10 @@ class Repository:
     def _audit(self, alert_id: str | None, actor: str, action: str, detail: dict[str, Any]) -> None:
         detail_json = json.dumps(detail, sort_keys=True, separators=(",", ":"), default=str)
         created_at = _utcnow_iso()
-        existing = self._audit_rows_with_hashes()
-        prev_hash = existing[-1]["event_hash"] if existing else GENESIS_HASH
+        row = self._conn.execute(
+            "SELECT event_hash FROM audit_log ORDER BY entry_id DESC LIMIT 1"
+        ).fetchone()
+        prev_hash = row["event_hash"] if row and row["event_hash"] else GENESIS_HASH
         digest = event_hash(prev_hash, created_at, detail_json)
         self._conn.execute(
             """INSERT INTO audit_log
@@ -918,40 +924,62 @@ class Repository:
                VALUES(?,?,?,?,?,?,?)""",
             (alert_id, actor, action, detail_json, created_at, prev_hash, digest),
         )
-
-    def _audit_rows_with_hashes(self) -> list[dict[str, Any]]:
-        rows = self._conn.execute("SELECT * FROM audit_log ORDER BY entry_id").fetchall()
-        entries: list[dict[str, Any]] = []
-        previous = GENESIS_HASH
-        for row in rows:
-            digest = event_hash(previous, row["created_at"], row["detail_json"])
-            entries.append({
-                "entry_id": row["entry_id"],
-                "alert_id": row["alert_id"],
-                "actor": row["actor"],
-                "action": row["action"],
-                "detail_json": row["detail_json"],
-                "created_at": row["created_at"],
-                "prev_hash": previous,
-                "event_hash": digest,
-            })
-            previous = digest
-        return entries
+        self._conn.commit()
 
     def list_audit(self, alert_id: str | None = None, run_id: str | None = None) -> list[dict[str, Any]]:
         """Query audit log by alert_id and/or run_id.
+
+        Returns STORED prev_hash/event_hash from the DB — not recomputed.
+        Use verify_hash_chain() to check integrity against recomputed values.
 
         When run_id is provided, matches entries whose detail_json contains the
         run_id (the run/score/review entries carry run_id in detail_json, not in
         the alert_id column). When alert_id is provided, matches the alert_id
         column directly. Both filters are AND-ed when both are given.
         """
-        entries = self._audit_rows_with_hashes()
+        rows = self._conn.execute(
+            """SELECT entry_id, alert_id, actor, action, detail_json, created_at,
+                      prev_hash, event_hash
+               FROM audit_log ORDER BY entry_id"""
+        ).fetchall()
+        entries = [
+            {
+                "entry_id": row["entry_id"],
+                "alert_id": row["alert_id"],
+                "actor": row["actor"],
+                "action": row["action"],
+                "detail_json": row["detail_json"],
+                "created_at": row["created_at"],
+                "prev_hash": row["prev_hash"],
+                "event_hash": row["event_hash"],
+            }
+            for row in rows
+        ]
         if alert_id is not None:
-            entries = [entry for entry in entries if entry["alert_id"] == alert_id]
+            entries = [e for e in entries if e["alert_id"] == alert_id]
         if run_id is not None:
-            entries = [entry for entry in entries if f'"{run_id}"' in entry["detail_json"]]
+            entries = [e for e in entries if f'"{run_id}"' in (e["detail_json"] or "")]
         return entries
+
+    def verify_hash_chain(self) -> bool:
+        """Verify the audit hash chain by comparing stored hashes against recomputed ones.
+
+        Detects tampering: if any stored prev_hash or event_hash doesn't match
+        the recomputed value (using the same serialization as _audit), the
+        chain is broken and this returns False.
+        """
+        rows = self._conn.execute(
+            "SELECT prev_hash, event_hash, created_at, detail_json FROM audit_log ORDER BY entry_id"
+        ).fetchall()
+        expected_prev = GENESIS_HASH
+        for row in rows:
+            if row["prev_hash"] != expected_prev:
+                return False
+            recomputed = event_hash(row["prev_hash"], row["created_at"], row["detail_json"])
+            if recomputed != row["event_hash"]:
+                return False
+            expected_prev = row["event_hash"]
+        return True
 
 
 def default_db_path() -> str:

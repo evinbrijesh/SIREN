@@ -145,6 +145,30 @@ def test_review_reject(client: TestClient) -> None:
     assert disp.status_code == 409
 
 
+def test_dispatch_after_confirm_then_reject_returns_409(client: TestClient) -> None:
+    """Hard Rule 3: a confirm followed by a reject must suppress dispatch.
+
+    The latest review decision gates dispatch — a historical confirm
+    does not qualify if a later reject/postpone was recorded.
+    """
+    # First: confirm
+    client.post(
+        "/runs/run-0001/review",
+        json={"reviewer": "coordinator-01", "decision": "confirm", "note": "verified"},
+    )
+    # Then: reject (overrides the confirm)
+    client.post(
+        "/runs/run-0001/review",
+        json={"reviewer": "coordinator-01", "decision": "reject", "note": "false alarm"},
+    )
+    # Dispatch must be blocked — latest decision is reject
+    disp = client.post(
+        "/runs/run-0001/dispatch",
+        json={"channel": "sms", "recipient_group": "sector-b"},
+    )
+    assert disp.status_code == 409
+
+
 def test_create_run(client: TestClient) -> None:
     resp = client.post("/runs", json={"observation_id": "obs-001"})
     assert resp.status_code == 202

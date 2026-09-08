@@ -75,7 +75,7 @@ backend/
     audit/        # append-only log writer + SHA-256 hash chain
     db/           # SQLite schema + repositories
     pipeline.py   # orchestrator: detect→geo→risk→DB→audit
-  tests/          # 154 tests (pytest: 152 active + 2 skipped)
+  tests/          # 158 tests (pytest: 156 active + 2 skipped)
 frontend/
   src/
     views/        # MapView, TimelineView, ReviewView, AuditView
@@ -154,7 +154,7 @@ pip install -e ".[dev]"          # or use existing venv
 uvicorn siren.api:app --port 8010 --reload
 
 # run tests
-pytest                           # 154 tests, ~10s
+pytest                           # 158 tests, ~10s
 ```
 
 ### Frontend
@@ -328,15 +328,15 @@ The prevention story: the +8% expansion on 07-23 was the early warning. Had SIRE
 
 ```bash
 cd backend
-pytest                           # 154 tests, ~10s
+pytest                           # 158 tests, ~10s
 ```
 
 | Test Suite | Tests | Coverage |
 |---|---|---|
 | test_quality | 11 | Quality gate (PRD §9.1) |
 | test_codec | 12 | Payload codec ≤250 bytes, round-trip |
-| test_audit | 11 | Append-only enforcement, hash chain, trigger validation |
-| test_api | 12 | All API endpoints, human gate, error shapes |
+| test_audit | 14 | Append-only enforcement, hash chain, trigger validation, stored-hash integrity, tamper detection |
+| test_api | 13 | All API endpoints, human gate, error shapes, confirm-then-reject suppression |
 | test_preprocess | 6 | Clip, reproject, co-register on synthetic rasters |
 | test_ingest | 34 | CLI parsing, provenance sidecars, streaming downloads, flat OSM properties, empty-response protection, acquisition jobs, live observation pipeline |
 | test_pipeline | 5 | Full orchestrator: detect→geo→risk→DB→audit |
