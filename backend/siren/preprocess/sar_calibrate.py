@@ -290,12 +290,7 @@ def find_safe_for_observation(observation_id: str, raw_dir: Path) -> str | None:
     date_map = {
         "obs-001": "20260723",
         "obs-002": "20260804",
-        # obs-003 target date is 2026-08-12; closest available scene is
-        # 2026-08-11 (S1D track 12). However, CDSE download requires
-        # credentials not available on this machine. obs-003 uses a
-        # synthetic scenario mask (PRD §9.2) with provenance labeled
-        # "synthetic_scenario" in DEMO_OBSERVATIONS.
-        # "obs-003": "20260811",
+        "obs-003": "20260811",  # real S1D ascending SAFE, downloaded 2026-09-08
     }
 
     date_str = date_map.get(observation_id)
