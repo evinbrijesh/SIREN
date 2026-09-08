@@ -374,43 +374,41 @@ pytest                           # 124 tests, ~10s
 | [ADR-008](docs/adr/ADR-008-durable-orchestration-immutable-manifests.md) | **Proposed** | Durable orchestration, job ledger, immutable manifests |
 | [ADR-009](docs/adr/ADR-009-authenticated-review-server-side-delivery.md) | **Proposed** | Authenticated review, server-side delivery outbox |
 | [ADR-010](docs/adr/ADR-010-ml-evidence-isolation-and-retraining-path.md) | **Proposed** | ML evidence isolation, model verdicts, retraining path |
-| [ADR-011 (draft)](docs/spec/V3_RESEARCH_PROPOSAL.md) | **Proposed** | V3 predictive upgrade: 4-ch DEM segmenter, XGBoost susceptibility, FNO surrogate |
+| [ADR-011](docs/adr/ADR-011-production-multimodal-upgrade.md) | **Accepted** | Production multimodal upgrade: 4-ch tensor, production deps, gated ML load-bearing |
 
 ### Reference
 
 - [`docs/reference/KNOWN_LIMITATIONS.md`](docs/reference/KNOWN_LIMITATIONS.md) — Demo limitations + production transition gaps (phase-tagged)
 - [`docs/reference/DL_MODEL_AUDIT.md`](docs/reference/DL_MODEL_AUDIT.md) — 2026-09-07 audit of the four PRD-nominated ML models; verdict: no existing checkpoint is qualified for live hazard assessment
 - [`docs/reference/PRODUCTION_ML_PLAN.md`](docs/reference/PRODUCTION_ML_PLAN.md) — Recommended production pipeline, models, datasets, and the dual-basin strategy (Imja monitoring + South Lhonak event validation)
-- [`docs/spec/V3_RESEARCH_PROPOSAL.md`](docs/spec/V3_RESEARCH_PROPOSAL.md) — **ADR-011 draft RFC:** the long-term ML vision — 4-channel DEM-conditioned segmenter, XGBoost/TreeSHAP breach susceptibility, and FNO hydrodynamic surrogate. Proposal only; does not modify the frozen MVP or the dependency whitelist.
+- [`docs/spec/V3_RESEARCH_PROPOSAL.md`](docs/spec/V3_RESEARCH_PROPOSAL.md) — V3 research RFC: 4-channel DEM-conditioned segmenter, XGBoost/TreeSHAP breach susceptibility, FNO hydrodynamic surrogate, physics-informed loss (L_gravity), conformal prediction, RTC γ⁰ + DANN domain adaptation.
+- [`docs/spec/PRODUCTION_ROADMAP.md`](docs/spec/PRODUCTION_ROADMAP.md) — **Production transition roadmap:** 4-phase plan (unfreeze → ingestion daemon → load-bearing AI → production infrastructure) with 3-sprint execution sequence. Active engineering spec for the post-hackathon production system.
 
 ---
 
-## Live Service Transition
+## Production Transition
 
-The hackathon MVP is an offline demo with prepared data. The project is being evaluated for transition to a continuously running hosted service that polls live satellite, weather, and OSM sources. The frozen deterministic pipeline is not changed — what changes is what feeds it and how often it is triggered.
+The hackathon MVP (v1.0.0-hackathon-final) is preserved as a frozen release. The project is now transitioning to a production-grade, autonomous disaster-response platform per [ADR-011](docs/adr/ADR-011-production-multimodal-upgrade.md) (Accepted) and the [Production Transition Roadmap](docs/spec/PRODUCTION_ROADMAP.md).
 
 ### Two deployment profiles
 
 | Profile | Network | Database | Storage | Auth | Delivery |
 |---|---|---|---|---|---|
-| **Offline/demo** (current) | Zero runtime calls | SQLite | Local disk | None | Browser-side ntfy |
-| **Hosted/live** (planned) | Acquisition service polls sources | PostgreSQL/RDS | S3 + local ephemeral | OIDC + RBAC | Server-side outbox |
+| **Offline/demo** (v1.0.0, frozen) | Zero runtime calls | SQLite | Local disk | None | Browser-side ntfy |
+| **Production** (target) | STAC polling daemon (Celery) | PostgreSQL/PostGIS | S3/MinIO | OIDC + RBAC | Dual-path: SMS + Iridium SBD/LoRa |
 
-### Transition roadmap (7 phases)
+### Production transition (4 phases, 3 sprints)
 
-| Phase | Goal | Status |
+| Phase | Goal | Sprint |
 |---|---|---|
-| 0 | Frozen release and acceptance boundary | In progress |
-| 1 | Reliable acquisition-only service | **In progress** (ingest fixes done, scheduler pending) |
-| 2 | Basin and input qualification | Pending |
-| 3 | Hosted persistence, security, live UI | Pending |
-| 4 | Automatic scoring integration | **Unblocked** (observation-acceptance interface resolved) |
-| 5 | Extended shadow operation (30-day) | Pending |
-| 6 | Authority-supervised operational pilot | Pending |
+| 1 | Unfreeze ADR-010, retire mock artifacts, adopt production deps | Sprint 1 |
+| 2 | Autonomous STAC ingestion daemon, COG /vsicurl/, RTC γ⁰ | Sprint 1 |
+| 3 | 4-channel WaterResUNet (L_gravity + DANN), HAND exposure, XGBoost+TreeSHAP, FNO surrogate | Sprints 2–3 |
+| 4 | PostgreSQL/PostGIS, S3, Celery, hardware dispatch, RFC 3161 audit | Sprint 1 + Sprint 3 |
 
-> **Phase 4 blocker resolved (2026-09-07):** `run_pipeline()` now accepts both demo observations (`obs-001/002/003`) and live observations registered in the database via `repo.register_observation()`. Live observations must have a `raster_uri` pointing to a pre-computed change mask. The frozen deterministic pipeline semantics are unchanged. Remaining Phase 4 tasks (input materialization, authenticated trigger, processing worker) are infrastructure work, not pipeline changes.
+> **ADR-011 accepted 2026-09-08:** authorizes 4-channel tensor contract, production dependency addendum (psycopg, geoalchemy2, xgboost, shap, celery, redis), and gated ML load-bearing role. Human gate (Hard Rule 3) preserved.
 
-See [`docs/spec/BUILD_ROADMAP.md`](docs/spec/BUILD_ROADMAP.md) → "Live Service Transition Roadmap" for full task tables, GO/NO-GO criteria, and rollback plans per phase.
+See [`docs/spec/PRODUCTION_ROADMAP.md`](docs/spec/PRODUCTION_ROADMAP.md) for the full 4-phase plan with acceptance criteria, sprint deliverables, and exit gates. The hackathon `BUILD_ROADMAP.md` is preserved as the historical record of v1.0.0-hackathon-final.
 
 ### Source-specific polling cadence (planned)
 
