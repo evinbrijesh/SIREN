@@ -59,6 +59,54 @@ WaterResUNet — a ResUNet variant of the existing `WaterUNet` (≤ ~10M params)
 - [ ] IoU > 0.65 demonstrated on the strict event-holdout split
 - [ ] Shadow-mode wiring into `pipeline._try_ml_evidence_layer` (display only, no hazard-score term)
 
+### 2.6 Physics-informed training penalty (L_gravity)
+
+Standard pixel-level losses (BCE, Dice) optimize for visual similarity only — they have no representation of potential energy or gravity. A network trained this way can predict water flowing uphill, which is physically impossible.
+
+**Fix:** introduce a gravity penalty term into the loss function using the 30 m DEM elevation:
+
+$$\mathcal{L} = \mathcal{L}_{\text{Dice}} + \lambda \cdot \text{ReLU}\big(z(p_i) - z(p_j)\big) \quad \text{for connected flow components}$$
+
+where $z(p)$ is the DEM elevation at pixel $p$, $p_i$ and $p_j$ are connected water-class pixels, and $\lambda$ is a penalty weight (start at $\lambda = 0.1$, tune on validation). If the network predicts water at a higher-elevation cell $p_i$ connected to a lower-elevation cell $p_j$ without sufficient upstream kinetic head, the penalty explodes.
+
+**Implementation notes:**
+- Compute connected components on the predicted water mask per training step (use `scipy.ndimage.label` on the binarized prediction).
+- For each component, check elevation monotonicity along the drainage direction (use the D8 flow direction from the DEM, precomputed as a static input).
+- The penalty is a soft constraint — it does not hard-clip predictions, it gradients the network toward physically plausible water connectivity.
+- $\lambda$ is a hyperparameter: too high overconstrains and the network ignores valid superelevated ponds; too low and the penalty is decorative. Tune on the event-holdout split, not training loss.
+
+**Expected effect:** eliminates the "water on a ridge" false positives that pure Dice loss produces on steep terrain. The DEM is already a 4-channel input (§2.1), so the elevation is available in-graph; the penalty reuses it in the loss without new data.
+
+### 2.7 Radiometric Terrain Correction (γ⁰) and adversarial domain adaptation
+
+Two additional techniques to close the OOD gap from 0.67 → 0.24 IoU:
+
+**Radiometric Terrain Correction (RTC) — γ⁰ vs σ⁰:**
+
+The current calibration produces σ⁰ (sigma-nought), which is the radar backscatter normalized to the incident angle but **not** corrected for local terrain. In steep terrain, a slope facing the satellite appears artificially bright (foreshortening) and a slope facing away appears artificially dark (shadowing) — independent of the actual surface material.
+
+**Fix:** convert to radiometrically terrain-corrected gamma-nought ($\gamma^0$):
+
+$$\gamma^0 = \frac{\sigma^0}{\cos\theta_{\text{local}}}$$
+
+where $\theta_{\text{local}}$ is the local incidence angle derived from the DEM and the satellite look vector. This removes the terrain-induced brightness distortion so that water on a flat valley floor and water on a 30° slope produce comparable backscatter values.
+
+**Implementation:** use the Copernicus DEM (already a 4-channel input) to compute $\theta_{\text{local}}$ per pixel. Apply the correction in `preprocess/sar_calibrate.py` as an optional post-calibration step. The corrected $\gamma^0$ replaces $\sigma^0$ as channel 0/1 in the 4-channel tensor.
+
+**Adversarial Domain Adaptation (DANN):**
+
+The OOD collapse occurs because Sen1Floods11 training chips are predominantly flat terrain, while the deployment domain is steep Himalayan topography. The feature extractor learns flat-terrain-specific representations that do not transfer.
+
+**Fix:** add a Gradient Reversal Layer (GANN / DANN architecture):
+1. **Feature extractor:** the ResUNet encoder (shared).
+2. **Segmentation head:** predicts water mask (primary task).
+3. **Domain discriminator:** binary classifier predicting whether a chip is "flat benchmark" or "Himalayan" (auxiliary task).
+4. **Gradient reversal:** the domain discriminator's gradients are reversed before reaching the feature extractor, so the encoder learns features that are **invariant** to the terrain domain.
+
+**Training data:** unlabeled SAR chips from the Himalayan deployment region (we have 5 real SAFE archives already downloaded). The domain discriminator uses only the terrain label (flat vs Himalayan), not water labels — so the Himalayan chips need no annotation.
+
+**Expected effect:** the encoder stops relying on flat-terrain-specific backscatter patterns and learns terrain-invariant water features. Combined with the 4-channel DEM/slope input (§2.1) and the physics-informed loss (§2.6), this targets the 0.65 IoU gate from three complementary directions: input conditioning, loss constraint, and domain alignment.
+
 ---
 
 ## 3. Phase 2 — Spatio-Temporal Trend & Breach Susceptibility
@@ -85,12 +133,38 @@ Output: calibrated breach probability `P_breach ∈ [0, 1]`.
 
 Compute feature contributions via `shap.TreeExplainer`. Pass the top-k SHAP contributions into the `ReviewView` evidence `reasons` array (Hard Rule 5: ≥3 entries on elevated+). The susceptibility score is recorded as separate evidence; it does **not** enter the five-factor hazard score until §6 acceptance (shadow-first).
 
-### 3.4 Required datasets
+Example SHAP output on an elevated alert:
+```
+Lake area expansion rate:     +0.32 to log-odds
+48h antecedent precipitation:  +0.21 to log-odds
+Moraine freeboard height:     -0.05 to log-odds
+```
+
+### 3.4 Conformal prediction for risk thresholds
+
+A single point estimate ("P_breach = 82%") gives the coordinator no sense of epistemic uncertainty. A wide interval signals the model is unsure and the decision requires manual inspection.
+
+**Fix:** use split conformal prediction to produce a mathematically guaranteed uncertainty interval at a user-defined significance level:
+
+$$\text{Risk} \in [lo, hi] \quad \text{with } P(Y \in C(X)) \geq 1 - \alpha$$
+
+where $\alpha = 0.05$ (95% coverage guarantee), $C(X)$ is the prediction set for input $X$, and the guarantee holds **regardless of the model or data distribution** (finite-sample, distribution-free).
+
+**Implementation:**
+1. **Split conformal:** reserve a calibration set (disjoint from training and event-holdout). For each calibration point $i$, compute the nonconformity score $s_i = |y_i - \hat{y}_i|$.
+2. **Quantile:** take the $\lceil(1-\alpha)(n+1)\rceil$-th order statistic of the calibration scores as the interval half-width $\hat{q}$.
+3. **Prediction:** for a new input, output $[\hat{y} - \hat{q}, \hat{y} + \hat{q}]$.
+
+**Automatic fallback to human gate:** when the interval width $|C(X)| = 2\hat{q} > 0.35$, the system flags **high epistemic uncertainty** and refuses to issue an autonomous recommendation. The review card displays the interval as a range bar with the 0.35 threshold marked, and the coordinator sees "Model uncertainty too high for automated triage — manual inspection required."
+
+**Expected effect:** the coordinator sees not just "P_breach = 0.82" but "P_breach ∈ [0.74, 0.89] (95% coverage)" — or, when the model is unsure, "P_breach ∈ [0.20, 0.85] — manual inspection required." This converts a black-box number into a calibrated, auditable uncertainty statement.
+
+### 3.5 Required datasets
 
 - **ICIMOD Glacial Lake & GLOF Inventories** — historical moraine-dammed lake failures, lake area evolution, dam geometry.
 - **High Mountain Asia (HMA) Glacial Lake Catalog** — lake boundary tracking 1990–present for temporal expansion features.
 
-### 3.5 Acceptance criteria
+### 3.6 Acceptance criteria
 
 - [ ] ICIMOD + HMA ingest scripts under `ingest/` with provenance sidecars
 - [ ] XGBoost classifier trained; calibrated P_breach (Brier score reported)
@@ -167,25 +241,51 @@ All other ADR-010 clauses (input contract discipline, event-level splits, licens
 ## 7. End-to-end target pipeline (post-acceptance)
 
 ```
-[S1 SAR VV/VH] + [Copernicus GLO-30 DEM] + [IMERG/ERA5]
+[S1 SAR VV/VH] ──► RTC γ⁰ correction ──► [γ⁰_VV, γ⁰_VH]
+[Copernicus GLO-30 DEM] ──► [Elevation, Slope]
+[ERA5 / IMERG Rainfall]
                       │
                       ▼
-   Phase 1: 4-channel DEM-aware WaterResUNet  → water probability mask
-                      │
-                      ▼
-   Phase 2: trailing persistence (ΔArea/Δt) + XGBoost P_breach (TreeSHAP reasons)
-                      │
-                      ▼
-   Phase 3 (if P_breach ≥ 0.70): FNO-2D → h_water grid + T_arrival
-                      │
-                      ▼
-   Phase 4: h_water>0.3m ∩ OSM exposure + D_risk + personnel urgency by T_arrival
-                      │
-                      ▼
-   Human gate → ≤250-byte dispatch (now incl. peak height + T_arrival) → SHA-256 audit
+┌────────────────────────────────────────────────────────────┐
+│ Phase 1: 4-Channel Terrain-Aware WaterResUNet              │
+│   Input:  [γ⁰_VV, γ⁰_VH, DEM, Slope]  ∈ ℝ^{B×4×H×W}       │
+│   Loss:   L_Dice + λ·L_gravity (uphill water penalty)      │
+│   Adapt:  DANN gradient reversal (flat ↔ Himalayan)       │
+│   Output: Validated water extent polygon (IoU > 0.65 gate) │
+└────────────────────────┬───────────────────────────────────┘
+                         │
+                         ▼
+┌────────────────────────────────────────────────────────────┐
+│ Phase 2: Calibrated Breach Susceptibility                  │
+│   Trend:  Trailing ΔArea/Δt (deterministic, ≥5 passes)     │
+│   Model:  XGBoost on (expansion, rain anomaly, moraine,     │
+│           slope, lake area) → P_breach ∈ [0, 1]            │
+│   Explain: TreeSHAP → top-k feature contributions → reasons │
+│   Uncert: Conformal prediction [lo, hi] at 95% coverage    │
+│           → if |C(X)| > 0.35, force manual inspection      │
+└────────────────────────┬───────────────────────────────────┘
+                         │ (if P_breach ≥ 0.70)
+                         ▼
+┌────────────────────────────────────────────────────────────┐
+│ Phase 3: Differentiable Hydrodynamic Forward Pass           │
+│   Model:  FNO-2D (trained on synthetic HEC-RAS runs)        │
+│   Physics: Saint-Venant PDE (mass + momentum conservation) │
+│   Output: h_water grid + T_arrival at named points          │
+└────────────────────────┬───────────────────────────────────┘
+                         │
+                         ▼
+┌────────────────────────────────────────────────────────────┐
+│ Phase 4: Dynamic Exposure + Dispatch                        │
+│   Exposure: h_water > 0.3m ∩ OSM (supersedes static buffer)│
+│   Triage:   T_arrival → evacuation urgency ranking          │
+│   Disease:  D_risk from inundated wells + population        │
+└────────────────────────┬───────────────────────────────────┘
+                         │
+                         ▼
+           Human gate → ≤250-byte dispatch → SHA-256 audit
 ```
 
-The deterministic five-factor path remains the fallback at every stage when ML is unavailable or below gate.
+The deterministic five-factor path remains the fallback at every stage when ML is unavailable or below gate. The conformal interval (§3.4) ensures the coordinator always sees the model's confidence — never a bare number.
 
 ---
 
