@@ -63,7 +63,8 @@ docs/
 - **AOI is a rectangle, not a watershed:** D8 accumulation max is limited (~7k cells) because the river exits the box edges. Expected — the corridor is computed within the AOI. If you need the full river, extend the DEM downstream.
 - **Cloud routing:** optical cloud_fraction ≥ 0.20 flips the pipeline to SAR-primary. SAR is treated as all-weather (cloud_fraction = 0.0 on that path). The original optical cloud is preserved as `optical_cloud_fraction` for display.
 - **Severity thresholds:** expansion ≥40% → critical; ≥20% → elevated; ≥5% → watch; <5% → informational. These are policy thresholds in `risk/fusion.py::classify_severity()`.
-- **SAR always routed:** all three demo observations use S1 SAR. obs-002/obs-003 have 95%/90% optical cloud → SAR-primary. obs-001 is SAR by source.
+- **SAR always routed:** all three demo observations use S1 SAR. obs-002/obs-003 have 95%/90% optical cloud → SAR-primary. obs-001 is SAR by source. All 3 obs have real ESA SAFE archives downloaded from CDSE (obs-003 downloaded 2026-09-08). A descending-pass pair (07-02 + 07-14) covers Imja lake but is not yet wired into the demo pipeline.
+- **OSM extract:** 5,691 features refreshed via Overpass (2026-09-08). Previous extract was ~1,100 features. Exposure intersections now yield ~1,614 per observation (51 bridges, 23 settlements, 3 wells, 1,536 roads, 1 health).
 - **Tolerance buffers:** bridges ±75 m, roads ±50 m, settlements/wells ±100 m. These exist to prevent false intersections at 10–30 m satellite resolution — do not "tighten" them.
 - **Offline demo:** zero network calls at runtime. All data loads from `data/`. Live ingestion is a bonus script, never a runtime dependency.
 - **SQLite spatial joins:** run in-memory via geopandas on the small basin extract. Do not reach for PostGIS.

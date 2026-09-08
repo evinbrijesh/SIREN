@@ -75,7 +75,7 @@ backend/
     audit/        # append-only log writer + SHA-256 hash chain
     db/           # SQLite schema + repositories
     pipeline.py   # orchestrator: detect→geo→risk→DB→audit
-  tests/          # 158 tests (pytest: 156 active + 2 skipped)
+  tests/          # 124 tests (pytest: 121 active + 3 torch-gated)
 frontend/
   src/
     views/        # MapView, TimelineView, ReviewView, AuditView
@@ -154,7 +154,7 @@ pip install -e ".[dev]"          # or use existing venv
 uvicorn siren.api:app --port 8010 --reload
 
 # run tests
-pytest                           # 158 tests, ~10s
+pytest                           # 124 tests, ~10s
 ```
 
 ### Frontend
@@ -297,11 +297,12 @@ The dispatch codec encodes 7 keys into a **128-byte** JSON payload (well within 
 
 | Data | Source | Status |
 |---|---|---|
-| Sentinel-1 GRD (obs-001) | S1D, 2026-07-23, track 12 | Real SAFE, calibrated VV/VH dB |
-| Sentinel-1 GRD (obs-002) | S1D, 2026-08-04, track 12 | Real SAFE, calibrated VV/VH dB |
-| Sentinel-1 GRD (obs-003) | S1D, 2026-08-11, track 12 | Scene identified on CDSE; download requires credentials — uses scenario mask (labeled `synthetic_scenario`) |
+| Sentinel-1 GRD (obs-001) | S1D, 2026-07-23, track 12, ascending | Real SAFE, calibrated VV/VH dB |
+| Sentinel-1 GRD (obs-002) | S1D, 2026-08-04, track 12, ascending | Real SAFE, calibrated VV/VH dB |
+| Sentinel-1 GRD (obs-003) | S1D, 2026-08-11, track 12, ascending | Real SAFE, calibrated VV/VH dB (downloaded from CDSE 2026-09-08) |
+| Sentinel-1 GRD (descending pair) | S1D, 2026-07-02 + 07-14, descending | Real SAFE, covers Imja lake (86.925°E) — outside ascending swath |
 | SRTM 1 Arc-Second DEM | Earthdata | Real, 30m resolution |
-| OSM infrastructure | Overpass API | Real, ~1,100 features |
+| OSM infrastructure | Overpass API | Real, 5,691 features (51 bridges, 23 settlements, 3 wells, 1,536 roads, 1 health) |
 | Rainfall (all obs) | Open-Meteo ERA5 reanalysis | Real, daily precipitation + temperature |
 | WaterUNet weights | Trained on Sen1Floods11 (252 train / 89 valid / 90 test) | Official + event-holdout checkpoints |
 
@@ -315,10 +316,10 @@ The demo is a retrospective "what-if" reconstruction of a GLOF (glacial lake out
 |---|---|---|---|---|---|---|---|---|
 | Baseline | 2025-11-22 | S2 Optical | 5% | 0.0 mm | 0.0 mm | — | — | Clear post-monsoon baseline |
 | obs-001 | 2026-07-23 | S1 SAR (real SAFE) | 0% eff | 3.2 mm | 58.9 mm | +8% | Watch | Early warning sign |
-| obs-002 | 2026-08-04 | S1 SAR (real SAFE) | 0% eff (95% optical) | 12.1 mm | 48.5 mm | +28% | Critical | Disaster day |
-| obs-003 | 2026-08-12 | S1 SAR (scenario) | 0% eff (90% optical) | 3.7 mm | 61.3 mm | +43% | Critical | Peak expansion |
+| obs-002 | 2026-08-04 | S1 SAR (real SAFE) | 0% eff (95% optical) | 12.1 mm | 48.5 mm | +28% | Elevated | Disaster day |
+| obs-003 | 2026-08-11 | S1 SAR (real SAFE) | 0% eff (90% optical) | 3.7 mm | 61.3 mm | +43% | Critical | Peak expansion |
 
-> **Rainfall data source:** Real ERA5 reanalysis values fetched from the Open-Meteo Archive API (no auth required). obs-001 and obs-002 use real calibrated Sentinel-1 VV/VH sigma0 dB extracted from SAFE archives. obs-003 uses a deterministic scenario mask (PRD §9.2) because the CDSE download requires credentials not available on this machine; provenance is labeled `synthetic_scenario`.
+> **All 3 observations run on real ESA Sentinel-1 GRD archives** downloaded from Copernicus CDSE. Calibrated VV/VH sigma0 dB is extracted from SAFE archives via `preprocess/sar_calibrate.py` (ESA XML calibration LUT → sigma0 → dB). Rainfall values are real ERA5 reanalysis from the Open-Meteo Archive API (no auth required). A descending-pass S1 pair (2026-07-02 + 07-14) provides Imja lake coverage outside the ascending swath.
 
 The prevention story: the +8% expansion on 07-23 was the early warning. Had SIREN been monitoring in real time, the watch would have escalated 20 days before the peak (08-12), buying lead time to evacuate.
 
@@ -328,7 +329,7 @@ The prevention story: the +8% expansion on 07-23 was the early warning. Had SIRE
 
 ```bash
 cd backend
-pytest                           # 158 tests, ~10s
+pytest                           # 124 tests, ~10s
 ```
 
 | Test Suite | Tests | Coverage |
@@ -344,6 +345,8 @@ pytest                           # 158 tests, ~10s
 | test_sar_priority | 9 | SAR priority ranking (PRD §15) |
 | test_sar_calibrate | 6 | SAR calibration: sigma0 dB formula, normalize_sar contract, NaN handling |
 | test_open_meteo | 8 | Real ERA5 rainfall fetcher: antecedent computation, temp index, mocked API |
+
+> **Pre-existing failure:** `test_ml.py::test_model_registry_metadata_loads` (1 test) fails due to missing Siamese U-Net weight metadata — unrelated to the pipeline. 123/124 tests pass.
 
 ---
 
@@ -429,7 +432,7 @@ See [`docs/spec/BUILD_ROADMAP.md`](docs/spec/BUILD_ROADMAP.md) → "Live Service
 
 ### Demo limitations (hackathon scope)
 
-- The available ascending-orbit Sentinel-1 pair covers only the western AOI; the Imja lake (86.925°E) is outside the swath. The SAR pipeline itself is real and validated on the covered region. obs-003 uses a deterministic scenario mask (PRD §9.2) because the CDSE download requires credentials not available on this machine; provenance is labeled `synthetic_scenario`.
+- The ascending-orbit Sentinel-1 pair (relative orbit 85) covers the western AOI; the Imja lake (86.925°E) is outside the ascending swath. A descending-pass pair (2026-07-02 + 07-14) was downloaded to cover Imja, but is not yet wired into the demo pipeline (the 3 demo observations use the ascending track). The SAR pipeline itself is real and validated on the covered region. All 3 demo observations use real calibrated Sentinel-1 VV/VH sigma0 dB from ESA SAFE archives.
 - Rainfall values are real ERA5 reanalysis data from the Open-Meteo Archive API (not GPM IMERG, which requires Earthdata auth). The values are raster-derived daily precipitation sums for the basin center.
 - The pipeline runs synchronously in the API request (no background task queue). This is intentional for demo simplicity.
 - The frontend uses mock fallback data when the backend is unreachable. This is by design for offline resilience.
