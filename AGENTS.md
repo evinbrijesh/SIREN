@@ -4,7 +4,7 @@
 
 **Read before writing code:** `docs/spec/PRD.md` (v4.3 — product spec, data contracts, scoring formulas) and `docs/spec/BUILD_ROADMAP.md` (phase order, checkpoints, fallbacks). This file tells you *how to work*; those tell you *what to build*.
 
-> **Build status:** Phases 0–6 complete. 123/124 tests passing (121 active + 3 torch-gated; 1 pre-existing ML registry failure). DoD chain verified end-to-end with clean genesis hash chain (8 entries, 0 breaks). All 3 demo observations run on real ESA Sentinel-1 SAFE archives. OSM exposure refreshed to 5,691 features. Tagged `v1.0.0-hackathon-final`. See `README.md` for the quick-start guide.
+> **Build status:** Hackathon MVP complete (v1.0.0-hackathon-final, tagged). 123/124 tests passing. Production transition authorized per ADR-011 (Accepted 2026-09-08): 4-channel tensor contract unfrozen, production dependencies (psycopg, geoalchemy2, xgboost, shap, celery, redis) whitelisted under `[production]` extra, ML load-bearing role gated on IoU > 0.65 / Brier < 0.15. See `docs/spec/PRODUCTION_ROADMAP.md` for the 4-phase, 3-sprint execution plan. Human gate (Hard Rule 3) and explainability (Hard Rule 5) preserved.
 
 ---
 
