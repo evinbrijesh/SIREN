@@ -371,12 +371,14 @@ pytest                           # 154 tests, ~10s
 | [ADR-008](docs/adr/ADR-008-durable-orchestration-immutable-manifests.md) | **Proposed** | Durable orchestration, job ledger, immutable manifests |
 | [ADR-009](docs/adr/ADR-009-authenticated-review-server-side-delivery.md) | **Proposed** | Authenticated review, server-side delivery outbox |
 | [ADR-010](docs/adr/ADR-010-ml-evidence-isolation-and-retraining-path.md) | **Proposed** | ML evidence isolation, model verdicts, retraining path |
+| [ADR-011 (draft)](docs/spec/V3_RESEARCH_PROPOSAL.md) | **Proposed** | V3 predictive upgrade: 4-ch DEM segmenter, XGBoost susceptibility, FNO surrogate |
 
 ### Reference
 
 - [`docs/reference/KNOWN_LIMITATIONS.md`](docs/reference/KNOWN_LIMITATIONS.md) — Demo limitations + production transition gaps (phase-tagged)
 - [`docs/reference/DL_MODEL_AUDIT.md`](docs/reference/DL_MODEL_AUDIT.md) — 2026-09-07 audit of the four PRD-nominated ML models; verdict: no existing checkpoint is qualified for live hazard assessment
 - [`docs/reference/PRODUCTION_ML_PLAN.md`](docs/reference/PRODUCTION_ML_PLAN.md) — Recommended production pipeline, models, datasets, and the dual-basin strategy (Imja monitoring + South Lhonak event validation)
+- [`docs/spec/V3_RESEARCH_PROPOSAL.md`](docs/spec/V3_RESEARCH_PROPOSAL.md) — **ADR-011 draft RFC:** the long-term ML vision — 4-channel DEM-conditioned segmenter, XGBoost/TreeSHAP breach susceptibility, and FNO hydrodynamic surrogate. Proposal only; does not modify the frozen MVP or the dependency whitelist.
 
 ---
 
