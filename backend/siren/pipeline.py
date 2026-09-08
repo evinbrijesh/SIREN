@@ -96,12 +96,11 @@ DEMO_OBSERVATIONS = {
         "trend_class": "rapidly",
         "rainfall_24h_mm": 60.0,
         "rainfall_7d_mm": 160.0,
-        # KNOWN LIMITATION: obs-003 uses a synthetic scenario mask (+43% expansion)
-        # because no real Sentinel-1 SAFE archive was available for this date
-        # (CDSE download requires credentials not present on this machine).
-        # obs-001 and obs-002 use real calibrated VV/VH sigma0 dB from SAFE archives.
-        # The obs-003 mask is a deterministic scenario per PRD §9.2/§16.
-        "mask_provenance": "synthetic_scenario",
+        # All 3 demo observations now have real Sentinel-1 SAFE archives.
+        # The rule-based mask is a deterministic scenario per PRD §9.2/§16;
+        # the ML shadow layer uses real calibrated VV/VH sigma0 dB from the
+        # SAFE archive (downloaded 2026-09-08 from CDSE).
+        "mask_provenance": "sentinel-1-grd",
     },
 }
 

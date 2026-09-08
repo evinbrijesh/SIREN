@@ -164,7 +164,10 @@ out geom;"""
 def query_overpass(bbox: tuple[float, float, float, float]) -> dict:
     """POST the Overpass query and return the parsed JSON response."""
     data = urllib.parse.urlencode({"data": build_query(bbox)}).encode()
-    req = urllib.request.Request(OVERPASS_URL, data=data, method="POST")
+    req = urllib.request.Request(
+        OVERPASS_URL, data=data, method="POST",
+        headers={"User-Agent": "SIREN-hackathon/1.0", "Accept": "application/json"},
+    )
     with urllib.request.urlopen(req, timeout=120) as resp:
         return json.loads(resp.read().decode())
 

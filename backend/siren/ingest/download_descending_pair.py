@@ -54,6 +54,7 @@ def search_descending(token: str) -> list[dict]:
     filter_q = (
         "Collection/Name eq 'SENTINEL-1' and "
         "contains(Name,'GRD') and "
+        "indexof(Name,'COG') eq -1 and "
         "OData.CSC.Intersects(area=geography'SRID=4326;"
         f"POLYGON(({BBOX[0]} {BBOX[1]},{BBOX[2]} {BBOX[1]},{BBOX[2]} {BBOX[3]},{BBOX[0]} {BBOX[3]},{BBOX[0]} {BBOX[1]}))') and "
         f"ContentDate/Start gt {DATE_START}T00:00:00.000Z and "
@@ -82,7 +83,7 @@ def pick_pair(products: list[dict]) -> tuple[dict, dict] | None:
     best = None
     for i in range(len(parsed)):
         for j in range(i + 1, len(parsed)):
-            from datetime import date as D
+            from datetime import datetime as D
             d1 = D.strptime(parsed[i]["date"], "%Y%m%d")
             d2 = D.strptime(parsed[j]["date"], "%Y%m%d")
             gap = (d2 - d1).days
@@ -131,8 +132,8 @@ def main() -> int:
         print(f"✗ Search failed: {exc}", file=sys.stderr)
         return 1
 
-    # keep only descending IW GRD
-    desc = [p for p in products if "_DESC_" in p["Name"] or "IW_GRDH" in p["Name"]]
+    # keep only descending IW GRD (acquisition time ~00:xx UTC = descending over this AOI)
+    desc = [p for p in products if "T00" in p["Name"].split("_")[4]]
     print(f"Found {len(desc)} descending GRD scenes over the Imja bbox")
     if not desc:
         print("✗ No descending scenes found — widen the date range or bbox.", file=sys.stderr)
@@ -147,8 +148,8 @@ def main() -> int:
     print(f"      {p2['name']}")
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    download(p1["product"]["Id"], p1["Name"], token)
-    download(p2["product"]["Id"], p2["Name"], token)
+    download(p1["product"]["Id"], p1["name"], token)
+    download(p2["product"]["Id"], p2["name"], token)
     print("✓ Descending pair downloaded — re-run the SAR pipeline on these scenes for real Imja coverage.")
     return 0
 
