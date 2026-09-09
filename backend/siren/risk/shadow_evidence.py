@@ -150,10 +150,11 @@ def _compute_shadow_susceptibility(
         lake_area,
     ]], dtype=np.float32)
 
-    # Train a scorer on synthetic data (demo mode — production uses a
-    # pre-trained model loaded from disk)
+    # Load the trained checkpoint (no runtime retraining — Level 1)
     scorer = SusceptibilityScorer(random_state=42)
-    _train_synthetic_scorer(scorer)
+    if not scorer.load_checkpoint():
+        # Fallback: synthetic training if checkpoint not available (demo mode)
+        _train_synthetic_scorer(scorer)
 
     result = scorer.predict(features)
     return result.to_dict()

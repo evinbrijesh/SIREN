@@ -25,13 +25,20 @@ Acceptance gates (V3 §3.6):
 
 from __future__ import annotations
 
+import json
 import logging
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import numpy as np
 
 logger = logging.getLogger(__name__)
+
+# Default checkpoint path (trained by siren.ml.train_susceptibility)
+DEFAULT_CHECKPOINT_PATH = (
+    Path(__file__).resolve().parents[3] / "models" / "checkpoints" / "xgboost_susceptibility_v1.json"
+)
 
 # Feature names in canonical order (V3 §3.2)
 FEATURE_NAMES: tuple[str, ...] = (
@@ -184,6 +191,67 @@ class SusceptibilityScorer:
 
         logger.info("Susceptibility model trained (no calibration set)")
         return 0.0
+
+    def load_checkpoint(
+        self,
+        checkpoint_path: str | Path = DEFAULT_CHECKPOINT_PATH,
+        metadata_path: str | Path | None = None,
+    ) -> bool:
+        """Load a trained XGBoost checkpoint from disk.
+
+        This replaces runtime retraining on synthetic data. The checkpoint
+        is trained offline by siren.ml.train_susceptibility and contains
+        a real model trained on the curated GLOF dataset.
+
+        Args:
+            checkpoint_path: path to the XGBoost model JSON file.
+            metadata_path: optional path to the metadata sidecar (contains
+                Brier score, calibration_q, etc.). If None, derived from
+                checkpoint_path by appending .meta.json.
+
+        Returns:
+            True if the checkpoint was loaded successfully, False if the
+            file does not exist or loading failed.
+        """
+        import xgboost as xgb
+
+        checkpoint_path = Path(checkpoint_path)
+        if not checkpoint_path.exists():
+            logger.warning("Susceptibility checkpoint not found: %s", checkpoint_path)
+            return False
+
+        try:
+            self._model = xgb.XGBClassifier()
+            self._model.load_model(str(checkpoint_path))
+            self._is_trained = True
+
+            # Load metadata sidecar if available
+            if metadata_path is None:
+                # xgboost_susceptibility_v1.json → xgboost_susceptibility_v1.meta.json
+                metadata_path = checkpoint_path.parent / (
+                    checkpoint_path.stem + ".meta.json"
+                )
+            metadata_path = Path(metadata_path)
+            if metadata_path.exists():
+                meta = json.loads(metadata_path.read_text())
+                self._brier_score = meta.get("brier_score_cv")
+                self._calibration_q = meta.get("calibration_q")
+                self._is_calibrated = self._calibration_q is not None
+                logger.info(
+                    "Susceptibility checkpoint loaded: Brier=%.4f, AUC=%s, conformal_q=%.4f",
+                    self._brier_score or 0.0,
+                    meta.get("roc_auc_cv"),
+                    self._calibration_q or 0.0,
+                )
+            else:
+                logger.info("Susceptibility checkpoint loaded (no metadata sidecar)")
+
+            return True
+        except Exception as exc:
+            logger.error("Failed to load susceptibility checkpoint: %s", exc)
+            self._is_trained = False
+            self._model = None
+            return False
 
     def _calibrate(self, X_cal: np.ndarray, y_cal: np.ndarray) -> None:
         """Compute the conformal prediction quantile from calibration scores.
