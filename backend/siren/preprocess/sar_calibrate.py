@@ -303,3 +303,105 @@ def find_safe_for_observation(observation_id: str, raw_dir: Path) -> str | None:
             return str(f)
 
     return None
+
+
+def find_safe_for_scene_id(scene_id: str, raw_dir: Path) -> str | None:
+    """Find a Sentinel-1 SAFE ZIP by its STAC/product scene ID.
+
+    The scene ID is the Sentinel-1 product identifier (e.g.
+    ``S1D_IW_GRDH_1SDV_20260723T122115_..._D3B2``). The SAFE archive on
+    disk is named ``<scene_id>.SAFE.zip``. Falls back to a substring
+    match on the acquisition-time token if the exact name is not found.
+
+    Args:
+        scene_id: Sentinel-1 product/scene ID.
+        raw_dir: Path to data/raw/.
+
+    Returns:
+        Path to the matching SAFE ZIP, or None.
+    """
+    raw_dir = Path(raw_dir)
+    # Exact match first.
+    exact = raw_dir / f"{scene_id}.SAFE.zip"
+    if exact.exists():
+        return str(exact)
+
+    # Substring fallback on the leading acquisition-time token
+    # (e.g. "20260723T122115"), which is unique per scene.
+    token = None
+    parts = scene_id.split("_")
+    for p in parts:
+        if len(p) >= 15 and p.startswith("20") and "T" in p:
+            token = p
+            break
+    if token is None:
+        return None
+
+    for f in raw_dir.glob("S1*_*.SAFE.zip"):
+        if token in f.name:
+            return str(f)
+    return None
+
+
+def _find_annotation_xml(safe_zip: str, pol: str = "vv") -> str:
+    """Find the main product annotation XML for a polarisation in a SAFE ZIP.
+
+    Skips calibration / noise / rfi sub-products.
+    """
+    with zipfile.ZipFile(safe_zip) as z:
+        for name in z.namelist():
+            if not name.endswith(".xml"):
+                continue
+            low = name.lower()
+            if "annotation" not in low:
+                continue
+            if "calibration" in low or "/noise/" in low or "/rfi/" in low:
+                continue
+            if f"-{pol}-" in low:
+                return name
+    raise FileNotFoundError(f"No {pol} annotation XML found in {safe_zip}")
+
+
+def extract_incidence_and_look(safe_zip: str, pol: str = "vv") -> dict[str, float | str]:
+    """Extract RTC-relevant geometry from a Sentinel-1 SAFE annotation.
+
+    Parses the product annotation XML for:
+      * ``incidenceAngleMidSwath`` — the scene-centre incidence angle (deg)
+      * ``platformHeading`` — the satellite velocity heading (deg, clockwise
+        from north)
+      * ``pass`` — ``"Ascending"`` or ``"Descending"``
+
+    and derives the radar **look azimuth** (ground→satellite compass
+    bearing) for a right-looking sensor::
+
+        look_azimuth = platformHeading + 90   (mod 360)
+
+    Returns a dict with keys ``incidence_deg``, ``platform_heading_deg``,
+    ``look_azimuth_deg``, ``pass``. These feed
+    :func:`siren.preprocess.rtc.look_vector_from_angles`.
+    """
+    ann = _find_annotation_xml(safe_zip, pol)
+    with zipfile.ZipFile(safe_zip) as z:
+        data = z.read(ann).decode("utf-8", errors="replace")
+
+    def _first(pattern: str) -> float | None:
+        m = re.search(pattern, data)
+        return float(m.group(1)) if m else None
+
+    inc = _first(r"<incidenceAngleMidSwath>([-0-9.eE+]+)</incidenceAngleMidSwath>")
+    heading = _first(r"<platformHeading>([-0-9.eE+]+)</platformHeading>")
+    pass_match = re.search(r"<pass>(Ascending|Descending)</pass>", data)
+    pass_dir = pass_match.group(1) if pass_match else "Unknown"
+
+    if inc is None or heading is None:
+        raise ValueError(
+            f"Could not parse incidenceAngleMidSwath/platformHeading from {ann}"
+        )
+
+    look_azimuth = (heading + 90.0) % 360.0
+    return {
+        "incidence_deg": inc,
+        "platform_heading_deg": heading,
+        "look_azimuth_deg": look_azimuth,
+        "pass": pass_dir,
+    }
