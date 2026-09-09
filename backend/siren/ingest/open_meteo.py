@@ -2,14 +2,16 @@
 
 Fetches daily precipitation and temperature data from the Open-Meteo Archive
 API (ERA5 reanalysis) for the Dudh Koshi basin. Computes 24h and 7d antecedent
-rainfall for each observation date and writes the result to
-data/assets/weather_series.json, replacing the hardcoded values.
+rainfall for each observation date and writes the result to a weather series
+JSON file. As of Sprint 1 Step 8, the pipeline reads weather from the
+observations DB table (not this file at runtime); this script is an ingest-time
+tool for refreshing values to wire into register_observation().
 
 Usage:
     python -m siren.ingest.open_meteo --bbox 86.65,27.65,87.00,27.98 --out data/assets/weather_series.json
 
 Offline-safe: if the network is unavailable, prints a message and exits 0.
-The existing weather_series.json is preserved (not overwritten) on failure.
+The existing weather file is preserved (not overwritten) on failure.
 
 Open-Meteo Archive API:
     - URL: https://archive-api.open-meteo.com/v1/archive
