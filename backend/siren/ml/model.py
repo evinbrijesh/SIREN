@@ -198,6 +198,121 @@ class WaterUNet(nn.Module):
         return sum(p.numel() for p in self.parameters())
 
 
+class ResidualBlock(nn.Module):
+    """Residual conv block for the WaterResUNet encoder (V3 §2.3).
+
+    Two 3x3 conv-bn-relu layers with a skip connection. If the channel
+    count changes, a 1x1 projection matches the residual dimensions.
+    """
+
+    def __init__(self, in_channels: int, out_channels: int) -> None:
+        super().__init__()
+        self.conv1 = nn.Conv2d(in_channels, out_channels, 3, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(out_channels)
+        self.conv2 = nn.Conv2d(out_channels, out_channels, 3, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(out_channels)
+        self.skip = (
+            nn.Conv2d(in_channels, out_channels, 1, bias=False)
+            if in_channels != out_channels
+            else nn.Identity()
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        identity = self.skip(x)
+        out = F.relu(self.bn1(self.conv1(x)), inplace=True)
+        out = self.bn2(self.conv2(out))
+        return F.relu(out + identity, inplace=True)
+
+
+class WaterResUNet(nn.Module):
+    """4-channel terrain-aware ResUNet for water segmentation (V3 §2.3).
+
+    A ResUNet variant of WaterUNet with residual encoder blocks and 4-channel
+    input (VV, VH, DEM, Slope). Built from scratch (no ImageNet init — wrong
+    modality per ADR-010 audit). Parameter budget: <=10M.
+
+    The residual encoder blocks improve gradient flow through the deeper
+    encoder, which matters for the 4-channel input where the DEM/slope
+    channels carry structural information that must propagate to the decoder.
+
+    Input:  (B, 4, H, W) -- VV, VH, DEM, Slope normalized via
+            siren.ml.contract.normalize_tensor() to [0, 1]. H and W must be
+            multiples of 16 (4 downsampling stages).
+    Output: (B, 1, H, W) -- water probability logits (sigmoid -> [0, 1]).
+
+    Exposes ``forward_with_features(x)`` for DANN training (V3 §2.7):
+    returns (logits, bottleneck_features) so the domain discriminator can
+    operate on the shared encoder representation.
+    """
+
+    def __init__(self, in_channels: int = 4, base_channels: int = 32) -> None:
+        super().__init__()
+        self.in_channels = in_channels
+        c = base_channels
+
+        # Residual encoder blocks
+        self.enc1 = ResidualBlock(in_channels, c)       # H
+        self.enc2 = ResidualBlock(c, c * 2)            # H/2
+        self.enc3 = ResidualBlock(c * 2, c * 4)        # H/4
+        self.enc4 = ResidualBlock(c * 4, c * 8)        # H/8
+        self.pool = nn.MaxPool2d(2)
+
+        self.bottleneck = ResidualBlock(c * 8, c * 16)  # H/16
+
+        # Decoder with skip connections (same as WaterUNet)
+        self.up4 = nn.ConvTranspose2d(c * 16, c * 8, kernel_size=2, stride=2)
+        self.dec4 = DoubleConv(c * 8 + c * 8, c * 8)
+
+        self.up3 = nn.ConvTranspose2d(c * 8, c * 4, kernel_size=2, stride=2)
+        self.dec3 = DoubleConv(c * 4 + c * 4, c * 4)
+
+        self.up2 = nn.ConvTranspose2d(c * 4, c * 2, kernel_size=2, stride=2)
+        self.dec2 = DoubleConv(c * 2 + c * 2, c * 2)
+
+        self.up1 = nn.ConvTranspose2d(c * 2, c, kernel_size=2, stride=2)
+        self.dec1 = DoubleConv(c + c, c)
+
+        self.head = nn.Conv2d(c, 1, kernel_size=1)
+
+    def _encode(self, x: torch.Tensor) -> tuple[torch.Tensor, ...]:
+        """Encode through the residual blocks, returning skip features + bottleneck."""
+        e1 = self.enc1(x)
+        e2 = self.enc2(self.pool(e1))
+        e3 = self.enc3(self.pool(e2))
+        e4 = self.enc4(self.pool(e3))
+        b = self.bottleneck(self.pool(e4))
+        return e1, e2, e3, e4, b
+
+    def _decode(self, e1, e2, e3, e4, b) -> torch.Tensor:
+        """Decode skip features + bottleneck into segmentation logits."""
+        d4 = self.up4(b)
+        d4 = self.dec4(torch.cat([d4, e4], dim=1))
+        d3 = self.up3(d4)
+        d3 = self.dec3(torch.cat([d3, e3], dim=1))
+        d2 = self.up2(d3)
+        d2 = self.dec2(torch.cat([d2, e2], dim=1))
+        d1 = self.up1(d2)
+        d1 = self.dec1(torch.cat([d1, e1], dim=1))
+        return self.head(d1)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        e1, e2, e3, e4, b = self._encode(x)
+        return self._decode(e1, e2, e3, e4, b)
+
+    def forward_with_features(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Forward pass returning (logits, bottleneck_features) for DANN.
+
+        The bottleneck features are the shared encoder representation that
+        the domain discriminator operates on (V3 §2.7).
+        """
+        e1, e2, e3, e4, b = self._encode(x)
+        logits = self._decode(e1, e2, e3, e4, b)
+        return logits, b
+
+    def num_parameters(self) -> int:
+        return sum(p.numel() for p in self.parameters())
+
+
 class SegFormerHead(nn.Module):
     """Lightweight SegFormer (MiT-B0) classifier head for changed pixels.
 
