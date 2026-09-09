@@ -1,14 +1,19 @@
 """Pull real rainfall + temperature context from Open-Meteo for observation dates.
 
-Writes data/assets/weather_series.json in the shape consumed by the risk engine.
+Writes a weather series JSON file (default: data/assets/weather_series.json).
+As of Sprint 1 Step 8, the pipeline no longer reads this file at runtime —
+weather (rainfall, temp_index) is stored in the observations DB table, seeded
+by repo._seed() for the demo and populated via repo.register_observation()
+for live acquisitions. This script remains a ingest-time tool for refreshing
+weather values; wire its output into register_observation() when building the
+STAC daemon ingestion path.
 
 Usage:
     python -m siren.ingest.openmeteo                          # demo dates, default output
     python -m siren.ingest.openmeteo --lat 27.815 --lon 86.825 --date 2026-07-23,2026-08-04,2026-08-12 --out data/assets/weather_series.json
 
 Offline-safe (ADR-004): if the network is unavailable, exits cleanly with a
-message and does NOT write a file. The committed weather_series.json is the
-runtime source; this script only refreshes it. Use --strict to get non-zero
+message and does NOT write a file. Use --strict to get non-zero
 exit codes on any failure (for scheduler use).
 
 Provenance: values are REAL Open-Meteo historical archive data for the basin
