@@ -78,6 +78,8 @@ DEMO_OBSERVATIONS = [
         "water_area_change_percent": 8.0,
         "rainfall_24h_mm": 18.2,
         "rainfall_7d_mm": 64.0,
+        "temp_mean_c": 8.5,
+        "temp_index": 0.47,
         "mean_slope_degrees": 31.0,
         "processing_version": "0.1.0",
         "status": "processed",
@@ -99,6 +101,8 @@ DEMO_OBSERVATIONS = [
         "water_area_change_percent": 28.0,
         "rainfall_24h_mm": 84.6,
         "rainfall_7d_mm": 192.4,
+        "temp_mean_c": 9.3,
+        "temp_index": 0.49,
         "mean_slope_degrees": 31.0,
         "processing_version": "0.1.0",
         "status": "processed",
@@ -120,6 +124,8 @@ DEMO_OBSERVATIONS = [
         "water_area_change_percent": 43.0,
         "rainfall_24h_mm": 60.0,
         "rainfall_7d_mm": 160.0,
+        "temp_mean_c": 10.6,
+        "temp_index": 0.51,
         "mean_slope_degrees": 31.0,
         "processing_version": "0.1.0",
         "status": "processed",
@@ -259,6 +265,10 @@ class Repository:
         }
         if "optical_cloud_fraction" not in observation_columns:
             self._conn.execute("ALTER TABLE observations ADD COLUMN optical_cloud_fraction REAL")
+        if "temp_mean_c" not in observation_columns:
+            self._conn.execute("ALTER TABLE observations ADD COLUMN temp_mean_c REAL")
+        if "temp_index" not in observation_columns:
+            self._conn.execute("ALTER TABLE observations ADD COLUMN temp_index REAL")
         audit_columns = {
             row["name"] for row in self._conn.execute("PRAGMA table_info(audit_log)").fetchall()
         }
@@ -286,8 +296,9 @@ class Repository:
                 (observation_id, basin_id, acquired_at, source, raster_uri, crs,
                  quality_score, cloud_fraction, optical_cloud_fraction, alignment_ok, usable, confidence_adjustment,
                  water_area_km2, water_area_change_percent, rainfall_24h_mm, rainfall_7d_mm,
+                 temp_mean_c, temp_index,
                  mean_slope_degrees, processing_version, status)
-                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 ON CONFLICT(observation_id) DO UPDATE SET
                 acquired_at=excluded.acquired_at, source=excluded.source,
                 raster_uri=excluded.raster_uri, crs=excluded.crs,
@@ -299,6 +310,8 @@ class Repository:
                 water_area_change_percent=excluded.water_area_change_percent,
                 rainfall_24h_mm=excluded.rainfall_24h_mm,
                 rainfall_7d_mm=excluded.rainfall_7d_mm,
+                temp_mean_c=excluded.temp_mean_c,
+                temp_index=excluded.temp_index,
                 mean_slope_degrees=excluded.mean_slope_degrees,
                 processing_version=excluded.processing_version, status=excluded.status""",
                 (
@@ -306,7 +319,8 @@ class Repository:
                     o["raster_uri"], o["crs"], o["quality_score"], o["cloud_fraction"],
                     o["optical_cloud_fraction"], int(o["alignment_ok"]), int(o["usable"]), o["confidence_adjustment"],
                     o["water_area_km2"], o["water_area_change_percent"], o["rainfall_24h_mm"],
-                    o["rainfall_7d_mm"], o["mean_slope_degrees"], o["processing_version"],
+                    o["rainfall_7d_mm"], o["temp_mean_c"], o["temp_index"],
+                    o["mean_slope_degrees"], o["processing_version"],
                     o["status"],
                 ),
             )
@@ -414,6 +428,8 @@ class Repository:
             "water_area_change_percent": row["water_area_change_percent"],
             "rainfall_24h_mm": row["rainfall_24h_mm"],
             "rainfall_7d_mm": row["rainfall_7d_mm"],
+            "temp_mean_c": row["temp_mean_c"],
+            "temp_index": row["temp_index"],
             "mean_slope_degrees": row["mean_slope_degrees"],
             "processing_version": row["processing_version"],
             "status": row["status"],
@@ -868,6 +884,8 @@ class Repository:
         water_area_change_percent: float | None = None,
         rainfall_24h_mm: float | None = None,
         rainfall_7d_mm: float | None = None,
+        temp_mean_c: float | None = None,
+        temp_index: float | None = None,
         mean_slope_degrees: float | None = None,
     ) -> dict[str, Any]:
         """Register a new observation in the database (for live acquisition).
@@ -881,8 +899,9 @@ class Repository:
             (observation_id, basin_id, acquired_at, source, raster_uri, crs,
              quality_score, cloud_fraction, optical_cloud_fraction, alignment_ok, usable, confidence_adjustment,
              water_area_km2, water_area_change_percent, rainfall_24h_mm, rainfall_7d_mm,
+             temp_mean_c, temp_index,
              mean_slope_degrees, processing_version, status)
-            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             ON CONFLICT(observation_id) DO UPDATE SET
             acquired_at=excluded.acquired_at, source=excluded.source,
             raster_uri=excluded.raster_uri,
@@ -895,6 +914,8 @@ class Repository:
             water_area_change_percent=excluded.water_area_change_percent,
             rainfall_24h_mm=excluded.rainfall_24h_mm,
             rainfall_7d_mm=excluded.rainfall_7d_mm,
+            temp_mean_c=excluded.temp_mean_c,
+            temp_index=excluded.temp_index,
             mean_slope_degrees=excluded.mean_slope_degrees,
             processing_version=excluded.processing_version, status=excluded.status""",
             (
@@ -902,6 +923,7 @@ class Repository:
                 quality_score, cloud_fraction, optical_cloud_fraction,
                 int(alignment_ok), int(usable), confidence_adjustment,
                 water_area_km2, water_area_change_percent, rainfall_24h_mm, rainfall_7d_mm,
+                temp_mean_c, temp_index,
                 mean_slope_degrees, processing_version, "ingested",
             ),
         )

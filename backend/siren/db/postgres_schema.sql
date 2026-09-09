@@ -41,6 +41,8 @@ CREATE TABLE IF NOT EXISTS observations (
     water_area_change_percent DOUBLE PRECISION,
     rainfall_24h_mm         DOUBLE PRECISION,
     rainfall_7d_mm          DOUBLE PRECISION,
+    temp_mean_c             DOUBLE PRECISION,  -- mean air temp at acquisition (disease driver)
+    temp_index              DOUBLE PRECISION,  -- 0..1 normalized temp (disease_risk input)
     mean_slope_degrees      DOUBLE PRECISION,
     processing_version      TEXT NOT NULL,
     status                  TEXT NOT NULL DEFAULT 'ingested',  -- ingested|processed|failed
