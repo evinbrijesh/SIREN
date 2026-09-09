@@ -235,8 +235,13 @@ class SusceptibilityScorer:
         interval_width = interval_high - interval_low
         requires_manual = interval_width > self.interval_width_threshold
 
-        # Build reasons (Hard Rule 5: ≥3 on elevated+)
-        reasons = self._build_reasons(X[0], p_breach, interval_width, requires_manual)
+        # TreeSHAP feature contributions (V3 §3.3)
+        feature_contributions = self.explain(X[:1])
+
+        # Build reasons with SHAP contributions (Hard Rule 5: ≥3 on elevated+)
+        reasons = self._build_reasons(
+            X[0], p_breach, interval_width, requires_manual, feature_contributions
+        )
 
         return SusceptibilityResult(
             p_breach=p_breach,
@@ -246,8 +251,53 @@ class SusceptibilityScorer:
             requires_manual_inspection=requires_manual,
             brier_score=self._brier_score,
             is_calibrated=self._is_calibrated,
+            feature_contributions=feature_contributions,
             reasons=reasons,
         )
+
+    def explain(self, X: np.ndarray) -> dict[str, float]:
+        """Compute TreeSHAP feature contributions for a single sample.
+
+        Uses shap.TreeExplainer on the XGBoost model to decompose the
+        log-odds prediction into per-feature contributions (V3 §3.3).
+        The top contributions are wired into the review card reasons array.
+
+        Args:
+            X: features (1, n_features) or (n_features,).
+
+        Returns:
+            Dict mapping feature name → SHAP contribution value.
+            Positive values increase P_breach; negative values decrease it.
+
+        Raises:
+            RuntimeError: if the model has not been trained.
+        """
+        if not self._is_trained or self._model is None:
+            raise RuntimeError("SusceptibilityScorer has not been trained")
+
+        X = np.asarray(X, dtype=np.float32)
+        if X.ndim == 1:
+            X = X.reshape(1, -1)
+
+        import shap
+
+        explainer = shap.TreeExplainer(self._model)
+        shap_values = explainer.shap_values(X[:1])
+
+        # shap_values shape: (1, n_features) for binary classification
+        if isinstance(shap_values, list):
+            # XGBoost binary: shap returns [class0, class1] — use class1
+            shap_values = shap_values[1]
+        shap_values = np.asarray(shap_values)
+
+        # Flatten to (n_features,)
+        sv = shap_values.flatten()
+
+        contributions: dict[str, float] = {}
+        for i, name in enumerate(FEATURE_NAMES):
+            if i < len(sv):
+                contributions[name] = float(sv[i])
+        return contributions
 
     def _build_reasons(
         self,
@@ -255,17 +305,37 @@ class SusceptibilityScorer:
         p_breach: float,
         interval_width: float,
         requires_manual: bool,
+        feature_contributions: dict[str, float] | None = None,
     ) -> list[str]:
         """Build human-readable reasons for the susceptibility score.
 
         Hard Rule 5: ≥3 entries on elevated+ (p_breach >= 0.5).
+
+        When TreeSHAP contributions are available (V3 §3.3), the top-k
+        SHAP contributions are included as reasons — these decompose the
+        log-odds prediction into per-feature effects, giving the coordinator
+        actionable explanations (e.g. "Lake area expansion rate: +0.32 to
+        log-odds").
         """
         reasons: list[str] = []
 
-        # Feature contributions (will be replaced by TreeSHAP in Sprint 2.7)
-        for i, name in enumerate(FEATURE_NAMES):
-            val = float(features[i]) if i < len(features) else 0.0
-            reasons.append(f"{name}={val:.3f}")
+        # TreeSHAP feature contributions (V3 §3.3) — top 3 by absolute value
+        if feature_contributions:
+            sorted_contribs = sorted(
+                feature_contributions.items(),
+                key=lambda kv: abs(kv[1]),
+                reverse=True,
+            )[:3]
+            for name, shap_val in sorted_contribs:
+                direction = "+" if shap_val >= 0 else "-"
+                reasons.append(
+                    f"{name}: {direction}{abs(shap_val):.3f} to log-odds"
+                )
+        else:
+            # Fallback: raw feature values (pre-SHAP behavior)
+            for i, name in enumerate(FEATURE_NAMES):
+                val = float(features[i]) if i < len(features) else 0.0
+                reasons.append(f"{name}={val:.3f}")
 
         # Probability statement
         reasons.append(f"P_breach={p_breach:.3f}")

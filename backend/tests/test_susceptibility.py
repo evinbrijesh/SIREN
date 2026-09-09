@@ -285,3 +285,77 @@ def test_scorer_deterministic_predictions(synthetic_training_data):
     assert r1.p_breach == pytest.approx(r2.p_breach)
     assert r1.interval_low == pytest.approx(r2.interval_low)
     assert r1.interval_high == pytest.approx(r2.interval_high)
+
+
+# --------------------------------------------------------------------------- #
+# TreeSHAP explanation (V3 §3.3)
+# --------------------------------------------------------------------------- #
+
+def test_scorer_explain_returns_feature_contributions(trained_scorer):
+    """explain() returns a dict mapping feature names to SHAP values."""
+    X = np.array([[0.3, 100.0, 10.0, 2.0, 20.0, 1.0]], dtype=np.float32)
+    contributions = trained_scorer.explain(X)
+    assert isinstance(contributions, dict)
+    assert len(contributions) == len(FEATURE_NAMES)
+    for name in FEATURE_NAMES:
+        assert name in contributions
+        assert isinstance(contributions[name], float)
+
+
+def test_scorer_explain_1d_input(trained_scorer):
+    """explain() handles 1D input."""
+    X = np.array([0.3, 100.0, 10.0, 2.0, 20.0, 1.0], dtype=np.float32)
+    contributions = trained_scorer.explain(X)
+    assert len(contributions) == len(FEATURE_NAMES)
+
+
+def test_scorer_explain_untrained_raises():
+    """explain() before training raises RuntimeError."""
+    scorer = SusceptibilityScorer()
+    with pytest.raises(RuntimeError, match="not been trained"):
+        scorer.explain(np.zeros((1, 6)))
+
+
+def test_scorer_predict_includes_shap_reasons(trained_scorer):
+    """predict() reasons include TreeSHAP log-odds contributions."""
+    X = np.array([[0.3, 100.0, 10.0, 2.0, 20.0, 1.0]], dtype=np.float32)
+    result = trained_scorer.predict(X)
+    # At least one reason should mention "log-odds" (SHAP contribution format)
+    shap_reasons = [r for r in result.reasons if "log-odds" in r]
+    assert len(shap_reasons) >= 1
+
+
+def test_scorer_predict_top3_shap_contributions(trained_scorer):
+    """predict() includes the top-3 SHAP contributions in reasons."""
+    X = np.array([[0.3, 100.0, 10.0, 2.0, 20.0, 1.0]], dtype=np.float32)
+    result = trained_scorer.predict(X)
+    shap_reasons = [r for r in result.reasons if "log-odds" in r]
+    # Top 3 by absolute value
+    assert len(shap_reasons) <= 3
+
+
+def test_scorer_feature_contributions_in_result(trained_scorer):
+    """predict() populates feature_contributions in the result."""
+    X = np.array([[0.3, 100.0, 10.0, 2.0, 20.0, 1.0]], dtype=np.float32)
+    result = trained_scorer.predict(X)
+    assert len(result.feature_contributions) == len(FEATURE_NAMES)
+    for name in FEATURE_NAMES:
+        assert name in result.feature_contributions
+
+
+def test_scorer_feature_contributions_to_dict(trained_scorer):
+    """feature_contributions are serialized in to_dict()."""
+    X = np.array([[0.3, 100.0, 10.0, 2.0, 20.0, 1.0]], dtype=np.float32)
+    result = trained_scorer.predict(X)
+    d = result.to_dict()
+    assert "feature_contributions" in d
+    assert len(d["feature_contributions"]) == len(FEATURE_NAMES)
+
+
+def test_scorer_shap_explanations_deterministic(trained_scorer):
+    """Same input → same SHAP contributions (determinism, Hard Rule 6)."""
+    X = np.array([[0.3, 100.0, 10.0, 2.0, 20.0, 1.0]], dtype=np.float32)
+    c1 = trained_scorer.explain(X)
+    c2 = trained_scorer.explain(X)
+    for name in FEATURE_NAMES:
+        assert c1[name] == pytest.approx(c2[name])
