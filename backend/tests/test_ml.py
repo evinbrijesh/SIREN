@@ -372,6 +372,134 @@ def test_contract_replaces_nans() -> None:
     assert 0.0 <= norm[0, 0, 0] <= 1.0
 
 
+# --- 4-channel contract tests (ADR-011 / V3 §2.1 terrain-aware) ---
+
+def test_contract_constants_4channel() -> None:
+    """SAR_CHANNELS = 4 and channel names match the V3 §2.1 contract."""
+    from siren.ml.contract import SAR_CHANNELS, CHANNEL_NAMES, DEM_MAX_M, SLOPE_MAX_DEG
+
+    assert SAR_CHANNELS == 4
+    assert CHANNEL_NAMES == ("VV", "VH", "DEM", "Slope")
+    assert DEM_MAX_M == 8848.0
+    assert SLOPE_MAX_DEG == 90.0
+
+
+def test_contract_legacy_constants_preserved() -> None:
+    """The 2-channel legacy constants are preserved for the shadow model."""
+    from siren.ml.contract import SAR_CHANNELS_LEGACY, CHANNEL_NAMES_LEGACY
+
+    assert SAR_CHANNELS_LEGACY == 2
+    assert CHANNEL_NAMES_LEGACY == ("VV", "VH")
+
+
+def test_normalize_dem_maps_to_unit_range() -> None:
+    """normalize_dem maps [0, 8848] m to [0, 1]."""
+    from siren.ml.contract import normalize_dem, DEM_MAX_M
+
+    dem = np.array([[0.0, DEM_MAX_M / 2, DEM_MAX_M]], dtype=np.float32)
+    norm = normalize_dem(dem)
+    assert np.allclose(norm, [0.0, 0.5, 1.0])
+
+
+def test_normalize_dem_clamps_out_of_range() -> None:
+    """Negative elevation clamps to 0; above 8848 clamps to 1."""
+    from siren.ml.contract import normalize_dem
+
+    dem = np.array([[-100.0, 10000.0]], dtype=np.float32)
+    norm = normalize_dem(dem)
+    assert norm[0, 0] == 0.0  # below sea level
+    assert norm[0, 1] == 1.0  # above Everest
+
+
+def test_normalize_dem_replaces_nans() -> None:
+    """NaN elevation is treated as sea level (0.0)."""
+    from siren.ml.contract import normalize_dem
+
+    dem = np.array([[np.nan, 4420.0]], dtype=np.float32)
+    norm = normalize_dem(dem)
+    assert norm[0, 0] == 0.0
+    assert np.isclose(norm[0, 1], 4420.0 / 8848.0)
+
+
+def test_normalize_slope_maps_to_unit_range() -> None:
+    """normalize_slope maps [0, 90] deg to [0, 1]."""
+    from siren.ml.contract import normalize_slope
+
+    slope = np.array([[0.0, 45.0, 90.0]], dtype=np.float32)
+    norm = normalize_slope(slope)
+    assert np.allclose(norm, [0.0, 0.5, 1.0])
+
+
+def test_normalize_slope_clamps_out_of_range() -> None:
+    """Negative slope clamps to 0; above 90 clamps to 1."""
+    from siren.ml.contract import normalize_slope
+
+    slope = np.array([[-5.0, 120.0]], dtype=np.float32)
+    norm = normalize_slope(slope)
+    assert norm[0, 0] == 0.0
+    assert norm[0, 1] == 1.0
+
+
+def test_normalize_tensor_4channel_3d() -> None:
+    """normalize_tensor normalises (4, H, W) per-channel."""
+    from siren.ml.contract import (
+        normalize_tensor, SAR_DB_MIN, SAR_DB_MAX, DEM_MAX_M, SLOPE_MAX_DEG,
+    )
+
+    tensor = np.array([
+        [[SAR_DB_MIN, SAR_DB_MAX]],       # VV dB
+        [[SAR_DB_MIN, SAR_DB_MAX]],       # VH dB
+        [[0.0, DEM_MAX_M]],               # DEM m
+        [[0.0, SLOPE_MAX_DEG]],           # Slope deg
+    ], dtype=np.float32)
+    norm = normalize_tensor(tensor)
+    assert norm.shape == (4, 1, 2)
+    # Each channel's endpoints map to [0, 1]
+    for c in range(4):
+        assert np.isclose(norm[c, 0, 0], 0.0)
+        assert np.isclose(norm[c, 0, 1], 1.0)
+
+
+def test_normalize_tensor_4channel_4d() -> None:
+    """normalize_tensor normalises (B, 4, H, W) per-channel."""
+    from siren.ml.contract import normalize_tensor
+
+    tensor = np.zeros((2, 4, 4, 4), dtype=np.float32)
+    tensor[:, 0] = -15.0  # VV mid-range
+    tensor[:, 1] = -15.0  # VH mid-range
+    tensor[:, 2] = 4424.0  # DEM mid-range
+    tensor[:, 3] = 45.0   # Slope mid-range
+    norm = normalize_tensor(tensor)
+    assert norm.shape == (2, 4, 4, 4)
+    assert np.allclose(norm[:, 0], 0.5)  # -15 dB -> 0.5
+    assert np.allclose(norm[:, 2], 4424.0 / 8848.0)
+    assert np.allclose(norm[:, 3], 0.5)
+
+
+def test_normalize_tensor_rejects_wrong_channels() -> None:
+    """normalize_tensor raises ValueError for non-4-channel input."""
+    from siren.ml.contract import normalize_tensor
+
+    bad = np.zeros((2, 4, 4), dtype=np.float32)
+    with pytest.raises(ValueError, match="4 channels"):
+        normalize_tensor(bad)
+
+
+def test_denormalize_tensor_round_trip() -> None:
+    """denormalize_tensor inverts normalize_tensor (within clamp range)."""
+    from siren.ml.contract import normalize_tensor, denormalize_tensor
+
+    original = np.array([
+        [[-20.0, -10.0], [-25.0, -5.0]],
+        [[-22.0, -12.0], [-27.0, -7.0]],
+        [[1000.0, 5000.0], [3000.0, 7000.0]],
+        [[10.0, 30.0], [20.0, 45.0]],
+    ], dtype=np.float32)
+    norm = normalize_tensor(original)
+    recovered = denormalize_tensor(norm)
+    assert np.allclose(recovered, original, atol=1e-4)
+
+
 # --- Visualize tests (no torch required) ---
 
 def test_generate_change_heatmap(tmp_path) -> None:
