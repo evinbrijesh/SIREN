@@ -359,9 +359,18 @@ def _register_celery_tasks(app):
     def calibrate_scene_task(scene_id: str):
         """Celery task: calibrate and process a single scene.
 
-        This is a stub — the actual calibration + pipeline execution will be
-        implemented in Sprint 2 when the 4-channel vision and RTC γ⁰ are ready.
-        For now, it logs the scene ID and marks the acquisition job as 'ready'.
+        Applies Radiometric Terrain Correction (γ⁰) when the scene's SAFE
+        archive and a DEM are available locally (Sprint 1 Step 6). The
+        calibrated 2-band γ⁰ dB GeoTIFF is written to
+        ``data/processed/rtc/<scene_id>.tif`` and the acquisition job is
+        marked ``calibrated`` with the local path recorded.
+
+        When the SAFE archive or DEM is not yet on disk (e.g. the scene was
+        only registered from STAC metadata and not downloaded — Step 5
+        /vsicurl/ COG reading will close that gap), the job is marked
+        ``pending`` so a future worker can pick it up once the data lands.
+        This preserves the offline-demo contract (Hard Rule 2): no network
+        calls at runtime, no silent failures.
         """
         from siren.db.repo import get_repository
         repo = get_repository()
@@ -370,10 +379,70 @@ def _register_celery_tasks(app):
             logger.warning("Scene %s not found in acquisition_jobs", scene_id)
             return {"scene_id": scene_id, "status": "not_found"}
 
-        # Mark as ready (calibration stub — Sprint 2 will add real RTC γ⁰)
-        repo.update_acquisition_job(job["job_id"], status="ready")
-        logger.info("Scene %s marked as ready (calibration stub)", scene_id)
-        return {"scene_id": scene_id, "status": "ready"}
+        # Locate the SAFE archive and DEM on disk.
+        from pathlib import Path
+        from siren.preprocess.sar_calibrate import find_safe_for_scene_id
+
+        raw_dir = Path(os.environ.get("SIREN_RAW_DIR", "data/raw"))
+        processed_dir = Path(os.environ.get("SIREN_PROCESSED_DIR", "data/processed"))
+        dem_path = Path(os.environ.get("SIREN_DEM_PATH", str(raw_dir / "srtm_30m.tif")))
+
+        safe_zip = find_safe_for_scene_id(scene_id, raw_dir)
+        if safe_zip is None or not dem_path.exists():
+            logger.info(
+                "Scene %s awaiting data (safe=%s, dem=%s) — marking pending",
+                scene_id, safe_zip, dem_path if dem_path.exists() else None,
+            )
+            repo.update_acquisition_job(job["job_id"], status="pending")
+            return {"scene_id": scene_id, "status": "pending", "rtc_applied": False}
+
+        # Real RTC calibration path. Use the AOI-windowed reader
+        # (Production Roadmap §2.2) when a bbox is configured, else fall
+        # back to the full-scene reader.
+        from siren.preprocess.rtc_pipeline import (
+            calibrate_scene_with_rtc,
+            calibrate_scene_with_rtc_windowed,
+        )
+
+        out_path = processed_dir / "rtc" / f"{scene_id}.tif"
+        bbox_env = os.environ.get("SIREN_AOI_BBOX", "")
+        try:
+            if bbox_env:
+                lon_min, lat_min, lon_max, lat_max = (
+                    float(v) for v in bbox_env.split(",")
+                )
+                meta = calibrate_scene_with_rtc_windowed(
+                    safe_zip, str(dem_path), out_path,
+                    bbox=(lon_min, lat_min, lon_max, lat_max),
+                    decimation=int(os.environ.get("SIREN_DECIMATION", "10")),
+                )
+            else:
+                meta = calibrate_scene_with_rtc(
+                    safe_zip, str(dem_path), out_path,
+                    decimation=int(os.environ.get("SIREN_DECIMATION", "10")),
+                )
+        except Exception as exc:
+            logger.error("RTC calibration failed for scene %s: %s", scene_id, exc)
+            repo.update_acquisition_job(
+                job["job_id"], status="failed", last_error=str(exc)
+            )
+            return {"scene_id": scene_id, "status": "failed", "error": str(exc)}
+
+        repo.update_acquisition_job(
+            job["job_id"], status="calibrated", local_path=str(out_path)
+        )
+        logger.info(
+            "Scene %s calibrated to γ⁰ dB (IoU gate pending Sprint 2): %s",
+            scene_id, meta["out_path"],
+        )
+        return {
+            "scene_id": scene_id,
+            "status": "calibrated",
+            "rtc_applied": True,
+            "out_path": meta["out_path"],
+            "incidence_deg": meta["incidence_deg"],
+            "look_azimuth_deg": meta["look_azimuth_deg"],
+        }
 
     return poll_task, calibrate_scene_task
 
