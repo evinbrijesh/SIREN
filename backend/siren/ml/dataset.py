@@ -21,11 +21,15 @@ Label convention (Sen1Floods11 QC layer): -1 = no data, 0 = land,
 1 = water. No-data pixels are excluded from the loss via a validity
 mask, not remapped to land or water.
 
-4-channel mode (ADR-011 / V3 §2.1): when ``dem_path`` is provided, the
-dataset stacks (VV, VH, DEM, Slope) per chip. The DEM is reprojected to
-each chip's grid and slope is derived via ``preprocess.dem.slope_degrees``.
-The 4-channel tensor is normalised via ``contract.normalize_tensor``.
-When ``dem_path`` is None, the legacy 2-channel path is used.
+4-channel mode (ADR-011 / V3 §2.1): when ``use_copernicus_dem=True``, the
+dataset fetches Copernicus GLO-30 DEM tiles for each chip's geospatial
+bounds (via :mod:`siren.ml.dem_fetch`), reprojects to the chip grid, and
+derives slope with latitude-corrected metre pixel size. The 4-channel
+tensor is (VV, VH, DEM, Slope), normalised via ``contract.normalize_tensor``.
+
+When ``dem_path`` is provided (legacy single-file mode), the DEM is read
+from that file and co-registered to each chip. When neither is set, the
+legacy 2-channel (VV, VH) path is used.
 """
 
 from __future__ import annotations
@@ -120,9 +124,11 @@ class WaterSegmentationDataset:
         strategy: "official" (chip-level, literature-comparable) or
                   "event_holdout" (event-level, no leakage).
         chip_size: expected chip height/width (Sen1Floods11 chips are 512x512).
-        dem_path: optional path to a DEM raster. When provided, the dataset
-                  returns 4-channel (VV, VH, DEM, Slope) tensors (ADR-011 /
-                  V3 §2.1). When None, returns legacy 2-channel (VV, VH).
+        dem_path: optional path to a single DEM raster (legacy mode). When
+                  provided, the DEM is co-registered to each chip.
+        use_copernicus_dem: when True, fetch Copernicus GLO-30 DEM tiles
+                           per chip (Level 2 production path). Overrides
+                           dem_path.
     """
 
     def __init__(
@@ -131,11 +137,16 @@ class WaterSegmentationDataset:
         strategy: SplitStrategy = "event_holdout",
         chip_size: int = 512,
         dem_path: str | Path | None = None,
+        use_copernicus_dem: bool = False,
     ) -> None:
         self.split = split
         self.strategy = strategy
         self.chip_size = chip_size
         self.dem_path = Path(dem_path) if dem_path else None
+        self.use_copernicus_dem = use_copernicus_dem
+        # In-memory cache for reprojected DEM + slope (keyed by chip_id).
+        # Avoids re-reading/reprojecting DEM tiles on every epoch.
+        self._dem_cache: dict[str, tuple[np.ndarray, np.ndarray]] = {}
 
         if strategy == "official":
             self.rows = _load_official_rows(split)
@@ -164,24 +175,69 @@ class WaterSegmentationDataset:
             chip_crs = str(src.crs)
             chip_transform = src.transform
             chip_shape = (src.height, src.width)
+            chip_bounds = src.bounds
         with rasterio.open(str(label_path)) as src:
             label = src.read(1)  # (H, W): -1 nodata, 0 land, 1 water
 
         water = (label == 1).astype(np.float32)
         valid = (label != -1).astype(np.float32)  # loss mask: exclude no-data pixels
 
+        if self.use_copernicus_dem:
+            # 4-channel path (Level 2): fetch Copernicus GLO-30 DEM per chip
+            from siren.ml.dem_fetch import (
+                fetch_dem_for_bounds, coregister_dem_to_grid,
+                pixel_size_m_from_transform,
+            )
+            from siren.preprocess.rtc import slope_degrees
+
+            # Check in-memory cache first (avoids re-projecting DEM every epoch)
+            if s1_file in self._dem_cache:
+                dem, slope = self._dem_cache[s1_file]
+            else:
+                center_lat = (chip_bounds.top + chip_bounds.bottom) / 2
+
+                dem_paths = fetch_dem_for_bounds(
+                    chip_bounds.left, chip_bounds.bottom,
+                    chip_bounds.right, chip_bounds.top,
+                )
+                dem = coregister_dem_to_grid(
+                    dem_paths, chip_crs, chip_transform, chip_shape,
+                )
+                dx_m, dy_m = pixel_size_m_from_transform(
+                    chip_transform, chip_crs, center_lat,
+                )
+                slope = slope_degrees(dem, (dx_m, dy_m))
+                self._dem_cache[s1_file] = (dem, slope)
+
+            tensor = np.stack([
+                sar[0], sar[1], dem, slope,
+            ], axis=0).astype(np.float32)
+            tensor_norm = normalize_tensor(tensor)
+
+            return {
+                "sar": torch.from_numpy(tensor_norm).float(),  # (4, H, W)
+                "water": torch.from_numpy(water).float(),
+                "valid": torch.from_numpy(valid).float(),
+                "chip_id": s1_file,
+                "event": s1_file.split("_")[0],
+                "dem": torch.from_numpy(dem).float(),  # unnormalised, for viz/loss
+                "slope": torch.from_numpy(slope).float(),
+            }
+
         if self.dem_path is not None:
             # 4-channel path (ADR-011 / V3 §2.1): stack (VV, VH, DEM, Slope)
-            from siren.preprocess.dem import slope_degrees, DEFAULT_PIXEL_SIZE_M
+            from siren.preprocess.dem import slope_degrees
+            from siren.ml.dem_fetch import pixel_size_m_from_transform
 
             dem = coregister_dem_to_chip(
                 self.dem_path, chip_crs, chip_transform, chip_shape
             )
-            # Pixel size from the chip transform (assumes square pixels)
-            dx = abs(chip_transform.a)
-            dy = abs(chip_transform.e)
-            px = float((dx + dy) / 2.0) if dx > 0 and dy > 0 else DEFAULT_PIXEL_SIZE_M
-            slope = slope_degrees(dem, px)
+            # Pixel size in metres (latitude-corrected for geographic CRS)
+            center_lat = (chip_bounds.top + chip_bounds.bottom) / 2
+            dx_m, dy_m = pixel_size_m_from_transform(
+                chip_transform, chip_crs, center_lat,
+            )
+            slope = slope_degrees(dem, (dx_m, dy_m))
 
             # Stack into (4, H, W) and normalise via the 4-channel contract
             tensor = np.stack([
