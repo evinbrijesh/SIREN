@@ -40,6 +40,8 @@ CREATE TABLE IF NOT EXISTS observations (
     water_area_change_percent REAL,
     rainfall_24h_mm         REAL,
     rainfall_7d_mm          REAL,
+    temp_mean_c             REAL,              -- mean air temp at acquisition (disease driver)
+    temp_index              REAL,              -- 0..1 normalized temp (disease_risk input)
     mean_slope_degrees      REAL,
     processing_version      TEXT NOT NULL,
     status                  TEXT NOT NULL DEFAULT 'ingested',  -- ingested|processed|failed

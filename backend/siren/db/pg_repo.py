@@ -123,6 +123,8 @@ class PostgresRepository:
             "water_area_change_percent": row["water_area_change_percent"],
             "rainfall_24h_mm": row["rainfall_24h_mm"],
             "rainfall_7d_mm": row["rainfall_7d_mm"],
+            "temp_mean_c": row["temp_mean_c"],
+            "temp_index": row["temp_index"],
             "mean_slope_degrees": row["mean_slope_degrees"],
             "processing_version": row["processing_version"],
             "status": row["status"],
@@ -580,6 +582,8 @@ class PostgresRepository:
         water_area_change_percent: float | None = None,
         rainfall_24h_mm: float | None = None,
         rainfall_7d_mm: float | None = None,
+        temp_mean_c: float | None = None,
+        temp_index: float | None = None,
         mean_slope_degrees: float | None = None,
     ) -> dict[str, Any]:
         self._conn.execute(
@@ -587,8 +591,9 @@ class PostgresRepository:
             (observation_id, basin_id, acquired_at, source, raster_uri, crs,
              quality_score, cloud_fraction, optical_cloud_fraction, alignment_ok, usable, confidence_adjustment,
              water_area_km2, water_area_change_percent, rainfall_24h_mm, rainfall_7d_mm,
+             temp_mean_c, temp_index,
              mean_slope_degrees, processing_version, status)
-            VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
             ON CONFLICT(observation_id) DO UPDATE SET
             acquired_at=excluded.acquired_at, source=excluded.source,
             raster_uri=excluded.raster_uri,
@@ -601,6 +606,8 @@ class PostgresRepository:
             water_area_change_percent=excluded.water_area_change_percent,
             rainfall_24h_mm=excluded.rainfall_24h_mm,
             rainfall_7d_mm=excluded.rainfall_7d_mm,
+            temp_mean_c=excluded.temp_mean_c,
+            temp_index=excluded.temp_index,
             mean_slope_degrees=excluded.mean_slope_degrees,
             processing_version=excluded.processing_version, status=excluded.status""",
             (
@@ -608,6 +615,7 @@ class PostgresRepository:
                 quality_score, cloud_fraction, optical_cloud_fraction,
                 alignment_ok, usable, confidence_adjustment,
                 water_area_km2, water_area_change_percent, rainfall_24h_mm, rainfall_7d_mm,
+                temp_mean_c, temp_index,
                 mean_slope_degrees, processing_version, "ingested",
             ),
         )

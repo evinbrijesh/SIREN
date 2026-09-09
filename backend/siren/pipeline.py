@@ -20,7 +20,6 @@ It uses pre-computed scenario masks when real SAR coverage is unavailable
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 from pathlib import Path
@@ -55,48 +54,29 @@ PROCESSED_DIR = DATA_DIR / "processed"
 ASSETS_DIR = DATA_DIR / "assets"
 DEM_PATH = DATA_DIR / "raw" / "srtm_30m.tif"
 OSM_PATH = ASSETS_DIR / "osm_infrastructure.geojson"
-WEATHER_PATH = ASSETS_DIR / "weather_series.json"
 
-# Demo scenario: observation metadata (source, cloud, sensor)
-# In production these come from the observation record; for the offline demo
-# they are deterministic config (PRD §16).
-DEMO_OBSERVATIONS = {
-    "obs-001": {
-        "source": "sentinel-1-grd-nrt",
-        "cloud_fraction": 0.0,
-        "optical_cloud_fraction": 0.0,
-        "alignment_error": 0.2,
-        "acquired_at": "2026-07-23T12:00:00Z",
-        "water_area_km2": 3.2,
-        "expansion_pct": 8.0,
-        "trend_class": "slowly",
-        "rainfall_24h_mm": 18.2,
-        "rainfall_7d_mm": 64.0,
-    },
-    "obs-002": {
-        "source": "sentinel-1-grd-nrt",
-        "cloud_fraction": 0.0,
-        "optical_cloud_fraction": 0.95,
-        "alignment_error": 0.3,
-        "acquired_at": "2026-08-04T12:00:00Z",
-        "water_area_km2": 4.1,
-        "expansion_pct": 28.0,
-        "trend_class": "rapidly",
-        "rainfall_24h_mm": 84.6,
-        "rainfall_7d_mm": 192.4,
-    },
+# Demo scenario: observation IDs + scenario-only overrides.
+#
+# Production Roadmap §1.2 / Sprint 1 Step 7: observation metadata (source,
+# cloud, acquired_at, water area, rainfall, raster_uri, ...) is no longer
+# hardcoded here — it lives in the observations table, seeded by
+# repo._seed() for the demo and registered via repo.register_observation()
+# (or the STAC daemon) for live acquisitions. The pipeline reads every
+# observation from the DB via repo.get_observation().
+#
+# What remains here is the small set of *scenario-modeling* parameters
+# that are not raw observation metadata and have no DB column: the
+# deterministic trend-class fallback and the mask-provenance tag. These
+# drive the frozen demo scenario masks (PRD §9.2/§16) and are applied
+# only for the three demo observation IDs.
+DEMO_OBS_IDS: tuple[str, ...] = ("obs-001", "obs-002", "obs-003")
+
+DEMO_SCENARIO_OVERRIDES: dict[str, dict[str, Any]] = {
+    "obs-001": {"trend_class": "slowly"},
+    "obs-002": {"trend_class": "rapidly"},
     "obs-003": {
-        "source": "sentinel-1-grd-nrt",
-        "cloud_fraction": 0.0,
-        "optical_cloud_fraction": 0.90,
-        "alignment_error": 0.2,
-        "acquired_at": "2026-08-12T12:00:00Z",
-        "water_area_km2": 4.3,
-        "expansion_pct": 43.0,
         "trend_class": "rapidly",
-        "rainfall_24h_mm": 60.0,
-        "rainfall_7d_mm": 160.0,
-        # All 3 demo observations now have real Sentinel-1 SAFE archives.
+        # All 3 demo observations have real Sentinel-1 SAFE archives.
         # The rule-based mask is a deterministic scenario per PRD §9.2/§16;
         # the ML shadow layer uses real calibrated VV/VH sigma0 dB from the
         # SAFE archive (downloaded 2026-09-08 from CDSE).
@@ -107,14 +87,6 @@ DEMO_OBSERVATIONS = {
 # Mean terrain slope for the Dudh Koshi/Imja basin (degrees)
 # Computed from SRTM; hardcoded for offline demo determinism.
 MEAN_SLOPE_DEG = 31.0
-
-
-def _load_weather() -> dict[str, dict]:
-    """Load weather series keyed by observation_id."""
-    if not WEATHER_PATH.exists():
-        return {}
-    data = json.loads(WEATHER_PATH.read_text())
-    return {entry["observation_id"]: entry for entry in data.get("series", [])}
 
 
 def _change_polygon_from_mask(mask_path: str) -> dict:
@@ -433,42 +405,55 @@ def _derive_synthetic_confidence(mask: np.ndarray) -> np.ndarray:
 def _load_observation_config(
     observation_id: str, repo: Repository
 ) -> dict[str, Any] | None:
-    """Load observation metadata from demo config or the database.
+    """Load observation metadata from the database (Sprint 1 Step 7).
 
-    Demo observations (obs-001/002/003) use the hardcoded DEMO_OBSERVATIONS dict.
-    Live observations registered via repo.register_observation() are loaded
-    from the observations table. This is the function that unblocks
-    run_pipeline() for non-demo observation IDs (Live Phase 4 blocker).
+    Every observation — demo (seeded by repo._seed) or live (registered via
+    repo.register_observation / the STAC daemon) — is read from the
+    observations table. This is the dynamic DB-backed registry: the
+    pipeline no longer carries a parallel hardcoded metadata dict.
 
-    Returns None if the observation is not found in either source.
+    For the three demo observation IDs, scenario-modeling overrides
+    (trend-class fallback, mask-provenance tag) are layered on top from
+    ``DEMO_SCENARIO_OVERRIDES`` — these are scenario parameters, not
+    observation metadata, and have no DB column.
+
+    Returns None if the observation is not registered in the DB.
     """
-    # Demo observations — hardcoded config (frozen, unchanged)
-    if observation_id in DEMO_OBSERVATIONS:
-        return DEMO_OBSERVATIONS[observation_id]
-
-    # Live observations — from the database
     obs = repo.get_observation(observation_id)
     if obs is None:
         return None
 
-    # Build a config dict in the same shape as DEMO_OBSERVATIONS
-    return {
+    is_demo = observation_id in DEMO_SCENARIO_OVERRIDES
+    # Build a config dict in the shape the pipeline expects.
+    config: dict[str, Any] = {
         "source": obs["source"],
         "cloud_fraction": obs["cloud_fraction"] or 0.0,
-        "optical_cloud_fraction": obs.get("optical_cloud_fraction") or obs["cloud_fraction"] or 0.0,
+        "optical_cloud_fraction": obs.get("optical_cloud_fraction")
+            or obs["cloud_fraction"] or 0.0,
         "alignment_error": 0.2 if obs.get("alignment_ok", True) else 1.0,
         "acquired_at": obs["acquired_at"],
         "water_area_km2": obs.get("water_area_km2") or 0.0,
         "expansion_pct": obs.get("water_area_change_percent") or 0.0,
-        "trend_class": "uncertain",  # live observations don't have a preset trend
         "rainfall_24h_mm": obs.get("rainfall_24h_mm") or 0.0,
         "rainfall_7d_mm": obs.get("rainfall_7d_mm") or 0.0,
-        # Live-specific fields
-        "_is_live": True,
+        "temp_index": obs.get("temp_index") or 0.5,  # disease driver; 0.5 neutral fallback
+        "_is_live": not is_demo,
         "raster_uri": obs.get("raster_uri"),
         "basin_id": obs.get("basin_id"),
         "mean_slope_degrees": obs.get("mean_slope_degrees"),
     }
+    if is_demo:
+        # trend_class fallback + mask_provenance (scenario params, not DB cols)
+        config["trend_class"] = DEMO_SCENARIO_OVERRIDES[observation_id].get(
+            "trend_class", "uncertain"
+        )
+        if "mask_provenance" in DEMO_SCENARIO_OVERRIDES[observation_id]:
+            config["mask_provenance"] = DEMO_SCENARIO_OVERRIDES[observation_id][
+                "mask_provenance"
+            ]
+    else:
+        config["trend_class"] = "uncertain"  # live obs have no preset trend
+    return config
 
 
 def run_pipeline(
@@ -625,11 +610,13 @@ def run_pipeline(
         change_stats["segformer_classifications"] = breakdown.get("classifications", [])
 
     # 6. Build corridor + exposures
-    weather = _load_weather()
-    w = weather.get(observation_id, {})
-    rainfall_24h = w.get("rainfall_24h_mm", obs_config["rainfall_24h_mm"])
-    rainfall_7d = w.get("rainfall_7d_mm", obs_config["rainfall_7d_mm"])
-    temp_index = w.get("temp_index", 0.5)
+    # Weather (rainfall, temp_index) now comes from the DB observation record
+    # (Sprint 1 Step 8 — weather_series.json retired). The STAC daemon /
+    # repo.register_observation() populates these at ingest time; the
+    # offline demo seeds them via repo._seed().
+    rainfall_24h = obs_config["rainfall_24h_mm"]
+    rainfall_7d = obs_config["rainfall_7d_mm"]
+    temp_index = obs_config["temp_index"]
     change_stats["rainfall_24h_mm"] = rainfall_24h
     change_stats["rainfall_7d_mm"] = rainfall_7d
 
@@ -718,7 +705,7 @@ def run_pipeline(
         # ordered by acquired_at.
         if not is_live:
             obs_sequence = []
-            for oid in DEMO_OBSERVATIONS:
+            for oid in DEMO_OBS_IDS:
                 obs_sequence.append(oid)
                 if oid == observation_id:
                     break
@@ -811,7 +798,7 @@ def run_all_observations(repo: Repository | None = None) -> list[dict[str, Any]]
         repo = get_repository()
 
     results = []
-    for obs_id in DEMO_OBSERVATIONS:
+    for obs_id in DEMO_OBS_IDS:
         run = run_pipeline(obs_id, repo)
         results.append(run)
     return results
@@ -847,7 +834,7 @@ def classify_temporal_trend(
         repo = get_repository()
 
     if observation_ids is None:
-        observation_ids = list(DEMO_OBSERVATIONS.keys())
+        observation_ids = list(DEMO_OBS_IDS)
 
     # Collect water masks from completed runs
     water_masks: list[np.ndarray] = []
@@ -864,15 +851,17 @@ def classify_temporal_trend(
                 water_masks.append(mask)
                 water_areas.append(float(mask.sum()))
         else:
-            # Use the scenario expansion percentage to synthesize a mask
-            obs_config = DEMO_OBSERVATIONS.get(obs_id)
-            if obs_config:
+            # Use the observation's expansion percentage (from the DB
+            # registry) to synthesize a scenario mask.
+            obs = repo.get_observation(obs_id)
+            expansion_pct = obs.get("water_area_change_percent") if obs else None
+            if expansion_pct is not None:
                 mask, _ = scenario_expansion_mask(
-                    obs_config["expansion_pct"] / 100.0, seed=42
+                    expansion_pct / 100.0, seed=42
                 )
                 water_masks.append(mask.astype(np.float32))
                 water_areas.append(float(mask.sum()))
-                expansion_pcts.append(obs_config["expansion_pct"])
+                expansion_pcts.append(expansion_pct)
 
     if not water_masks:
         return {
