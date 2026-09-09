@@ -747,6 +747,23 @@ def run_pipeline(
         temp_index=temp_index,
     )
 
+    # 7b. Attach shadow evidence (V3 §3.6, §6 — ADR-010 §3: not load-bearing)
+    # The deterministic 5-factor hazard score remains authoritative. Shadow
+    # evidence (susceptibility, HAND, FNO) is attached to change_stats for
+    # the review card UI and shadow-mode evaluation.
+    try:
+        from siren.risk.shadow_evidence import attach_shadow_evidence
+        attach_shadow_evidence(
+            change_stats=change_stats,
+            obs_config=obs_config,
+            rainfall_24h=rainfall_24h,
+            rainfall_7d=rainfall_7d,
+            dem_path=str(DEM_PATH) if DEM_PATH else None,
+        )
+    except Exception as exc:
+        logger.warning(f"Shadow evidence attachment failed: {exc}")
+        change_stats["shadow_evidence"] = {"error": str(exc), "is_shadow": True}
+
     # 8. Write results to DB
     repo.complete_run(
         run_id=run_id,

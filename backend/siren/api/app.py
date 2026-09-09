@@ -282,12 +282,42 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
                 detail={"error": "not_found", "detail": f"run {run_id} not found"},
             )
         try:
-            return repo.create_dispatch(run_id, body.channel, body.recipient_group)
+            result = repo.create_dispatch(run_id, body.channel, body.recipient_group)
         except HumanGateError as exc:
             raise HTTPException(
                 status_code=409,
                 detail={"error": "human_gate", "detail": str(exc)},
             )
+
+        # Shadow evidence: dual-path hardware dispatch + RFC 3161 anchoring
+        # (V3 §4.4, §4.5 — shadow-only, does not modify the canonical dispatch)
+        try:
+            from siren.risk.shadow_evidence import shadow_dispatch, shadow_anchor_audit_chain
+            from siren.audit.hash_chain import event_hash, GENESIS_HASH
+
+            # Shadow dispatch: simulate dual-path hardware dispatch
+            shadow_receipt = shadow_dispatch(
+                dispatch_id=result["dispatch_id"],
+                payload=result["payload"],
+                recipient_group=body.recipient_group,
+            )
+
+            # Shadow anchor: anchor the latest audit entry to a timestamp authority
+            # (uses the dispatch event hash as the chain root)
+            chain_root = event_hash(
+                GENESIS_HASH, result.get("sent_at", ""), result["dispatch_id"]
+            )
+            shadow_anchor = shadow_anchor_audit_chain(chain_root)
+
+            # Attach shadow evidence to the result (not persisted in the canonical
+            # dispatch record — shadow-only metadata for the review card)
+            result["shadow_dispatch"] = shadow_receipt
+            result["shadow_anchor"] = shadow_anchor
+        except Exception as exc:
+            # Shadow evidence is best-effort — never block a dispatch
+            pass
+
+        return result
 
     # GET /audit?alert_id={alert_id}&run_id={run_id}
     # Either parameter is optional; both are AND-ed when provided.
