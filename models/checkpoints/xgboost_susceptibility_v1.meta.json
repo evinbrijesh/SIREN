@@ -1,12 +1,12 @@
 {
-  "brier_score_cv": 0.1009,
-  "brier_score_in_sample": 0.0362,
-  "roc_auc_cv": 0.9821,
+  "brier_score_cv": 0.1011,
+  "brier_score_in_sample": 0.0358,
+  "roc_auc_cv": 0.9881,
   "fold_metrics": [
     {
       "fold": 0,
-      "brier_score": 0.1353,
-      "roc_auc": 0.9286,
+      "brier_score": 0.1348,
+      "roc_auc": 0.9524,
       "n_train": 28,
       "n_test": 20,
       "test_regions": [
@@ -17,7 +17,7 @@
     },
     {
       "fold": 1,
-      "brier_score": 0.0178,
+      "brier_score": 0.0181,
       "roc_auc": 1.0,
       "n_train": 39,
       "n_test": 9,
@@ -29,7 +29,7 @@
     },
     {
       "fold": 2,
-      "brier_score": 0.1619,
+      "brier_score": 0.1633,
       "roc_auc": 1.0,
       "n_train": 42,
       "n_test": 6,
@@ -54,7 +54,7 @@
     },
     {
       "fold": 4,
-      "brier_score": 0.0885,
+      "brier_score": 0.0883,
       "roc_auc": 1.0,
       "n_train": 42,
       "n_test": 6,
@@ -90,7 +90,7 @@
     "random_state": 42,
     "eval_metric": "logloss"
   },
-  "calibration_q": 0.5032,
+  "calibration_q": 0.5052,
   "brier_gate": 0.15,
   "passes_brier_gate": true
 }

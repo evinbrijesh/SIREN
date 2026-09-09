@@ -112,9 +112,10 @@ _RECORDS: list[LakeRecord] = [
     # === BREACHED LAKES (label = 1) ===
     # Dig Tsho — 1985 GLOF, Khumbu region, Nepal
     # One of the most documented GLOF events. Dam failed after ice/rock avalanche.
+    # Rounce et al. (2016, HESS) published geometry; area from Vuille et al.
     LakeRecord("Dig Tsho", "Nepal", "Eastern Himalaya", 27.90, 86.59,
-        0.08, 120, 15, 1.5, 25, 0.60, 1, 1985,
-        "Fujita et al. (2013); ICIMOD (2011) [area, dam geometry published]"),
+        0.08, 460, 66, 1.5, 37.6, 0.40, 1, 1985,
+        "Rounce et al. (2016, HESS) [dam width/height/slope published; area published]"),
     # Tam Pokhari — 1998 GLOF, Makalu region, Nepal
     # Outburst triggered by ice avalanche into lake.
     LakeRecord("Tam Pokhari", "Nepal", "Eastern Himalaya", 27.70, 87.00,
@@ -127,14 +128,16 @@ _RECORDS: list[LakeRecord] = [
         "ICIMOD (2011) [area approx, dam approx]"),
     # Lugge Tsho — 1994 GLOF, Bhutan
     # Well-studied event; dam failed after rapid lake level rise.
+    # Fujita/NCHM published geometry; area from Komori et al. (2012)
     LakeRecord("Lugge Tsho", "Bhutan", "Eastern Himalaya", 27.90, 89.95,
-        0.15, 150, 20, 1.2, 22, 1.20, 1, 1994,
-        "Komori et al. (2012) [area, dam geometry published]"),
+        0.15, 180, 40, 1.2, 22, 1.14, 1, 1994,
+        "Komori et al. (2012); Fujita/NCHM [dam width/height/area published]"),
     # South Lhonak — 2023 GLOF, Sikkim, India
     # Recent catastrophic event; dam collapsed after heavy rainfall.
+    # Sattar et al. (2023) satellite-derived area; dam geometry approx
     LakeRecord("South Lhonak", "India", "Eastern Himalaya", 27.70, 88.60,
-        0.18, 200, 18, 3.5, 20, 1.70, 1, 2023,
-        "Shrestha et al. (2023); satellite-derived area [dam approx]"),
+        0.18, 200, 18, 3.5, 20, 1.40, 1, 2023,
+        "Sattar et al. (2023) [area published; dam approx]"),
     # Gya — 2014 GLOF, Ladakh, India
     # Outburst from moraine-dammed lake in arid Trans-Himalaya.
     LakeRecord("Gya", "India", "Western Himalaya", 33.80, 77.50,
@@ -179,13 +182,15 @@ _RECORDS: list[LakeRecord] = [
 
     # === STABLE LAKES (label = 0) ===
     # Imja Tsho — extensively studied, stable despite rapid growth
+    # Rounce et al. (2016, HESS) published geometry; area from Byers et al.
     LakeRecord("Imja Tsho", "Nepal", "Eastern Himalaya", 27.90, 86.93,
-        0.11, 350, 12, 0.5, 20, 1.28, 0, None,
-        "Byers et al. (2019); ICIMOD (2020) [area, dam published]"),
+        0.11, 650, 58.6, 0.5, 1.7, 1.561, 0, None,
+        "Rounce et al. (2016, HESS); Byers et al. (2019) [dam width/height/slope/area published]"),
     # Tsho Rolpa — stabilized with engineering intervention
+    # Rounce et al. (2016, HESS) published geometry
     LakeRecord("Tsho Rolpa", "Nepal", "Eastern Himalaya", 27.85, 86.47,
-        0.06, 200, 20, 0.4, 18, 1.50, 0, None,
-        "ICIMOD (2011); Rana et al. (2000) [area, dam published]"),
+        0.06, 530, 155.9, 0.4, 3.0, 1.610, 0, None,
+        "Rounce et al. (2016, HESS); ICIMOD (2011) [dam width/height/slope/area published]"),
     # Thulagi — stable, monitored
     LakeRecord("Thulagi", "Nepal", "Central Himalaya", 28.50, 84.80,
         0.04, 250, 15, 0.3, 15, 0.80, 0, None,
