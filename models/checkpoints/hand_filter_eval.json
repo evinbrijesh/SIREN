@@ -1,0 +1,28 @@
+{
+  "stage_threshold_m": 10.0,
+  "channel_threshold": 100.0,
+  "test_chips": 54,
+  "chips_filtered": 9,
+  "raw_global_iou": 0.2630827724357876,
+  "filtered_global_iou": 0.2658139625109463,
+  "iou_delta": 0.002731190075158707,
+  "raw_mean_chip_iou": 0.16980477956154214,
+  "filtered_mean_chip_iou": 0.1709377392454855,
+  "per_event_raw": {
+    "Pakistan": 0.2046700729966429,
+    "Somalia": 0.13225754047758753
+  },
+  "per_event_filtered": {
+    "Pakistan": 0.20685506667281933,
+    "Somalia": 0.13225754047758753
+  },
+  "raw_tp": 383752,
+  "raw_fp": 705698,
+  "raw_fn": 369224,
+  "filtered_tp": 383678,
+  "filtered_fp": 690432,
+  "filtered_fn": 369298,
+  "fp_removed": 15266,
+  "tp_removed": 74,
+  "eval_time_s": 38.2
+}
