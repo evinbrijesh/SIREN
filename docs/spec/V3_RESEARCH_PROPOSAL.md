@@ -240,7 +240,8 @@ Retrospective validation on the **South Lhonak Oct 2023 GLOF** (pre/post Sentine
 - [x] HEC-RAS synthetic run generation harness
 - [x] FNO-2D trained; arrival-time MAE reported on held-out runs
 - [x] South Lhonak retrospective validation within tolerance
-- [ ] `h_water` grid intersect + `T_arrival` wired into corridor + personnel + payload (250-byte test green)
+- [x] `T_arrival` wired into corridor + payload as shadow telemetry (250-byte test green) — [ADR-012](../adr/ADR-012-fno-hydrodynamic-surrogate.md)
+- [ ] `h_water` grid intersect supersedes static tolerance buffers (load-bearing — requires multi-basin validation + new ADR per ADR-012 §4)
 
 ### 4.7 Sprint 3 Results — FNO-2D Training & South Lhonak Validation
 
@@ -298,8 +299,11 @@ Chungthang is at 20.7% — just outside the 20% gate for that single point, but 
   Copernicus GLO-30 terrain. Real DEM data would improve OOD generalization.
 - The wave-speed window [7, 10] m/s is calibrated to the South Lhonak event.
   Other basins with different channel geometries may require recalibration.
-- The FNO remains shadow-only per ADR-011. A new ADR is required before
-  `h_water`/`T_arrival` may supersede static tolerance buffers in production.
+- The FNO remains shadow-only per ADR-012 (accepted 2026-09-10). The
+  `h_water`/`T_arrival` shadow telemetry is wired into the corridor + payload,
+  but may not supersede static tolerance buffers until multi-basin
+  hydrodynamic validation (Chamoli 2021, Dig Tsho 1985) is complete and a
+  subsequent load-bearing ADR is accepted.
 
 ---
 
@@ -326,7 +330,7 @@ This RFC does **not** replace ADR-010 wholesale. It supersedes only these clause
 | 2-channel frozen contract (§4.1) | 4-channel contract | Phase 1 event-holdout IoU > 0.65 |
 | "No ML term in hazard score" (§3) | P_breach may enter H as a sixth factor | Phase 2 shadow-mode shows calibrated improvement over rules-only baseline + new ADR |
 | ConvLSTM replaced by deterministic trend (§1, §2) | Deterministic trailing engine stays; learned transformer still deferred | (no change — Phase 3.1 is the deterministic engine ADR-010 already mandates) |
-| ML shadow-only, never load-bearing (§3) | FNO `h_water`/`T_arrival` may supersede static buffers | Phase 3 South Lhonak validation within tolerance + new ADR |
+| ML shadow-only, never load-bearing (§3) | FNO `h_water`/`T_arrival` shadow telemetry wired (ADR-012); load-bearing supersession of static buffers still requires multi-basin validation + new ADR | Phase 3 South Lhonak validation within tolerance — **DONE (ADR-012, 12.3% MAPE)**; load-bearing gate: multi-basin (Chamoli + Dig Tsho) |
 
 All other ADR-010 clauses (input contract discipline, event-level splits, license review, model registry honesty, shadow-mode-first) remain in force.
 
