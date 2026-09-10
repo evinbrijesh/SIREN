@@ -1,0 +1,29 @@
+{
+  "model": "4ch",
+  "stage_threshold_m": 10.0,
+  "channel_threshold": 100.0,
+  "test_chips": 54,
+  "chips_filtered": 8,
+  "raw_global_iou": 0.27772568543603793,
+  "filtered_global_iou": 0.277922433533718,
+  "iou_delta": 0.00019674809768005508,
+  "raw_mean_chip_iou": 0.18640021094679918,
+  "filtered_mean_chip_iou": 0.18653021703194914,
+  "per_event_raw": {
+    "Pakistan": 0.24585047366898047,
+    "Somalia": 0.12237685109214233
+  },
+  "per_event_filtered": {
+    "Pakistan": 0.24610119969034114,
+    "Somalia": 0.12237685109214233
+  },
+  "raw_tp": 332917,
+  "raw_fp": 445750,
+  "raw_fn": 420059,
+  "filtered_tp": 332913,
+  "filtered_fp": 444887,
+  "filtered_fn": 420063,
+  "fp_removed": 863,
+  "tp_removed": 4,
+  "eval_time_s": 45.5
+}

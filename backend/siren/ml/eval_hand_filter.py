@@ -43,6 +43,8 @@ def main():
                         help="Flow accumulation threshold for channel identification")
     parser.add_argument("--device", default="auto", help="Device (auto/cuda/cpu)")
     parser.add_argument("--batch-size", type=int, default=4, help="Batch size")
+    parser.add_argument("--model", default="2ch", choices=["2ch", "4ch"],
+                        help="Which checkpoint to evaluate: 2ch baseline or 4ch terrain-aware")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -65,32 +67,42 @@ def main():
         device = "cpu"
     logger.info("Device: %s", device)
 
-    # Load 2-channel baseline checkpoint
-    ckpt_path = CHECKPOINT_DIR / "water_resunet_2ch_baseline.pt"
+    # Load checkpoint based on model selection
+    if args.model == "4ch":
+        ckpt_path = CHECKPOINT_DIR / "water_resunet_4ch_v1.pt"
+        in_channels = 4
+        use_copernicus_dem = True
+        model_label = "4-channel (VV, VH, DEM, Slope)"
+    else:
+        ckpt_path = CHECKPOINT_DIR / "water_resunet_2ch_baseline.pt"
+        in_channels = 2
+        use_copernicus_dem = False
+        model_label = "2-channel (VV, VH)"
+
     if not ckpt_path.exists():
-        logger.error("2ch baseline checkpoint not found: %s", ckpt_path)
+        logger.error("Checkpoint not found: %s", ckpt_path)
         return
 
     state = torch.load(str(ckpt_path), map_location=device, weights_only=False)
-    model = WaterResUNet(in_channels=2, base_channels=state.get("base_channels", 32)).to(device)
+    model = WaterResUNet(in_channels=in_channels, base_channels=state.get("base_channels", 32)).to(device)
     model.load_state_dict(state["model_state"])
     model.eval()
-    logger.info("Loaded 2ch baseline checkpoint (test IoU from training: %.4f)", state.get("test_iou", 0))
+    logger.info("Loaded %s checkpoint (test IoU from training: %.4f)", model_label, state.get("test_iou", 0))
 
-    # Build test dataset (2-channel mode for inference)
+    # Build test dataset
     test_ds = WaterSegmentationDataset(
-        split="test", strategy="event_holdout", use_copernicus_dem=False,
+        split="test", strategy="event_holdout", use_copernicus_dem=use_copernicus_dem,
     )
     logger.info("Test chips: %d (events: %s)", len(test_ds), sorted(test_ds.events()))
 
     # Evaluate raw predictions (no HAND filter)
-    logger.info("Evaluating raw 2-channel predictions (no HAND filter)...")
+    logger.info("Evaluating raw %s predictions (no HAND filter)...", model_label)
     raw_ious = []
     raw_tp = raw_fp = raw_fn = 0
     per_chip_raw = []
 
     # Evaluate with HAND filter
-    logger.info("Evaluating 2-channel + HAND post-filter (threshold=%.1fm)...", args.stage_threshold)
+    logger.info("Evaluating %s + HAND post-filter (threshold=%.1fm)...", model_label, args.stage_threshold)
     filtered_ious = []
     filtered_tp = filtered_fp = filtered_fn = 0
     per_chip_filtered = []
@@ -195,7 +207,7 @@ def main():
     iou_delta = filt_global_iou - raw_global_iou
     print()
     print("=" * 70)
-    print("Level 2 Phase 2: HAND Post-Filter Evaluation")
+    print(f"Level 2 Phase 2: HAND Post-Filter Evaluation ({model_label})")
     print("=" * 70)
     print(f"  Test chips: {len(test_ds)} (events: {sorted(test_ds.events())})")
     print(f"  HAND stage threshold: {args.stage_threshold}m")
@@ -203,8 +215,8 @@ def main():
     print(f"  Evaluation time: {eval_time:.1f}s")
     print(f"  Chips with predictions removed: {chips_filtered_count}/{len(test_ds)}")
     print()
-    print(f"  Raw 2ch IoU (global):     {raw_global_iou:.4f}")
-    print(f"  2ch + HAND IoU (global):   {filt_global_iou:.4f}")
+    print(f"  Raw {args.model} IoU (global):     {raw_global_iou:.4f}")
+    print(f"  {args.model} + HAND IoU (global):   {filt_global_iou:.4f}")
     print(f"  IoU delta:                 {iou_delta:+.4f}")
     print()
     print(f"  Raw mean chip IoU:         {np.mean(raw_ious):.4f}")
@@ -224,8 +236,9 @@ def main():
     print("=" * 70)
 
     # Save results
-    results_path = CHECKPOINT_DIR / "hand_filter_eval.json"
+    results_path = CHECKPOINT_DIR / f"hand_filter_eval_{args.model}.json"
     results = {
+        "model": args.model,
         "stage_threshold_m": args.stage_threshold,
         "channel_threshold": args.channel_threshold,
         "test_chips": len(test_ds),

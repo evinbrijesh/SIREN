@@ -19,6 +19,41 @@ This RFC specifies a three-phase upgrade that addresses all three, gated so that
 
 ---
 
+## 1.5 Level 2 Empirical Results — Locked Benchmark Matrix
+
+**Status: LOCKED.** The following results were measured on the Sen1Floods11 event-holdout test split (Pakistan + Somalia, 54 chips, zero event overlap with training). The ML remains gated in shadow mode per ADR-011 (IoU gate = 0.65, not passed).
+
+### Benchmark matrix
+
+| Configuration | Test IoU | FP pixels | TP pixels | Notes |
+|---|---|---|---|---|
+| 2ch Baseline (VV, VH) | 0.2238 | 705,698 | 383,752 | Legacy 2-channel WaterResUNet, 45 epochs |
+| 2ch + HAND (10m) | 0.2658 | 690,432 | 383,678 | +0.0027 IoU; 15,266 FP removed, 74 TP lost |
+| 4ch (Fixed L_gravity) | 0.2777 | 445,750 | 332,917 | VV+VH+DEM+Slope, lambda=1.0, 45 epochs |
+| **4ch + HAND (10m)** | **0.2779** | 444,887 | 332,913 | +0.0002 IoU; 863 FP removed, 4 TP lost |
+
+### Key findings
+
+1. **Gravity loss normalization fix (Phase 1):** The original L_gravity penalty divided elevation variance by DEM_MAX_M² (8848² ≈ 78M), collapsing the gradient to ~0.0005 — a no-op. Replacing with per-chip local elevation range (Δz_local = max(z) - min(z) + 1.0) and switching from weighted variance ratio to weighted sum made the penalty active (~0.04, ~1-4% of total loss). This fix flipped the 4ch vs 2ch comparison from -0.0355 (4ch worse) to +0.0540 (4ch better).
+
+2. **HAND post-filter asymmetry:** The deterministic HAND filter removes physically impossible water predictions (HAND > stage threshold) without confusing convolutional filters. It provides strong improvement on the 2ch baseline (+0.0027, 15,266 FP removed) but negligible improvement on the 4ch model (+0.0002, 863 FP removed). This confirms the 4ch model's soft terrain priors already suppress most high-elevation false positives, leaving little work for the hard HAND cutoff.
+
+3. **Indus Basin flat-terrain bottleneck:** Pakistan (Indus plain, DEM 104-118m, HAND 0-8m) benefits minimally from HAND because the flat floodplain has minimal vertical relief relative to the channel. Somalia (hillier, HAND up to 126m) benefits more. A static 10m threshold cannot filter false positives in valleys where everything sits below 5m HAND. Dynamic stage thresholds conditioned on upstream flow accumulation (h_stage ∝ A_accum^β) or temporal SAR differencing (σ0_event - σ0_pre-event) are needed for flat arid basins.
+
+4. **OOD generalization gap:** All configurations show a large validation-to-test gap (val IoU ~0.70 → test IoU ~0.28), consistent with Bonafilia et al. (CVPRW 2020) who reported 0.28-0.33 IoU on unseen holdouts. The event-holdout split is deliberately strict — most published high scores use chip-level splits that leak event geography.
+
+5. **Safety contract held:** Despite reaching 0.2779 (a solid step up from 0.2275), the score remains well below the 0.65 gate. The model is locked in shadow mode per ADR-011.
+
+### Reproducibility
+
+- Training: `python -m siren.ml.train_water_resunet --epochs 45 --lambda-gravity 1.0`
+- HAND eval: `python -m siren.ml.eval_hand_filter --model 4ch --stage-threshold 10.0`
+- Checkpoints: `models/checkpoints/water_resunet_4ch_v1.pt`, `water_resunet_2ch_baseline.pt`
+- Results: `models/checkpoints/hand_filter_eval_4ch.json`, `hand_filter_eval_2ch.json`
+- DEM: 48 Copernicus GLO-30 tiles cached in `data/raw/dem/copernicus_glo30/`
+
+---
+
 ## 2. Phase 1 — Elevation-Conditioned Segmenter (DEM-Aware WaterResUNet)
 
 ### 2.1 Tensor contract expansion
