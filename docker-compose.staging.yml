@@ -1,0 +1,151 @@
+# SIREN — Docker Compose Staging Override
+# Production live-staging stack: PostgreSQL/PostGIS + Redis + Celery worker/beat.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.staging.yml up --build
+#
+# This override adds:
+#   - postgres:    PostgreSQL 16 + PostGIS 3.4 (production database)
+#   - redis:       Redis 7 (Celery broker + result backend)
+#   - celery-worker: Celery worker running the STAC daemon tasks
+#   - celery-beat:  Celery beat scheduler (polls CDSE STAC every 6h)
+#   - staging-runner: One-shot E2E orchestrator (runs the full pipeline)
+#
+# The backend service is overridden to receive DATABASE_URL + REDIS_URL so
+# get_repository() auto-detects PostgreSQL (ADR-011).
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL + PostGIS (production database)
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_DB: siren
+      POSTGRES_USER: siren
+      POSTGRES_PASSWORD: siren_staging
+    ports:
+      - "5433:5432"  # 5433 to avoid conflicts with local PostgreSQL
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backend/siren/db/postgres_schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U siren -d siren"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Redis (Celery broker + result backend)
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"  # 6380 to avoid conflicts with local Redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Backend (override: add DATABASE_URL + REDIS_URL + production deps)
+  # ---------------------------------------------------------------------------
+  backend:
+    environment:
+      - DATABASE_URL=postgresql://siren:siren_staging@postgres:5432/siren
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - SIREN_DB_PATH=/app/data/siren.db
+      - SIREN_PROJECT_ROOT=/app
+      - SIREN_RAW_DIR=/app/data/raw
+      - SIREN_PROCESSED_DIR=/app/data/processed
+      - SIREN_DEM_PATH=/app/data/raw/srtm_30m.tif
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # Celery worker — STAC daemon task consumer
+  # ---------------------------------------------------------------------------
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    command: >
+      celery -A siren.ingest.stac_daemon_celery worker
+      --loglevel=info --concurrency=2
+    environment:
+      - DATABASE_URL=postgresql://siren:siren_staging@postgres:5432/siren
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - SIREN_PROJECT_ROOT=/app
+      - SIREN_RAW_DIR=/app/data/raw
+      - SIREN_PROCESSED_DIR=/app/data/processed
+      - SIREN_DEM_PATH=/app/data/raw/srtm_30m.tif
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Celery beat — STAC poll scheduler (every 6 hours)
+  # ---------------------------------------------------------------------------
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    command: >
+      celery -A siren.ingest.stac_daemon_celery beat
+      --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql://siren:siren_staging@postgres:5432/siren
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - SIREN_PROJECT_ROOT=/app
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Staging runner — one-shot E2E orchestrator
+  # Runs the full pipeline: STAC poll -> register -> calibrate -> pipeline ->
+  # FNO forward pass -> audit ledger -> verify hash chain.
+  # ---------------------------------------------------------------------------
+  staging-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    command: python -m siren.staging.orchestrator
+    environment:
+      - DATABASE_URL=postgresql://siren:siren_staging@postgres:5432/siren
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - SIREN_PROJECT_ROOT=/app
+      - SIREN_RAW_DIR=/app/data/raw
+      - SIREN_PROCESSED_DIR=/app/data/processed
+      - SIREN_DEM_PATH=/app/data/raw/srtm_30m.tif
+      - SIREN_STAGING_MODE=live
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    profiles:
+      - staging  # only runs with --profile staging
+
+volumes:
+  pgdata:
