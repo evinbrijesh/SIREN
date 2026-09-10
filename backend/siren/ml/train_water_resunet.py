@@ -268,7 +268,8 @@ def main():
     parser.add_argument("--epochs", type=int, default=45, help="Number of training epochs")
     parser.add_argument("--batch-size", type=int, default=4, help="Batch size")
     parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
-    parser.add_argument("--lambda-gravity", type=float, default=0.1, help="Gravity loss weight")
+    parser.add_argument("--lambda-gravity", type=float, default=1.0,
+                        help="Gravity loss weight (1.0 to achieve ~5-15%% of total loss)")
     parser.add_argument("--base-channels", type=int, default=32, help="Base channel count")
     parser.add_argument("--strategy", default="event_holdout", choices=["official", "event_holdout"])
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
