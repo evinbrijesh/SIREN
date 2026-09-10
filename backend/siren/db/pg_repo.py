@@ -657,7 +657,7 @@ class PostgresRepository:
                 "actor": row["actor"],
                 "action": row["action"],
                 "detail_json": json.dumps(detail) if isinstance(detail, dict) else detail,
-                "created_at": row["created_at"].isoformat() if hasattr(row["created_at"], "isoformat") else row["created_at"],
+                "created_at": row["created_at"].strftime("%Y-%m-%dT%H:%M:%SZ") if hasattr(row["created_at"], "strftime") else row["created_at"],
                 "prev_hash": row["prev_hash"],
                 "event_hash": row["event_hash"],
             })
@@ -678,7 +678,13 @@ class PostgresRepository:
             detail_str = row["detail"]
             if isinstance(detail_str, dict):
                 detail_str = json.dumps(detail_str, sort_keys=True, separators=(",", ":"), default=str)
-            created_at = row["created_at"].isoformat() if hasattr(row["created_at"], "isoformat") else row["created_at"]
+            # Normalize created_at to match _utcnow_iso() format: "%Y-%m-%dT%H:%M:%SZ"
+            # PostgreSQL returns a datetime object; isoformat() gives +00:00, not Z.
+            created_at = row["created_at"]
+            if hasattr(created_at, "strftime"):
+                created_at = created_at.strftime("%Y-%m-%dT%H:%M:%SZ")
+            elif hasattr(created_at, "isoformat"):
+                created_at = created_at.isoformat()
             recomputed = event_hash(row["prev_hash"], created_at, detail_str)
             if recomputed != row["event_hash"]:
                 return False

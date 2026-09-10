@@ -40,6 +40,8 @@ production = [
     "celery>=5.3",
     "redis>=5.0",
     "shapely>=2.0",   # already in core, listed here for clarity
+    "xgboost>=2.0",
+    "shap>=0.44",
 ]
 
 [tool.setuptools.packages.find]
