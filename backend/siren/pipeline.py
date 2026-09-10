@@ -764,6 +764,33 @@ def run_pipeline(
         logger.warning(f"Shadow evidence attachment failed: {exc}")
         change_stats["shadow_evidence"] = {"error": str(exc), "is_shadow": True}
 
+    # 7c. Wire FNO arrival horizons to the corridor (Sprint 3, shadow-only).
+    # If the FNO surrogate was triggered (P_breach ≥ 0.70) and produced
+    # sector arrival times, attach them to the corridor exposures. This
+    # does NOT modify the deterministic corridor or hazard score — it
+    # enriches the corridor result with shadow telemetry for the review
+    # card UI and audit lineage. Provenance is tagged "fno_surrogate_v1".
+    shadow = change_stats.get("shadow_evidence", {})
+    hydro = shadow.get("hydro_surrogate", {}) if isinstance(shadow, dict) else {}
+    if isinstance(hydro, dict) and hydro.get("t_arrival_by_sector"):
+        try:
+            from siren.geo.corridor import attach_arrival_horizons
+            attach_arrival_horizons(
+                corridor_result=corridor_geojson,
+                t_arrival_by_sector=hydro["t_arrival_by_sector"],
+                provenance=hydro.get("provenance", "fno_surrogate_v1"),
+            )
+            # Also tag exposures with arrival times for the DB
+            for exp in exposures:
+                name = exp.get("name", "") or exp.get("asset_id", "")
+                for sector, t in hydro["t_arrival_by_sector"].items():
+                    if sector.lower() in name.lower() or name.lower() in sector.lower():
+                        exp["t_arrival_min"] = round(float(t), 1)
+                        exp["fno_provenance"] = hydro.get("provenance", "fno_surrogate_v1")
+                        break
+        except Exception as exc:
+            logger.warning(f"FNO arrival horizon attachment failed: {exc}")
+
     # 8. Write results to DB
     repo.complete_run(
         run_id=run_id,

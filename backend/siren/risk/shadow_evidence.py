@@ -231,26 +231,147 @@ def _compute_shadow_hydro(
     p_breach: float,
     dem_path: str | None,
 ) -> dict[str, Any]:
-    """Compute FNO hydrodynamic surrogate as shadow evidence.
+    """Compute FNO hydrodynamic surrogate as shadow evidence (Sprint 3).
 
-    Triggered only when P_breach ≥ 0.70 (V3 §4.3). In demo mode, returns
-    a simulated result.
+    Triggered only when P_breach ≥ 0.70 (V3 §4.3). Loads the trained FNO-2D
+    checkpoint (``models/checkpoints/fno_hydro_surrogate_v1.pt``) and runs
+    real inference to produce the dynamic water depth grid and sector-level
+    arrival times. The output is tagged with provenance ``"fno_surrogate_v1"``
+    for audit lineage.
+
+    The FNO predicts ``h_water(x,y)``; ``T_arrival`` is then computed
+    deterministically from ``h_water`` using the shallow-water wave celerity
+    formula (Sprint 3 architectural decision — separates learned vision
+    from deterministic hydraulics).
+
+    If the checkpoint is unavailable or inference fails, falls back to a
+    simulated result (demo mode).
     """
-    from siren.geo.hydro_surrogate import HydroSurrogate, FNO_TRIGGER_GATE
+    from siren.geo.hydro_surrogate import FNO_TRIGGER_GATE
+    from pathlib import Path
 
-    # In demo mode, we don't have a trained FNO model — return the trigger
-    # status and what would be computed
-    return {
-        "is_triggered": True,
-        "p_breach": round(p_breach, 4),
-        "trigger_gate": FNO_TRIGGER_GATE,
-        "note": (
-            "FNO hydrodynamic surrogate triggered (P_breach >= 0.70). "
-            "In demo mode, h_water and T_arrival are not computed — "
-            "production would run the trained FNO model to produce the "
-            "dynamic water depth grid and arrival times at named points."
-        ),
-    }
+    provenance = "fno_surrogate_v1"
+
+    # Locate the trained checkpoint
+    repo_root = Path(__file__).resolve().parents[3]
+    ckpt_path = repo_root / "models" / "checkpoints" / "fno_hydro_surrogate_v1.pt"
+
+    if not ckpt_path.exists():
+        logger.info("FNO checkpoint not found (%s) — returning simulated result", ckpt_path)
+        return {
+            "is_triggered": True,
+            "p_breach": round(p_breach, 4),
+            "trigger_gate": FNO_TRIGGER_GATE,
+            "provenance": provenance,
+            "note": (
+                "FNO triggered (P_breach >= 0.70) but no trained checkpoint "
+                "found. Run train_fno_surrogate.py to produce the checkpoint."
+            ),
+        }
+
+    try:
+        import torch
+        import numpy as np
+        from siren.geo.hydro_surrogate import FNO2D, DEFAULT_NAMED_POINTS, DEFAULT_GRID_SIZE
+        from siren.ml.train_fno_surrogate import generate_teesta_corridor_dem
+
+        # Load checkpoint
+        state = torch.load(str(ckpt_path), map_location="cpu", weights_only=False)
+        model = FNO2D(
+            modes=state["modes"],
+            width=state["width"],
+            n_points=state["n_points"],
+            n_layers=state["n_layers"],
+        )
+        model.load_state_dict(state["model_state"])
+        model.eval()
+
+        grid_size = state.get("grid_size", DEFAULT_GRID_SIZE)
+
+        # Generate a Teesta-style corridor DEM for inference. In production,
+        # this would use the actual basin DEM (Copernicus GLO-30) resized to
+        # the FNO's grid. For shadow mode, the synthetic corridor DEM
+        # demonstrates the wiring without requiring real terrain data.
+        dem = generate_teesta_corridor_dem(
+            grid_size=grid_size,
+            source_elev=5200,
+            outlet_elev=400,
+            upper_slope=8.0,
+            lower_slope=3.0,
+            random_state=42,
+        )
+
+        # Normalise DEM to [0, 1]
+        dem_min, dem_max = float(dem.min()), float(dem.max())
+        dem_norm = (dem - dem_min) / (dem_max - dem_min) if dem_max > dem_min else np.zeros_like(dem)
+
+        # Breach volume from obs_config (demo: use South Lhonak-scale default)
+        v_breach = obs_config.get("v_breach_m3", 45e6)
+        v_norm = float(np.log1p(v_breach) / 20.0)
+
+        # Prepare input tensor: (1, 2, H, W) — DEM + V_breach (broadcast)
+        v_grid = np.full_like(dem_norm, v_norm, dtype=np.float32)
+        x = np.stack([dem_norm, v_grid], axis=0)[np.newaxis]
+        x_tensor = torch.from_numpy(x).float()
+
+        # Run FNO inference
+        with torch.no_grad():
+            output = model(x_tensor)
+
+        h_water = output["h_water"][0, 0].numpy()
+
+        # Compute T_arrival deterministically from h_water (Sprint 3 design)
+        source_row, source_col = np.unravel_index(np.argmax(dem), dem.shape)
+        rows, cols = np.indices(dem.shape)
+        dist_cells = np.sqrt((rows - source_row) ** 2 + (cols - source_col) ** 2)
+        cell_size_m = 1330.0  # 85km / 64 cells
+        wave_speed = np.sqrt(9.81 * np.maximum(h_water, 0.1))
+        wave_speed = np.clip(wave_speed, 7.0, 10.0)
+        t_arrival_grid = (dist_cells * cell_size_m / wave_speed / 60.0).astype(np.float32)
+
+        # Extract T_arrival at downstream sectors (named points)
+        # Map the 3 default named points to downstream distances
+        sector_distances = {
+            "Hillary Bridge": 0.33,  # ~1/3 downstream
+            "Benkar": 0.67,           # ~2/3 downstream
+            "Jorsale": 0.85,          # near outlet
+        }
+        t_arrival_by_sector: dict[str, float] = {}
+        for name, frac in sector_distances.items():
+            row = int(frac * (grid_size - 1))
+            col = grid_size // 2
+            r0, r1 = max(0, row - 2), min(grid_size, row + 3)
+            c0, c1 = max(0, col - 2), min(grid_size, col + 3)
+            t_arrival_by_sector[name] = round(float(np.mean(t_arrival_grid[r0:r1, c0:c1])), 1)
+
+        return {
+            "is_triggered": True,
+            "p_breach": round(p_breach, 4),
+            "trigger_gate": FNO_TRIGGER_GATE,
+            "provenance": provenance,
+            "checkpoint": str(ckpt_path.name),
+            "h_water_max_m": round(float(h_water.max()), 2),
+            "h_water_mean_m": round(float(h_water.mean()), 4),
+            "t_arrival_by_sector": t_arrival_by_sector,
+            "is_shadow": True,
+            "note": (
+                "FNO-2D surrogate inference completed (shadow mode per ADR-011). "
+                "h_water predicted by FNO; T_arrival computed deterministically "
+                "from h_water via shallow-water wave celerity. Does not supersede "
+                "static tolerance buffers until a new ADR authorizes load-bearing use."
+            ),
+        }
+
+    except Exception as exc:
+        logger.warning("FNO inference failed: %s — returning error result", exc)
+        return {
+            "is_triggered": True,
+            "p_breach": round(p_breach, 4),
+            "trigger_gate": FNO_TRIGGER_GATE,
+            "provenance": provenance,
+            "error": str(exc),
+            "is_shadow": True,
+        }
 
 
 def shadow_dispatch(
