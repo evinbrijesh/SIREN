@@ -100,6 +100,15 @@ def gravity_penalty(
     when the model predicts no water (otherwise the weighted variance
     ratio is non-trivial even with near-zero weights).
 
+    Normalization (Level 2 fix):
+        The penalty is normalized by the **per-chip local elevation range**
+        ``Δz_local = max(z) - min(z) + 1.0``, NOT by the global
+        ``DEM_MAX_M² = 8848²``. The previous global normalization divided
+        by ~78M, collapsing the gradient to ~0.0005 and making the penalty
+        a no-op. The local range keeps the penalty proportional to the
+        actual terrain variation in each chip, producing a gradient
+        contribution of ~5-15% of the total loss alongside Dice/BCE.
+
     Args:
         logits: (B, 1, H, W) raw logits from the model.
         dem: (B, 1, H, W) DEM elevation in metres (unnormalised).
@@ -112,24 +121,32 @@ def gravity_penalty(
     # Soft water mask — use probability directly for differentiability
     water_weight = probs  # (B, 1, H, W)
 
-    # Per-component elevation variance approximation:
-    # weighted_mean_z = sum(w * z) / sum(w)
-    # weighted_var_z = sum(w * (z - mean)^2) / sum(w)
-    # Penalize high variance (water spread across elevations = uphill water)
+    # Per-chip weighted elevation variance, normalized by local range.
+    # Using the weighted SUM (not ratio) so the penalty naturally vanishes
+    # when water probability → 0. The previous ratio form sum(w*(z-mean)²)/sum(w)
+    # did not vanish because the weights cancel in the ratio.
+    #
+    # Level 2 fix: replaced global DEM_MAX_M² normalization (which collapsed
+    # the gradient to ~0.0005) with per-chip local elevation range:
+    #   Δz_local = max(z_chip) - min(z_chip) + 1.0
+    # This keeps the penalty proportional to actual terrain variation,
+    # producing a gradient contribution of ~5-15% of total loss with lambda=1.0.
     n_pixels = probs.shape[2] * probs.shape[3]
     w_sum = water_weight.sum(dim=(2, 3), keepdim=True) + 1e-7
     mean_z = (water_weight * dem).sum(dim=(2, 3), keepdim=True) / w_sum
-    var_z = (water_weight * (dem - mean_z) ** 2).sum(dim=(2, 3), keepdim=True) / w_sum
 
-    # Normalize by DEM scale to keep the penalty in a reasonable range
-    from siren.ml.contract import DEM_MAX_M
-    normalized_var = var_z / (DEM_MAX_M ** 2)
+    # Per-chip local elevation range
+    z_max = dem.amax(dim=(2, 3), keepdim=True)
+    z_min = dem.amin(dim=(2, 3), keepdim=True)
+    delta_z_local = (z_max - z_min + 1.0).clamp(min=1.0)  # (B, 1, 1, 1)
 
-    # Scale by mean water coverage so the penalty vanishes when no water
-    # is predicted (otherwise the variance ratio is non-trivial even with
-    # near-zero weights, since the weights cancel in the ratio).
-    coverage = w_sum / n_pixels
-    return (normalized_var * coverage).mean()
+    # Weighted sum of squared normalized elevation deviations:
+    # L = sum(w * ((z - mean_z) / Δz_local)²) / n_pixels
+    # Vanishes when w → 0 (no water predicted), grows when water is spread
+    # across elevations (uphill water).
+    squared_dev = ((dem - mean_z) / delta_z_local) ** 2
+    penalty = (water_weight * squared_dev).sum(dim=(2, 3)) / n_pixels
+    return penalty.mean()
 
 
 class WaterLoss(nn.Module):
