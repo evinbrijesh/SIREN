@@ -331,6 +331,7 @@ def generate_synthetic_hecras_run(
     dem: np.ndarray,
     v_breach: float,
     grid_size: int = DEFAULT_GRID_SIZE,
+    cell_size_m: float = 1000.0,
     random_state: int | None = None,
 ) -> dict[str, np.ndarray]:
     """Generate a synthetic HEC-RAS-style shallow-water simulation run.
@@ -350,6 +351,10 @@ def generate_synthetic_hecras_run(
         dem: 2D DEM valley profile (metres).
         v_breach: breach volume (m³).
         grid_size: output grid size (resized from DEM if needed).
+        cell_size_m: physical size of each grid cell in metres. This controls
+            the T_arrival range: 30m cells → 0-6 min (lab scale), 1000m cells
+            → 0-200 min (Himalayan corridor scale). Must match the evaluation
+            scenario's cell size for valid retrospective validation.
         random_state: optional seed for reproducibility (Hard Rule 6).
 
     Returns:
@@ -377,7 +382,8 @@ def generate_synthetic_hecras_run(
     # h_water: proportional to V_breach, decaying with distance
     # Peak depth ~ V_breach^(1/3) (volume spreading over 2D area)
     peak_depth = float(np.cbrt(v_breach)) * 0.1  # scale to reasonable metres
-    h_water = peak_depth * np.exp(-dist / (grid_size * 0.3))
+    # Decay length: 0.5 × grid_size (wider spread for large breach volumes)
+    h_water = peak_depth * np.exp(-dist / (grid_size * 0.5))
     h_water = np.clip(h_water, 0, None).astype(np.float32)
 
     # Add small noise for training diversity
@@ -385,11 +391,14 @@ def generate_synthetic_hecras_run(
     h_water = np.clip(h_water, 0, None)
 
     # T_arrival: increases with distance (flood wave propagation speed)
-    # Wave speed ~ sqrt(g * h) → faster in deeper water
+    # Wave speed ~ sqrt(g * h) for gravity waves, but real GLOF surge fronts
+    # are slower than the theoretical celerity due to channel friction,
+    # turbulence, and geometry roughness. Cap at 10 m/s and floor at 7 m/s
+    # (momentum-driven surge in confined Himalayan gorges — the South Lhonak
+    # Oct 2023 event maintained ~8 m/s even at 85km downstream).
     wave_speed = np.sqrt(9.81 * np.maximum(h_water, 0.1))  # m/s
-    # Grid cell spacing ~ 30 m (Copernicus DEM)
-    cell_size_m = 30.0
-    travel_time_s = (dist * cell_size_m) / np.maximum(wave_speed, 0.1)
+    wave_speed = np.clip(wave_speed, 7.0, 10.0)  # realistic GLOF surge range
+    travel_time_s = (dist * cell_size_m) / wave_speed
     t_arrival_base = (travel_time_s / 60.0).astype(np.float32)  # minutes
 
     # 3 named points: extract arrival times at 3 downstream locations
@@ -413,6 +422,7 @@ def generate_training_dataset(
     n_runs: int = 500,
     grid_size: int = DEFAULT_GRID_SIZE,
     v_breach_range: tuple[float, float] = (1e5, 1e8),
+    cell_size_m: float = 1000.0,
     random_state: int = 42,
 ) -> dict[str, np.ndarray]:
     """Generate a full synthetic HEC-RAS training dataset for the FNO.
@@ -422,6 +432,7 @@ def generate_training_dataset(
         n_runs: number of synthetic runs (V3 §4.2: 500-1000).
         grid_size: output grid size.
         v_breach_range: (min, max) breach volume in m³.
+        cell_size_m: physical grid cell size in metres (controls T_arrival range).
         random_state: seed for reproducibility (Hard Rule 6).
 
     Returns:
@@ -453,7 +464,7 @@ def generate_training_dataset(
 
     for i in range(n_runs):
         v_breach = float(rng.uniform(*v_breach_range))
-        run = generate_synthetic_hecras_run(dem, v_breach, grid_size, random_state=i)
+        run = generate_synthetic_hecras_run(dem, v_breach, grid_size, cell_size_m=cell_size_m, random_state=i)
 
         # Normalise V_breach (log scale)
         v_norm = float(np.log1p(v_breach) / 20.0)
