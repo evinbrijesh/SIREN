@@ -285,3 +285,246 @@ def hand_exposure_mask(
         2D bool array — True where HAND ≤ h_water_stage (exposed to flooding).
     """
     return hand <= h_water_stage
+
+
+# ---------------------------------------------------------------------------
+# Level 2: Pure-numpy HAND for in-memory DEM arrays (no pysheds dependency)
+# ---------------------------------------------------------------------------
+
+def _d8_flow_direction_numpy(
+    dem: np.ndarray,
+    pixel_size_m: float = 10.0,
+) -> np.ndarray:
+    """Compute D8 flow direction from a DEM using pure numpy.
+
+    D8 assigns each cell to the steepest downslope neighbor among its 8
+    neighbors. The direction is encoded using the same ESRI DIRMAP as the
+    pysheds pipeline: (64, 128, 1, 2, 4, 8, 16, 32) for (N, NE, E, SE, S, SW, W, NW).
+
+    Cells with no downslope neighbor (pits/flat areas) get direction 0.
+
+    Args:
+        dem: 2D float32 elevation array.
+        pixel_size_m: Pixel spacing in metres (for distance weighting of
+            diagonal neighbors).
+
+    Returns:
+        2D int array with D8 direction codes (0 = pit/flat).
+    """
+    dem = np.asarray(dem, dtype=np.float32)
+    rows, cols = dem.shape
+    fdir = np.zeros((rows, cols), dtype=np.int32)
+
+    # Neighbor offsets: (dr, dc, dircode, distance_weight)
+    # Diagonal neighbors are √2 × pixel_size away
+    diag_dist = np.sqrt(2) * pixel_size_m
+    neighbors = [
+        (-1, 0, 64, pixel_size_m),    # N
+        (-1, 1, 128, diag_dist),       # NE
+        (0, 1, 1, pixel_size_m),       # E
+        (1, 1, 2, diag_dist),          # SE
+        (1, 0, 4, pixel_size_m),       # S
+        (1, -1, 8, diag_dist),         # SW
+        (0, -1, 16, pixel_size_m),     # W
+        (-1, -1, 32, diag_dist),       # NW
+    ]
+
+    # Compute elevation gradients for each neighbor direction
+    max_slope = np.full((rows, cols), -np.inf, dtype=np.float32)
+    best_dir = np.zeros((rows, cols), dtype=np.int32)
+
+    for dr, dc, dircode, dist in neighbors:
+        # Shift DEM to get neighbor elevations
+        neighbor = np.full_like(dem, np.inf)
+        if dr == -1 and dc == 0:  # N
+            neighbor[1:, :] = dem[:-1, :]
+        elif dr == -1 and dc == 1:  # NE
+            neighbor[1:, :-1] = dem[:-1, 1:]
+        elif dr == 0 and dc == 1:  # E
+            neighbor[:, :-1] = dem[:, 1:]
+        elif dr == 1 and dc == 1:  # SE
+            neighbor[:-1, :-1] = dem[1:, 1:]
+        elif dr == 1 and dc == 0:  # S
+            neighbor[:-1, :] = dem[1:, :]
+        elif dr == 1 and dc == -1:  # SW
+            neighbor[:-1, 1:] = dem[1:, :-1]
+        elif dr == 0 and dc == -1:  # W
+            neighbor[:, 1:] = dem[:, :-1]
+        elif dr == -1 and dc == -1:  # NW
+            neighbor[1:, 1:] = dem[:-1, :-1]
+
+        # Slope = (elevation - neighbor_elevation) / distance
+        slope = (dem - neighbor) / dist
+        # Update max slope and direction
+        mask = slope > max_slope
+        max_slope = np.where(mask, slope, max_slope)
+        best_dir = np.where(mask, dircode, best_dir)
+
+    # Only assign direction where there's a positive downslope
+    fdir = np.where(max_slope > 0, best_dir, 0).astype(np.int32)
+    return fdir
+
+
+def _flow_accumulation_numpy(
+    fdir: np.ndarray,
+    dem: np.ndarray,
+) -> np.ndarray:
+    """Compute flow accumulation from D8 flow direction (pure numpy).
+
+    Uses a priority-flood approach: process cells from highest to lowest
+    elevation, accumulating flow from upstream contributors.
+
+    Args:
+        fdir: 2D D8 flow direction array (0 = pit/flat).
+        dem: 2D elevation array (for sorting order).
+
+    Returns:
+        2D float32 flow accumulation array (each cell = number of upstream
+        cells draining through it, including itself).
+    """
+    fdir = np.asarray(fdir)
+    dem = np.asarray(dem, dtype=np.float32)
+    rows, cols = dem.shape
+    acc = np.ones((rows, cols), dtype=np.float32)
+
+    # Reverse neighbor mapping: direction → (dr, dc)
+    rev_neighbors = {v: k for k, v in _NEIGHBORS.items()}
+    # Invert direction: if cell A flows to B, then B receives from A.
+    # The reverse of D8 direction d is (d + 4) % 64 for the ESRI encoding,
+    # but it's simpler to compute the target cell and accumulate there.
+
+    # Sort cells by elevation (descending) — process high cells first
+    flat_elev = dem.ravel()
+    order = np.argsort(-flat_elev)  # descending
+
+    # Build a reverse direction lookup: for each direction, the (dr, dc) offset
+    # of the TARGET cell (where flow goes)
+    target_offsets = {
+        64: (-1, 0), 128: (-1, 1), 1: (0, 1), 2: (1, 1),
+        4: (1, 0), 8: (1, -1), 16: (0, -1), 32: (-1, -1),
+    }
+
+    for idx in order:
+        r, c = divmod(idx, cols)
+        d = fdir[r, c]
+        if d == 0 or d not in target_offsets:
+            continue  # pit or flat — no downstream flow
+        dr, dc = target_offsets[d]
+        nr, nc = r + dr, c + dc
+        if 0 <= nr < rows and 0 <= nc < cols:
+            acc[nr, nc] += acc[r, c]
+
+    return acc
+
+
+def compute_hand_from_array(
+    dem: np.ndarray,
+    pixel_size_m: float = 10.0,
+    channel_threshold: float = 100.0,
+) -> np.ndarray:
+    """Compute HAND from an in-memory DEM array (pure numpy, no pysheds).
+
+    This is the Level 2 entry point for computing HAND on Sen1Floods11 chip
+    DEMs that are already reprojected to the chip grid. It avoids the
+    pysheds/numba Python 3.14 incompatibility by implementing D8 flow
+    direction and accumulation in pure numpy.
+
+    Algorithm:
+        1. Fill depressions (simple sink-fill via scipy.ndimage)
+        2. Compute D8 flow direction (steepest downslope neighbor)
+        3. Compute flow accumulation (priority-flood ordering)
+        4. Identify channels (accumulation ≥ threshold)
+        5. Trace downstream from each cell to nearest channel
+        6. HAND = cell_elevation - channel_elevation
+
+    Args:
+        dem: 2D float32 elevation array (metres).
+        pixel_size_m: Pixel spacing in metres.
+        channel_threshold: Flow accumulation threshold for channel cells.
+            Lower values identify more channels (finer drainage network).
+            For 512×512 chips at 10m, ~100 cells ≈ 0.01 km² drainage area.
+
+    Returns:
+        2D float32 HAND array (metres above nearest drainage).
+        Channel cells have HAND = 0; cells draining to boundaries have
+        HAND = 0 (treated as at drainage level).
+    """
+    from scipy.ndimage import minimum_filter
+
+    dem = np.asarray(dem, dtype=np.float32)
+    rows, cols = dem.shape
+
+    # Step 1: Simple sink fill — replace each cell with the minimum of its
+    # 3×3 neighborhood if it's a local minimum. This is a one-pass approximation
+    # of the full depression filling. For floodplain DEMs (mostly flat), this
+    # is sufficient. For complex terrain, multiple passes would be needed.
+    filled = dem.copy()
+    # Iterative sink fill: raise sinks to the minimum of their neighbors
+    for _ in range(10):  # limited iterations for performance
+        local_min = minimum_filter(filled, size=3, mode="nearest")
+        sinks = filled < local_min
+        if not sinks.any():
+            break
+        filled = np.where(sinks, local_min, filled)
+
+    # Step 2: D8 flow direction
+    fdir = _d8_flow_direction_numpy(filled, pixel_size_m)
+
+    # Step 3: Flow accumulation
+    acc = _flow_accumulation_numpy(fdir, filled)
+
+    # Step 4: Channel identification
+    channel_mask = acc >= channel_threshold
+
+    # Step 5: Trace HAND
+    hand = _trace_hand(fdir, filled, channel_mask)
+
+    return hand.astype(np.float32)
+
+
+def apply_hand_filter(
+    prob_mask: np.ndarray,
+    hand_grid: np.ndarray,
+    stage_threshold_m: float = 15.0,
+) -> np.ndarray:
+    """Apply deterministic HAND post-filter to a water probability mask.
+
+    This is the Level 2 deterministic post-segmentation hydraulic filter.
+    It zeros out water predictions at locations where the Height Above
+    Nearest Drainage exceeds the maximum plausible flood surge stage,
+    eliminating false positives at impossible elevations (ridge tops,
+    plateaus, mountain shadows).
+
+    The filter is a hard gate: any pixel where HAND(x, y) > stage_threshold_m
+    is forced to 0.0, regardless of what the neural network predicted. This
+    separates the vision task (backscatter → water probability) from the
+    hydraulic task (elevation → plausibility).
+
+    Args:
+        prob_mask: 2D float array of water probabilities [0, 1] from the
+            segmentation model (e.g. sigmoid(logits) > 0.5).
+        hand_grid: 2D float32 HAND raster (metres above nearest drainage).
+            Must have the same shape as prob_mask.
+        stage_threshold_m: Maximum plausible flood surge stage in metres.
+            Pixels with HAND above this are forced to 0.0. Typical values:
+            - 5 m for shallow floodplains
+            - 15 m for moderate terrain
+            - 25 m for deep mountain canyons
+
+    Returns:
+        2D float array — filtered water probabilities. Same shape as input,
+        with impossible-elevation predictions zeroed out.
+    """
+    prob_mask = np.asarray(prob_mask, dtype=np.float32)
+    hand_grid = np.asarray(hand_grid, dtype=np.float32)
+
+    if prob_mask.shape != hand_grid.shape:
+        raise ValueError(
+            f"prob_mask shape {prob_mask.shape} != hand_grid shape {hand_grid.shape}"
+        )
+
+    # Hard gate: zero out predictions where HAND exceeds the stage threshold
+    impossible = hand_grid > stage_threshold_m
+    filtered = prob_mask.copy()
+    filtered[impossible] = 0.0
+    return filtered
