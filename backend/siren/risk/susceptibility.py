@@ -41,6 +41,7 @@ DEFAULT_CHECKPOINT_PATH = (
 )
 
 # Feature names in canonical order (V3 §3.2)
+# Level 1 (6 features): original feature set for the synthetic demo model
 FEATURE_NAMES: tuple[str, ...] = (
     "lake_expansion_rate",    # ΔArea/Δt (fraction per year)
     "moraine_dam_width_m",    # dam width in metres
@@ -48,6 +49,21 @@ FEATURE_NAMES: tuple[str, ...] = (
     "rain_anomaly_7d",        # 7d rainfall vs climatology (z-score)
     "mean_upstream_slope_deg", # mean slope upstream of lake (degrees)
     "lake_area_km2",          # absolute lake area (km²)
+)
+
+# Level 2 (9 features): physics-grounded non-linear features (V3 §3.2 upgrade)
+# Replaces static constants with geotechnical ratios that capture the
+# physical mechanisms of moraine dam failure (Veh et al. 2022).
+FEATURE_NAMES_V2: tuple[str, ...] = (
+    "lake_expansion_rate",       # ΔArea/Δt (fraction per year)
+    "dam_width_height_ratio",    # W_dam / H_dam — narrow crests undercut faster during piping
+    "moraine_dam_height_m",      # dam freeboard height in metres
+    "rain_anomaly_7d",           # 7d rainfall vs climatology (z-score)
+    "mean_upstream_slope_deg",   # mean slope upstream of lake (degrees)
+    "lake_area_km2",             # absolute lake area (km²)
+    "ice_core_contact_ratio",    # L_contact / L_perimeter — calving ice shockwaves
+    "temp_anomaly_0c_isotherm",  # freezing-level height anomaly (0°C isotherm shift)
+    "dam_width_height_ratio_sq", # (W/H)² — non-linear piping failure threshold
 )
 
 # Conformal prediction parameters (V3 §3.4)
@@ -115,15 +131,20 @@ class SusceptibilityScorer:
         alpha: float = DEFAULT_ALPHA,
         interval_width_threshold: float = INTERVAL_WIDTH_THRESHOLD,
         random_state: int = 42,
+        feature_names: tuple[str, ...] = FEATURE_NAMES,
     ) -> None:
         self.alpha = alpha
         self.interval_width_threshold = interval_width_threshold
         self.random_state = random_state
+        self.feature_names = feature_names
         self._model: Any = None  # xgboost.XGBClassifier
+        self._calibrator: Any = None  # sklearn IsotonicRegression
         self._calibration_q: float | None = None  # conformal quantile
         self._brier_score: float | None = None
+        self._brier_score_raw: float | None = None  # pre-calibration Brier
         self._is_trained: bool = False
         self._is_calibrated: bool = False
+        self._is_isotonic_calibrated: bool = False
 
     @property
     def is_trained(self) -> bool:
@@ -143,6 +164,7 @@ class SusceptibilityScorer:
         y: np.ndarray,
         X_cal: np.ndarray | None = None,
         y_cal: np.ndarray | None = None,
+        use_isotonic: bool = True,
     ) -> float:
         """Train the XGBoost classifier and optionally calibrate conformal interval.
 
@@ -152,6 +174,11 @@ class SusceptibilityScorer:
             X_cal: calibration features for split conformal prediction.
                 If None, conformal interval is not available.
             y_cal: calibration labels for split conformal prediction.
+            use_isotonic: when True, fit an Isotonic Regression calibrator
+                on the calibration set to align predicted probabilities with
+                true empirical frequency (V3 §3.2 upgrade). This prevents
+                overconfident probabilities (P=0.95) that destroy the Brier
+                score on rare edge cases.
 
         Returns:
             Brier score on the calibration set (or 0.0 if no calibration set).
@@ -178,19 +205,47 @@ class SusceptibilityScorer:
         if X_cal is not None and y_cal is not None:
             X_cal = np.asarray(X_cal, dtype=np.float32)
             y_cal = np.asarray(y_cal, dtype=np.float32)
+
+            # Raw (pre-calibration) Brier score
+            p_raw = self._model.predict_proba(X_cal)[:, 1]
+            self._brier_score_raw = float(brier_score_loss(y_cal, p_raw))
+
+            # Isotonic calibration (V3 §3.2 upgrade)
+            if use_isotonic:
+                from sklearn.isotonic import IsotonicRegression
+                self._calibrator = IsotonicRegression(
+                    y_min=0.0, y_max=1.0, out_of_bounds="clip",
+                )
+                self._calibrator.fit(p_raw, y_cal)
+                self._is_isotonic_calibrated = True
+                logger.info("Isotonic calibration fitted on %d calibration samples", len(y_cal))
+
             self._calibrate(X_cal, y_cal)
-            # Brier score on calibration set
-            p_cal = self._model.predict_proba(X_cal)[:, 1]
+
+            # Brier score on calibration set (post-calibration)
+            p_cal = self._predict_proba_calibrated(X_cal)
             self._brier_score = float(brier_score_loss(y_cal, p_cal))
             self._is_calibrated = True
             logger.info(
-                "Susceptibility model calibrated: Brier=%.4f, conformal_q=%.4f",
-                self._brier_score, self._calibration_q,
+                "Susceptibility model calibrated: Brier=%.4f (raw=%.4f), conformal_q=%.4f, isotonic=%s",
+                self._brier_score, self._brier_score_raw, self._calibration_q,
+                self._is_isotonic_calibrated,
             )
             return self._brier_score
 
         logger.info("Susceptibility model trained (no calibration set)")
         return 0.0
+
+    def _predict_proba_calibrated(self, X: np.ndarray) -> np.ndarray:
+        """Get calibrated probability estimates.
+
+        Applies isotonic calibration when available, otherwise returns
+        raw XGBoost probabilities.
+        """
+        p_raw = self._model.predict_proba(X)[:, 1]
+        if self._calibrator is not None:
+            return self._calibrator.transform(p_raw)
+        return p_raw
 
     def load_checkpoint(
         self,
@@ -259,8 +314,10 @@ class SusceptibilityScorer:
         Split conformal (V3 §3.4):
             s_i = |y_i - ŷ_i|  (nonconformity score)
             q = ⌈(1-α)(n+1)⌉-th order statistic of {s_i}
+
+        Uses calibrated probabilities when isotonic calibration is available.
         """
-        p_cal = self._model.predict_proba(X_cal)[:, 1]
+        p_cal = self._predict_proba_calibrated(X_cal)
         scores = np.abs(y_cal - p_cal)
         n = len(scores)
         # ⌈(1-α)(n+1)⌉-th order statistic (1-indexed → 0-indexed)
@@ -288,7 +345,7 @@ class SusceptibilityScorer:
         if X.ndim == 1:
             X = X.reshape(1, -1)
 
-        p_breach = float(self._model.predict_proba(X[:1])[0, 1])
+        p_breach = float(self._predict_proba_calibrated(X[:1])[0])
 
         # Conformal interval
         if self._calibration_q is not None:
@@ -362,7 +419,7 @@ class SusceptibilityScorer:
         sv = shap_values.flatten()
 
         contributions: dict[str, float] = {}
-        for i, name in enumerate(FEATURE_NAMES):
+        for i, name in enumerate(self.feature_names):
             if i < len(sv):
                 contributions[name] = float(sv[i])
         return contributions
@@ -401,7 +458,7 @@ class SusceptibilityScorer:
                 )
         else:
             # Fallback: raw feature values (pre-SHAP behavior)
-            for i, name in enumerate(FEATURE_NAMES):
+            for i, name in enumerate(self.feature_names):
                 val = float(features[i]) if i < len(features) else 0.0
                 reasons.append(f"{name}={val:.3f}")
 
