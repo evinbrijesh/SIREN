@@ -50,6 +50,8 @@ LVL_TO_SEVERITY: dict[int, str] = {
 
 # Fixed key order for deterministic encoding (same alert -> same bytes).
 # 7 canonical keys per v4.6 spec (trimmed from 10 to hit ~118-byte target).
+# The optional ``t_arr`` key (sector arrival times from the FNO surrogate)
+# is appended when present — adds ~32 bytes, well within the 250-byte budget.
 _KEY_ORDER = (
     "aid",
     "sec",
@@ -59,6 +61,7 @@ _KEY_ORDER = (
     "crit",
     "med_act",
 )
+_OPTIONAL_KEYS = ("t_arr",)
 
 _SIREN_PREFIX = "siren-"
 
@@ -101,8 +104,20 @@ def encode(alert: dict) -> bytes:
         "crit": list(alert["critical_assets"]),
         "med_act": list(alert["disease_flags"]),
     }
+    # Optional: sector arrival times from the FNO hydrodynamic surrogate
+    # (Sprint 3). Included only when ``sector_arrivals`` is present in the
+    # alert dict — adds ~32 bytes (3 integer keys + formatting), keeping
+    # the total well within the 250-byte budget.
+    sector_arrivals = alert.get("sector_arrivals")
+    if sector_arrivals and isinstance(sector_arrivals, dict):
+        compact["t_arr"] = {
+            k: int(round(v)) for k, v in sector_arrivals.items() if v is not None
+        }
     # Deterministic, fixed key order -> identical bytes for identical alerts.
-    ordered = {k: compact[k] for k in _KEY_ORDER}
+    ordered = {k: compact[k] for k in _KEY_ORDER if k in compact}
+    for k in _OPTIONAL_KEYS:
+        if k in compact:
+            ordered[k] = compact[k]
     payload = json.dumps(
         ordered, separators=(",", ":"), ensure_ascii=False
     ).encode("utf-8")
@@ -142,4 +157,5 @@ def decode(payload: bytes) -> dict:
         "exposed_population": obj["exp_pop"],
         "critical_assets": list(obj["crit"]),
         "disease_flags": list(obj["med_act"]),
+        "sector_arrivals": obj.get("t_arr"),
     }

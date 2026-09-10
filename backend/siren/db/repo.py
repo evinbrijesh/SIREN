@@ -730,6 +730,30 @@ class Repository:
             "disease_flags": [med_act],  # action code, not well IDs (v4.6 spec)
         }
 
+        # Sprint 3: attach FNO sector arrival times to the payload (shadow-only).
+        # If the run's shadow evidence includes FNO t_arrival_by_sector, pass
+        # it to the codec as ``sector_arrivals`` for the optional ``t_arr``
+        # field. This adds ~32 bytes, keeping the total well within 250.
+        try:
+            run = self.get_run(run_id)
+            if run and run.get("change_stats_json"):
+                stats = run["change_stats_json"]
+                if isinstance(stats, str):
+                    import json as _json
+                    stats = _json.loads(stats)
+                shadow = stats.get("shadow_evidence", {}) if isinstance(stats, dict) else {}
+                hydro = shadow.get("hydro_surrogate", {}) if isinstance(shadow, dict) else {}
+                if isinstance(hydro, dict) and hydro.get("t_arrival_by_sector"):
+                    # Compact sector keys: sec_<3char> to minimize byte overhead
+                    raw = hydro["t_arrival_by_sector"]
+                    sector_arrivals = {}
+                    for k, v in raw.items():
+                        short = k.lower().replace(" ", "_")[:7]
+                        sector_arrivals[f"sec_{short}"] = int(round(v))
+                    alert["sector_arrivals"] = sector_arrivals
+        except Exception:
+            pass  # shadow-only — never block a dispatch
+
         from siren.alerting.codec import encode
         payload_bytes_obj = encode(alert)
         payload = payload_bytes_obj.decode("utf-8")

@@ -64,7 +64,8 @@ _FITTING_ALERTS = [ALERT_MINIMAL, ALERT_DEMO]
 
 def _expected_round_trip(alert: dict) -> dict:
     """The alert as it should look after a round trip (siren- prefix added).
-    Only the 7 canonical keys are preserved (v4.6 spec)."""
+    Only the 7 canonical keys are preserved (v4.6 spec), plus the optional
+    ``sector_arrivals`` key when present (Sprint 3 FNO telemetry)."""
     expected = {
         "alert_id": alert["alert_id"],
         "geofence_id": alert["geofence_id"],
@@ -73,6 +74,7 @@ def _expected_round_trip(alert: dict) -> dict:
         "exposed_population": alert["exposed_population"],
         "critical_assets": list(alert["critical_assets"]),
         "disease_flags": list(alert["disease_flags"]),
+        "sector_arrivals": alert.get("sector_arrivals"),
     }
     if not expected["alert_id"].startswith("siren-"):
         expected["alert_id"] = "siren-" + expected["alert_id"]
@@ -178,12 +180,11 @@ def test_demo_payload_within_budget():
     """The v4.6 demo alert encodes to <=130 bytes with 7 canonical keys."""
     payload = encode(ALERT_DEMO)
     assert len(payload) <= 130, f"payload is {len(payload)} bytes, expected <=130"
-    # Sanity: it is valid JSON with the 7 canonical short keys.
+    # Sanity: it is valid JSON with the 7 canonical short keys (t_arr optional).
     obj = json.loads(payload)
-    assert set(obj.keys()) == {
-        "aid", "sec", "haz", "lvl",
-        "exp_pop", "crit", "med_act",
-    }
+    canonical_keys = {"aid", "sec", "haz", "lvl", "exp_pop", "crit", "med_act"}
+    assert canonical_keys.issubset(set(obj.keys()))
+    assert set(obj.keys()) <= canonical_keys | {"t_arr"}
     assert obj["lvl"] == 3  # elevated
 
 
@@ -196,3 +197,53 @@ def test_encoding_is_deterministic():
     """Same alert -> identical bytes (no unseeded randomness)."""
     assert encode(ALERT_DEMO) == encode(ALERT_DEMO)
     assert encode(ALERT_MINIMAL) == encode(ALERT_MINIMAL)
+
+
+# ---------------------------------------------------------------------------
+# Sector arrival times (Sprint 3 — FNO telemetry in the payload)
+# ---------------------------------------------------------------------------
+
+ALERT_WITH_ARRIVALS = {
+    "alert_id": "alert-0091",
+    "geofence_id": "B",
+    "severity": "critical",
+    "hazard_type": "GLOF_FL",
+    "exposed_population": 1240,
+    "critical_assets": ["BR-12", "RD-4"],
+    "disease_flags": ["BOIL_WATER_NOW"],
+    "sector_arrivals": {"sec_chk": 55, "sec_dik": 135, "sec_sng": 196},
+}
+
+
+def test_sector_arrivals_round_trip():
+    """Alerts with sector_arrivals encode/decode with t_arr preserved."""
+    payload = encode(ALERT_WITH_ARRIVALS)
+    assert len(payload) <= 250, f"payload is {len(payload)} bytes, exceeds 250"
+    obj = json.loads(payload)
+    assert "t_arr" in obj
+    assert obj["t_arr"] == {"sec_chk": 55, "sec_dik": 135, "sec_sng": 196}
+    decoded = decode(payload)
+    assert decoded["sector_arrivals"] == {"sec_chk": 55, "sec_dik": 135, "sec_sng": 196}
+
+
+def test_sector_arrivals_within_byte_budget():
+    """Adding 3 sector arrival times stays well within the 250-byte budget."""
+    base = dict(ALERT_DEMO)
+    base["sector_arrivals"] = {"sec_chk": 55, "sec_dik": 135, "sec_sng": 196}
+    payload_with = encode(base)
+    payload_without = encode(ALERT_DEMO)
+    overhead = len(payload_with) - len(payload_without)
+    assert overhead < 60, f"t_arr overhead is {overhead} bytes, expected <50"
+    assert len(payload_with) <= 250
+
+
+def test_no_sector_arrivals_omits_t_arr():
+    """Alerts without sector_arrivals do not include t_arr in the payload."""
+    payload = encode(ALERT_DEMO)
+    obj = json.loads(payload)
+    assert "t_arr" not in obj
+
+
+def test_sector_arrivals_deterministic():
+    """Same alert + sector_arrivals -> identical bytes."""
+    assert encode(ALERT_WITH_ARRIVALS) == encode(ALERT_WITH_ARRIVALS)

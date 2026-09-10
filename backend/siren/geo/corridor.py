@@ -220,6 +220,51 @@ def exposure_corridor(
     }
 
 
+def attach_arrival_horizons(
+    corridor_result: dict,
+    t_arrival_by_sector: dict[str, float],
+    provenance: str = "fno_surrogate_v1",
+) -> dict:
+    """Attach FNO-derived sector arrival horizons to corridor exposures (Sprint 3).
+
+    Enriches each exposure in the corridor result with ``t_arrival_min`` —
+    the estimated flood wave arrival time in minutes at that sector. The
+    arrival times come from the FNO hydrodynamic surrogate (shadow-only per
+    ADR-011; the deterministic corridor remains authoritative).
+
+    The provenance tag is attached to the corridor metadata so downstream
+    consumers (audit log, review card UI) can trace the source of the
+    arrival estimates.
+
+    Args:
+        corridor_result: the dict returned by ``exposure_corridor()``.
+        t_arrival_by_sector: dict mapping sector/asset name → arrival time
+            (minutes). Keys are matched against exposure ``name`` or
+            ``asset_id`` fields; unmatched exposures get ``t_arrival_min=None``.
+        provenance: provenance tag for the arrival estimates (default
+            ``"fno_surrogate_v1"``).
+
+    Returns:
+        The mutated corridor_result dict with ``t_arrival_min`` on each
+        exposure and ``fno_provenance`` in the top-level metadata.
+    """
+    exposures = corridor_result.get("exposures", [])
+    for exp in exposures:
+        name = exp.get("name", "") or exp.get("asset_id", "")
+        t = None
+        for sector, arrival in t_arrival_by_sector.items():
+            if sector.lower() in name.lower() or name.lower() in sector.lower():
+                t = round(float(arrival), 1)
+                break
+        exp["t_arrival_min"] = t
+
+    corridor_result["fno_provenance"] = provenance
+    corridor_result["fno_arrival_available"] = any(
+        e.get("t_arrival_min") is not None for e in exposures
+    )
+    return corridor_result
+
+
 def _asset_buffer(row) -> float:
     """PRD §6.4 tolerance buffer for an OSM feature."""
     if row.get("bridge") == "yes":
