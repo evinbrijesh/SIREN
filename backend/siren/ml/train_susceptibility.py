@@ -75,12 +75,17 @@ XGBOOST_PARAMS = dict(
 def train_susceptibility_model(
     output_path: str | Path = DEFAULT_CHECKPOINT_PATH,
     save: bool = True,
+    use_real_data: bool = False,
+    n_nonbreach: int = 2000,
 ) -> dict:
     """Train the XGBoost susceptibility model on the curated GLOF dataset.
 
     Args:
         output_path: path to save the XGBoost checkpoint.
         save: if True, save the checkpoint to disk.
+        use_real_data: if True, load from HMAGLOFDB + ICIMOD instead of the
+            hand-curated 50-lake dataset.
+        n_nonbreach: number of non-breached ICIMOD lakes to sample (real data only).
 
     Returns:
         Dict with evaluation metrics:
@@ -93,13 +98,39 @@ def train_susceptibility_model(
     """
     import xgboost as xgb
 
-    # Load dataset
-    df = load_dataset()
-    X = get_feature_matrix(df)
-    y = get_labels(df)
-    groups = get_spatial_groups(df)
-
-    logger.info(dataset_summary(df))
+    # PRD v4.7 §17.3: both the hand-curated dataset and the "real" HMAGLOFDB
+    # loader generate label-dependent features (dam geometry, rainfall,
+    # expansion rate, missing-area imputation). Training is blocked until
+    # a genuine real-data evaluation with measured features is produced.
+    raise ValueError(
+        "XGBoost susceptibility training is disqualified (PRD v4.7 §17.3): "
+        "both the hand-curated and 'real' dataset loaders generate "
+        "label-dependent features. The reported CV Brier 0.0253 / ROC-AUC "
+        "0.9948 are not valid real-data evidence. Training is blocked until "
+        "the feature generation path is replaced with measured data."
+    )
+    if use_real_data:
+        from siren.ml.real_glof_dataset import (
+            load_real_dataset,
+            get_feature_matrix as get_fm_real,
+            get_labels as get_labels_real,
+            get_spatial_groups as get_groups_real,
+            dataset_summary as summary_real,
+            FEATURE_NAMES as FEATURE_NAMES_REAL,
+        )
+        df = load_real_dataset(n_nonbreach=n_nonbreach, seed=42)
+        X = get_fm_real(df)
+        y = get_labels_real(df)
+        groups = get_groups_real(df)
+        feature_names = list(FEATURE_NAMES_REAL)
+        logger.info(summary_real(df))
+    else:
+        df = load_dataset()
+        X = get_feature_matrix(df)
+        y = get_labels(df)
+        groups = get_spatial_groups(df)
+        feature_names = list(FEATURE_NAMES)
+        logger.info(dataset_summary(df))
 
     n_breached = int(y.sum())
     n_stable = int((y == 0).sum())
@@ -208,7 +239,7 @@ def train_susceptibility_model(
         "n_breached": n_breached,
         "n_stable": n_stable,
         "scale_pos_weight": round(scale_pos_weight, 2),
-        "feature_names": FEATURE_NAMES,
+        "feature_names": feature_names,
         "xgboost_params": XGBOOST_PARAMS,
         "calibration_q": round(calibration_q, 4),
         "brier_gate": 0.15,
@@ -268,6 +299,17 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Print evaluation metrics without saving the checkpoint",
     )
+    parser.add_argument(
+        "--real",
+        action="store_true",
+        help="Use real HMAGLOFDB + ICIMOD data instead of the hand-curated dataset",
+    )
+    parser.add_argument(
+        "--n-nonbreach",
+        type=int,
+        default=2000,
+        help="Number of non-breached ICIMOD lakes to sample (with --real)",
+    )
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -275,6 +317,8 @@ def main(argv: list[str] | None = None) -> int:
     train_susceptibility_model(
         output_path=args.output,
         save=not args.eval,
+        use_real_data=args.real,
+        n_nonbreach=args.n_nonbreach,
     )
     return 0
 

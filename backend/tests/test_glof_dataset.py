@@ -108,11 +108,11 @@ def test_checkpoint_exists():
 
 
 def test_load_checkpoint():
-    """SusceptibilityScorer.load_checkpoint loads the trained model."""
+    """SusceptibilityScorer.load_checkpoint rejects the disqualified model."""
     scorer = SusceptibilityScorer(random_state=42)
     loaded = scorer.load_checkpoint()
-    assert loaded is True
-    assert scorer.is_trained is True
+    assert loaded is False
+    assert scorer.is_trained is False
 
 
 def test_load_checkpoint_missing_file(tmp_path):
@@ -124,42 +124,36 @@ def test_load_checkpoint_missing_file(tmp_path):
 
 
 def test_predict_with_loaded_checkpoint():
-    """predict() works with the loaded checkpoint (no runtime training)."""
+    """predict() raises RuntimeError when the checkpoint is disqualified."""
     scorer = SusceptibilityScorer(random_state=42)
     scorer.load_checkpoint()
+    assert scorer.is_trained is False
 
-    # Imja Tsho features (stable lake from the dataset)
     X = np.array([[0.11, 350, 12, 0.5, 20, 1.28]], dtype=np.float32)
-    result = scorer.predict(X)
-    assert 0.0 <= result.p_breach <= 1.0
-    assert len(result.reasons) >= 1
+    with pytest.raises(RuntimeError):
+        scorer.predict(X)
 
 
 def test_predict_breached_lake_with_checkpoint():
-    """predict() on a known breached lake produces higher P_breach."""
+    """predict() is blocked for both breached and stable lakes (disqualified)."""
     scorer = SusceptibilityScorer(random_state=42)
     scorer.load_checkpoint()
+    assert scorer.is_trained is False
 
-    # Dig Tsho features (breached lake from the dataset)
     X_breach = np.array([[0.08, 120, 15, 1.5, 25, 0.60]], dtype=np.float32)
-    # Imja Tsho features (stable lake)
     X_stable = np.array([[0.11, 350, 12, 0.5, 20, 1.28]], dtype=np.float32)
-
-    result_breach = scorer.predict(X_breach)
-    result_stable = scorer.predict(X_stable)
-
-    # The breached lake should have higher (or at least not lower) P_breach
-    # than the stable lake — the model learned the pattern
-    assert result_breach.p_breach >= result_stable.p_breach * 0.5  # allow some margin
+    with pytest.raises(RuntimeError):
+        scorer.predict(X_breach)
+    with pytest.raises(RuntimeError):
+        scorer.predict(X_stable)
 
 
 def test_checkpoint_brier_score_loaded():
-    """The Brier score is loaded from the metadata sidecar."""
+    """The Brier score is None when the checkpoint is disqualified."""
     scorer = SusceptibilityScorer(random_state=42)
     scorer.load_checkpoint()
-    # The metadata sidecar should have loaded the Brier score
-    assert scorer.brier_score is not None
-    assert scorer.brier_score < 0.15  # passes the gate
+    assert scorer.brier_score is None
+    assert scorer.passes_acceptance_gate() is False
 
 
 # --------------------------------------------------------------------------- #
@@ -167,11 +161,7 @@ def test_checkpoint_brier_score_loaded():
 # --------------------------------------------------------------------------- #
 
 def test_training_script_runs():
-    """The training script runs and produces valid metrics."""
+    """The training script is blocked (disqualified, PRD v4.7 §17.3)."""
     from siren.ml.train_susceptibility import train_susceptibility_model
-    results = train_susceptibility_model(save=False)
-    assert "brier_score_cv" in results
-    assert "roc_auc_cv" in results
-    assert results["n_samples"] > 0
-    assert results["n_breached"] > 0
-    assert results["n_stable"] > 0
+    with pytest.raises(ValueError, match="disqualified"):
+        train_susceptibility_model(save=False)

@@ -17,6 +17,7 @@ dist/
 data/raw/*
 data/processed/*
 data/archived_disqualified/
+data/datasets/
 data/*.db
 data/*.db-journal
 data/*.db-wal
@@ -24,6 +25,11 @@ data/*.db-shm
 backend/*.db
 !data/raw/.gitkeep
 !data/processed/.gitkeep
+
+# --- ML training artifacts (not referenced by code; checkpoints live in models/checkpoints) ---
+backend/checkpoints/
+backend/models/
+*.bak
 
 # --- Redundant design archives (extracted dirs are committed) ---
 docs/*.zip

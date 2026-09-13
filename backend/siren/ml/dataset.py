@@ -410,6 +410,31 @@ class MultiTemporalWaterDataset:
         else:
             raise ValueError(f"unknown split strategy: {strategy}")
 
+        # PRD v4.7 §17.3: synthetic Δσ⁰ constructed from water labels is
+        # prohibited (it encodes the answer in the input). Real paired
+        # pre/post SAR is required.
+        if self.pre_sar_dir is None:
+            raise ValueError(
+                "pre_sar_dir is required: synthetic Δσ⁰ from water labels is "
+                "prohibited (PRD v4.7 §17.3 — label leakage that inflated "
+                "water_resunet_6ch_v1 test IoU to ~0.9999). Supply a directory "
+                "of real pre-event SAR scenes."
+            )
+
+        # Validate that every pre-event SAR file exists before training
+        # begins, so the dataset never silently falls back to synthetic
+        # Δσ⁰ (PRD v4.7 §17.3).
+        missing = [
+            s1_file for s1_file, _, _ in self.rows
+            if not (self.pre_sar_dir / s1_file).exists()
+        ]
+        if missing:
+            raise ValueError(
+                f"pre_sar_dir is missing required pre-event SAR scenes: "
+                f"{missing[0]} (and {len(missing) - 1} more). Real paired "
+                f"pre/post SAR is required (PRD v4.7 §17.3)."
+            )
+
     def __len__(self) -> int:
         return len(self.rows)
 
@@ -477,20 +502,18 @@ class MultiTemporalWaterDataset:
         water = (label == 1).astype(np.float32)
         valid = (label != -1).astype(np.float32)
 
-        # Compute Δσ⁰
-        if self.pre_sar_dir is not None:
-            # Real paired pre/post SAR
-            pre_path = self.pre_sar_dir / s1_file
-            if pre_path.exists():
-                with rasterio.open(str(pre_path)) as src:
-                    sar_pre = src.read()
-                delta_sar = (sar_post - sar_pre).astype(np.float32)
-            else:
-                # Fallback to synthetic if pre-event scene missing
-                delta_sar = _synthetic_delta_sar(sar_post, water, self._rng)
-        else:
-            # Synthetic Δσ⁰ from labels (training augmentation)
-            delta_sar = _synthetic_delta_sar(sar_post, water, self._rng)
+        # Compute Δσ⁰ — real paired pre/post SAR only (PRD v4.7 §17.3).
+        # Synthetic Δσ⁰ from water labels is prohibited; the constructor
+        # validates file existence so this path should always succeed.
+        pre_path = self.pre_sar_dir / s1_file
+        if not pre_path.exists():
+            raise FileNotFoundError(
+                f"Pre-event SAR scene not found: {pre_path} (PRD v4.7 §17.3 "
+                f"requires real paired SAR — synthetic fallback is prohibited)"
+            )
+        with rasterio.open(str(pre_path)) as src:
+            sar_pre = src.read()
+        delta_sar = (sar_post - sar_pre).astype(np.float32)
 
         # Get DEM, slope, HAND
         dem, slope, hand = self._get_dem_slope_hand(
