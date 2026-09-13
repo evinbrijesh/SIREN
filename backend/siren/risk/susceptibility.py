@@ -25,6 +25,7 @@ Acceptance gates (V3 §3.6):
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 from dataclasses import dataclass, field
@@ -39,6 +40,14 @@ logger = logging.getLogger(__name__)
 DEFAULT_CHECKPOINT_PATH = (
     Path(__file__).resolve().parents[3] / "models" / "checkpoints" / "xgboost_susceptibility_v1.json"
 )
+
+# SHA-256 hashes of disqualified XGBoost checkpoints (PRD v4.7 §17.3).
+# A contaminated checkpoint cannot be promoted by renaming or editing the
+# sidecar — the content hash identifies the weights themselves.
+DISQUALIFIED_CHECKPOINT_HASHES: frozenset[str] = frozenset({
+    # xgboost_susceptibility_v1 / v2_real (same file, generated features)
+    "aff1d26e2750da4b90d608111ddb16d9e4136f850b5f6b2afb89a9bdc23047e8",
+})
 
 # Feature names in canonical order (V3 §3.2)
 # Level 1 (6 features): original feature set for the synthetic demo model
@@ -254,25 +263,50 @@ class SusceptibilityScorer:
     ) -> bool:
         """Load a trained XGBoost checkpoint from disk.
 
-        This replaces runtime retraining on synthetic data. The checkpoint
-        is trained offline by siren.ml.train_susceptibility and contains
-        a real model trained on the curated GLOF dataset.
+        Rejects checkpoints whose metadata sidecar marks the evaluation as
+        invalid or the model as disqualified (PRD v4.7 §17.3). A contaminated
+        checkpoint cannot be promoted by renaming or editing the sidecar.
 
         Args:
             checkpoint_path: path to the XGBoost model JSON file.
-            metadata_path: optional path to the metadata sidecar (contains
-                Brier score, calibration_q, etc.). If None, derived from
-                checkpoint_path by appending .meta.json.
+            metadata_path: optional path to the metadata sidecar.
 
         Returns:
             True if the checkpoint was loaded successfully, False if the
-            file does not exist or loading failed.
+            file does not exist, is disqualified, or loading failed.
         """
         import xgboost as xgb
 
         checkpoint_path = Path(checkpoint_path)
         if not checkpoint_path.exists():
             logger.warning("Susceptibility checkpoint not found: %s", checkpoint_path)
+            self._reset_state()
+            return False
+
+        if metadata_path is None:
+            metadata_path = checkpoint_path.parent / (checkpoint_path.stem + ".meta.json")
+        metadata_path = Path(metadata_path)
+
+        if metadata_path.exists():
+            meta = json.loads(metadata_path.read_text())
+            if meta.get("evaluation_valid") is False or meta.get("status") == "disqualified":
+                logger.warning(
+                    "Susceptibility checkpoint rejected (disqualified): %s — %s",
+                    checkpoint_path.name,
+                    meta.get("disqualification_reason", "evaluation invalid"),
+                )
+                self._reset_state()
+                return False
+
+        # Content-hash blocklist: a contaminated checkpoint cannot be promoted
+        # by renaming the file or writing a clean sidecar (PRD v4.7 §17.3).
+        file_hash = hashlib.sha256(checkpoint_path.read_bytes()).hexdigest()
+        if file_hash in DISQUALIFIED_CHECKPOINT_HASHES:
+            logger.warning(
+                "Susceptibility checkpoint rejected (content hash matches a "
+                "disqualified checkpoint): %s", checkpoint_path.name,
+            )
+            self._reset_state()
             return False
 
         try:
@@ -280,13 +314,6 @@ class SusceptibilityScorer:
             self._model.load_model(str(checkpoint_path))
             self._is_trained = True
 
-            # Load metadata sidecar if available
-            if metadata_path is None:
-                # xgboost_susceptibility_v1.json → xgboost_susceptibility_v1.meta.json
-                metadata_path = checkpoint_path.parent / (
-                    checkpoint_path.stem + ".meta.json"
-                )
-            metadata_path = Path(metadata_path)
             if metadata_path.exists():
                 meta = json.loads(metadata_path.read_text())
                 self._brier_score = meta.get("brier_score_cv")
@@ -304,9 +331,19 @@ class SusceptibilityScorer:
             return True
         except Exception as exc:
             logger.error("Failed to load susceptibility checkpoint: %s", exc)
-            self._is_trained = False
-            self._model = None
+            self._reset_state()
             return False
+
+    def _reset_state(self) -> None:
+        """Clear all model and calibration state."""
+        self._model = None
+        self._calibrator = None
+        self._calibration_q = None
+        self._brier_score = None
+        self._brier_score_raw = None
+        self._is_trained = False
+        self._is_calibrated = False
+        self._is_isotonic_calibrated = False
 
     def _calibrate(self, X_cal: np.ndarray, y_cal: np.ndarray) -> None:
         """Compute the conformal prediction quantile from calibration scores.

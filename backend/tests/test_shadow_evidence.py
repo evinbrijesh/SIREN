@@ -80,15 +80,16 @@ def test_attach_shadow_evidence_is_marked_shadow():
 
 
 def test_attach_shadow_evidence_includes_susceptibility():
-    """Shadow evidence includes the susceptibility scorer output."""
+    """Shadow evidence includes susceptibility (unavailable when disqualified)."""
     change_stats = _make_change_stats()
     obs_config = _make_obs_config()
     shadow = attach_shadow_evidence(change_stats, obs_config, 5.0, 30.0)
     assert "susceptibility" in shadow
     sus = shadow["susceptibility"]
-    assert "p_breach" in sus
-    assert "interval_low" in sus
-    assert "interval_high" in sus
+    # The XGBoost checkpoint is disqualified (PRD v4.7 §17.3) — susceptibility
+    # is reported as unavailable without a fabricated p_breach.
+    assert sus["is_available"] is False
+    assert "p_breach" not in sus
 
 
 def test_attach_shadow_evidence_includes_hand():
@@ -121,18 +122,17 @@ def test_attach_shadow_evidence_includes_hydro_surrogate():
 
 
 def test_attach_shadow_evidence_fno_not_triggered_low_p_breach():
-    """FNO trigger status matches P_breach from the susceptibility scorer."""
+    """FNO is not triggered when susceptibility is unavailable (disqualified)."""
     change_stats = _make_change_stats(expansion_pct=5.0)  # low expansion
     obs_config = _make_obs_config(expansion_pct=5.0)
     shadow = attach_shadow_evidence(change_stats, obs_config, 2.0, 10.0)
     hydro = shadow["hydro_surrogate"]
     sus = shadow["susceptibility"]
-    p_breach = sus["p_breach"]
-    # FNO trigger status should match the P_breach value
-    if p_breach >= 0.70:
-        assert hydro["is_triggered"] is True
-    else:
-        assert hydro["is_triggered"] is False
+    # Susceptibility is unavailable (disqualified checkpoint) — FNO trigger
+    # gate requires a valid P_breach, so FNO is not triggered.
+    assert sus["is_available"] is False
+    assert hydro["is_triggered"] is False
+    assert hydro["is_available"] is False
 
 
 def test_attach_shadow_evidence_does_not_modify_hazard():
@@ -159,34 +159,33 @@ def test_attach_shadow_evidence_handles_errors_gracefully():
 # --------------------------------------------------------------------------- #
 
 def test_compute_shadow_susceptibility_returns_dict():
-    """_compute_shadow_susceptibility returns a serializable dict."""
+    """_compute_shadow_susceptibility returns an unavailable dict (disqualified)."""
     change_stats = _make_change_stats()
     obs_config = _make_obs_config()
     result = _compute_shadow_susceptibility(change_stats, obs_config, 30.0)
     assert isinstance(result, dict)
-    assert "p_breach" in result
-    assert 0.0 <= result["p_breach"] <= 1.0
+    assert result["is_available"] is False
+    assert "p_breach" not in result
 
 
 def test_compute_shadow_susceptibility_high_expansion_high_p_breach():
-    """High lake expansion rate produces higher P_breach."""
+    """Both high and low expansion return unavailable (disqualified checkpoint)."""
     change_stats_low = _make_change_stats(expansion_pct=5.0)
     change_stats_high = _make_change_stats(expansion_pct=50.0)
     obs_config = _make_obs_config()
     result_low = _compute_shadow_susceptibility(change_stats_low, obs_config, 10.0)
     result_high = _compute_shadow_susceptibility(change_stats_high, obs_config, 10.0)
-    # High expansion should generally produce higher P_breach
-    # (not strictly guaranteed with synthetic training, but expected)
-    assert result_high["p_breach"] >= result_low["p_breach"]
+    assert result_low["is_available"] is False
+    assert result_high["is_available"] is False
 
 
 def test_compute_shadow_susceptibility_includes_reasons():
-    """Susceptibility result includes TreeSHAP reasons."""
+    """Susceptibility result includes a reason when unavailable (disqualified)."""
     change_stats = _make_change_stats()
     obs_config = _make_obs_config()
     result = _compute_shadow_susceptibility(change_stats, obs_config, 30.0)
-    assert "reasons" in result
-    assert len(result["reasons"]) >= 1
+    assert "reason" in result
+    assert len(result["reason"]) > 0
 
 
 # --------------------------------------------------------------------------- #
