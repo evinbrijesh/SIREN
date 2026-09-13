@@ -14,7 +14,11 @@
   "seed": 42,
   "train_time_s": 35.3,
   "gate": "relative L2 < 0.10",
-  "gate_passed": true,
+  "gate_passed": false,
+  "evaluation_valid": false,
+  "inference_allowed": false,
+  "status": "disqualified",
+  "disqualification_reason": "Synthetic training data only (800 simulated runs). No real multi-basin hydraulic validation. The runtime shadow path previously fabricated a Teesta-shaped DEM when real terrain was absent. Inference is blocked until a valid checkpoint with real terrain validation is produced (PRD v4.7 §17.3).",
   "history": [
     {
       "epoch": 41,

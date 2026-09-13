@@ -1,0 +1,46 @@
+{
+  "architecture": "WaterResUNet",
+  "variant": "6-channel multi-temporal (V3 \u00a72.8)",
+  "in_channels": 6,
+  "channel_names": [
+    "VV_post",
+    "VH_post",
+    "dVV",
+    "dVH",
+    "HAND",
+    "Slope"
+  ],
+  "base_channels": 32,
+  "num_parameters": 7938177,
+  "training": {
+    "epochs": 45,
+    "batch_size": 4,
+    "lr": 0.001,
+    "strategy": "event_holdout",
+    "seed": 42,
+    "best_val_iou": 0.999912462803053,
+    "best_epoch": 43,
+    "train_time_seconds": 1216.3405785560608
+  },
+  "test_metrics": {
+    "iou": 0.9998525908160094,
+    "precision": 0.9999601553939635,
+    "recall": 0.9998924268502581,
+    "f1": 0.9999262899752374,
+    "mean_chip_iou": 0.791478127814632,
+    "median_chip_iou": 0.9998509290309798,
+    "n_chips": 54
+  },
+  "gate": {
+    "target_iou": 0.65,
+    "passed": false,
+    "caveat": "Test IoU inflated by synthetic Δσ⁰ label leakage. The Δσ⁰ channel is constructed from water labels (flood drop = -8 dB + noise) during training, which encodes the answer in the input. The architecture is sound — retrain with real paired pre/post SAR (Kuro Siwo / S1GFloods) to get an honest test IoU. At inference, real paired SAR via pre_sar_dir eliminates this leakage."
+  },
+  "gate_passed": false,
+  "evaluation_valid": false,
+  "inference_allowed": false,
+  "status": "disqualified",
+  "disqualification_reason": "Label leakage: the Δσ⁰ channel is synthesized from water labels (flood drop = -8 dB + noise) during training, encoding the answer in the input. Reported test IoU 0.9999 is invalid. Retrain with real paired pre/post SAR to obtain an honest evaluation (PRD v4.7 §17.3).",
+  "checkpoint_path": "/home/e0kt/Documents/01_projects/2026/hackathons/hack_26/project/models/checkpoints/water_resunet_6ch_v1.pt",
+  "checkpoint_size_mb": 31.818518
+}

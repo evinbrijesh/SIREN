@@ -6,12 +6,20 @@
 
 | | |
 |---|---|
-| **Version** | 4.6 (Canonical — consolidates drafts v1.0–v3.0; v4.1 renames SafeBasin → SIREN; v4.2 adds combined D8+OSM corridor, UI design spec, verified demo assets; v4.3 reflects implemented state with pipeline orchestrator, 104 passing tests, verified DoD chain, ML evidence layer, SAR priority, SHA-256 audit hash chain; v4.4 adds auto-SOS on CONFIRM via ntfy.sh, Simple/Advanced ReviewView modes, AuditView exports + Web Crypto verification, First Responder Advisory, escalation policy badge, projector-ready UI polish; v4.5 adds live-service architecture audit, documents production-transition gaps, proposes ADR-006 through ADR-009, corrects known ingest defects, adds the live service transition roadmap; v4.6 records the 2026-09-07 DL model audit, proposes ADR-010 (ML evidence isolation + retraining path), corrects §6.3/§9.2/§9.3/§9.5 to the audited implementation, extends §11 with the production dataset plan, and adopts a dual-basin strategy: Imja monitoring + South Lhonak event validation) |
+| **Version** | 4.7 — ML-led warning and response research prototype; real-data-only training, phased forecasting and evacuation support, corrected evaluation claims |
 | **Target track** | Track 7 — *Living with Uncertainties, Building with Resilience* |
 | **Track areas** | Area ii: Communication Systems During Disasters for Effective Response · Area iii: Curbing Diseases That Arise During Disasters |
-| **Demo geography** | Dudh Koshi / Imja glacial basin, Nepal Himalaya (swap-ready to Chorabari/Kedarnath or South Lhonak if Indian terrain resonates better with judges; pipeline is basin-agnostic) |
-| **Event** | >.hack();'26, 7th Edition — 36-hour execution window |
-| **Status** | Implemented — DoD chain verified end-to-end (104/104 tests passing) |
+| **Geography** | Existing Dudh Koshi / Imja demo; one research pilot basin and hazard type to be confirmed after forecasting-data feasibility review. South Lhonak is a candidate retrospective case, not proof of generalization. |
+| **Origin** | >.hack();'26 hackathon MVP; current work is a portfolio-quality ML research application |
+| **Status** | Revised requirements, not completed functionality. Existing deterministic demo is retained; no current ML gate pass is accepted as evidence for operational promotion. |
+
+### Document authority and implementation status
+
+This revision defines the next implementation scope and order (§15), superseding the earlier hackathon scheduling and model-priority guidance for this work. Existing ADR safety gates, dependency approval requirements, and the frozen demo remain in force. This PRD is not an operational deployment approval and does not silently amend API contracts, scoring weights, or ADR-012's restrictions on flood-depth and arrival-time use.
+
+The target is a **DL-led research application**: a trained segmentation model supplies the primary analytical mask in an explicitly selected research mode; physical/geospatial analysis and graph routing turn that mask into decision support. The deterministic baseline remains available for comparison and an explicitly labeled fallback. Forecasting and downstream arrival predictions are separate, data-gated milestones, not capabilities implied by segmentation.
+
+Historical test counts, demo outputs, and completed checkboxes in older documents are not current verification evidence. Each milestone requires a dated evaluation with input/split manifests and model/processing versions. Current model limitations and invalidated results are recorded in §17.3.
 
 ---
 
@@ -21,27 +29,29 @@ SIREN is a human-in-the-loop, satellite-assisted early-warning and disaster-resp
 
 The core problem is not that satellite data is unavailable — it is that **observations remain disconnected from operational response** under exactly the conditions Track 7 names: limited time, limited infrastructure, and severed communication. A change in a glacial lake, river corridor, or unstable slope has no operational value until a system converts it into an answer to four questions:
 
-> **What changed? How serious is it? Who and what are in the path? What should responders do right now?**
+> **What is changing? Might flooding occur within a defined future window? Which regions and assets could be affected? Which candidate escape routes remain usable under the available evidence?**
 
 ```text
-Sentinel-1 SAR / Sentinel-2 Optical / SRTM DEM / GPM IMERG / OSM
-                        ↓
-        Preprocessing, co-registration & quality gate
-                        ↓
-   Weather-adaptive router (cloud ≥20% → SAR path)
-                        ↓
-   SAR backscatter differencing  ⇄  Optical NDWI differencing
-                        ↓
-        D8 + OSM hydrological corridor & exposure analysis
-                        ↓
-    Risk fusion (H + E + D_risk) + disease-prevention actions
-                        ↓
-                  Human-in-the-loop review
-                        ↓
-   Resilient geofenced dispatch (Track 7.ii)  +  audit log
+Real satellite observations + terrain + weather + infrastructure
+                              ↓
+              Provenance, alignment & quality gates
+                              ↓
+       DL water segmentation → observed extent / change history
+                              ↓
+   Exposure mapping ← observed extent / labeled downstream corridor
+                              ↓
+     Road/path graph + verified destinations + closure evidence
+                              ↓
+           Coordinator-reviewed candidate evacuation routes
+                              ↓
+        Human-confirmed simulated alert + append-only audit
+
+Data-gated extensions (not yet validated):
+Historical pre-event sequences → time-window flood-onset probability
+Known/assumed upstream event + terrain → inundation / arrival estimates
 ```
 
-SIREN does not predict the exact time of a glacial-lake outburst, and it does not issue autonomous evacuation orders. It identifies warning indicators, estimates exposure, prioritizes verification, and compresses the time between "something changed" and "the right people know what to do about it."
+SIREN does not predict the exact time of a glacial-lake outburst or issue autonomous evacuation orders. A future onset forecast estimates risk over a declared horizon using only information available at its issue time. A downstream arrival estimate is conditional on an observed or specified upstream event; it is not a prediction of breach onset. Neither an observed water mask nor a static corridor is a forecast. Outputs must expose uncertainty, missing evidence, and data age rather than imply guaranteed warning or escape.
 
 ---
 
@@ -55,7 +65,7 @@ Two operational failure modes compound this, and they map directly onto Track 7'
 
 **Area iii — Disease prevention following disasters.** Waterborne disease is one of the largest secondary killers after flooding — contaminated wells, submerged sanitation, and severed clinic access. SIREN intersects the detected inundation polygon with municipal water points, wells, and health facilities to generate an immediate contamination-priority list, so water-purification and medical response can be dispatched within hours, not after outbreak onset.
 
-**Area i — Personnel identification.** SIREN's MVP does not identify individuals. It serves Area i *indirectly* through rescue-prioritization: exposure corridors, road-cut analysis, and settlement-level population estimates tell SAR teams where affected people are and which access routes are severed. Deeper Area i capabilities (missing-persons registry, survivor identification, family reunification) are explicit roadmap items (§18), not MVP scope — by design, since individual-level tracking conflicts with the privacy constraints in §13.
+**Area i — Personnel identification.** SIREN does not identify individuals in this scope. Settlement-level exposure, road/bridge access evidence, and candidate routing support responders without claiming to locate trapped people. Missing-persons registries, survivor identification, and family reunification remain outside the current roadmap and privacy scope (§13–§14).
 
 Current disaster workflows are fragmented across satellite providers, weather services, terrain data, field reports, and alerting authorities — usually manually reconciled by an analyst under time pressure. Earth-observation imagery also has real constraints: optical sensors are blinded by monsoon cloud cover, satellite passes are periodic rather than continuous, and processing latency varies (Sentinel-1 NRT typically delivers 1–3 hours post-overpass). A responsible system must combine multiple evidence sources, expose its own uncertainty, and keep a human at the decision point before any public communication goes out.
 
@@ -105,23 +115,29 @@ The primary MVP user is an **authorized emergency coordinator**. The public aler
 
 ## 6. Core Product Workflow
 
-```
-[6.1 Ingestion] ──► [6.2 QC & Co-registration] ──► [6.3 SAR / Optical Change Detection]
-                                                                │
-[6.6 Human Review] ◄── [6.5 Risk + Disease Fusion] ◄── [6.4 Corridor & Exposure Mapping]
-        │
-        ▼
-[6.7 Resilient Dispatch + Audit Log]
+The existing ingestion → detection → exposure → review → dispatch structure is retained. DL research inference replaces the primary research mask source (§6.3); forecasting and candidate routing extend the flow through §7.9–§7.12. The existing deterministic operational/demo path is not replaced by this document.
+
+```text
+[6.1 Ingestion] → [6.2 Quality gate] → [6.3 Detection / research DL]
+                                                ↓
+                               [6.4 Observed / corridor exposure]
+                                                ↓
+                   [7.9–7.11 Gated forecasts and candidate routes]
+                                                ↓
+                   [6.5 Scores / evidence] → [6.6 Human review]
+                                                ↓
+                               [6.7 Simulated dispatch + audit]
 ```
 
 **6.1 Observation ingestion.** Pulls Sentinel-1 GRD SAR and Sentinel-2 L2A optical scenes via the Copernicus Data Space Ecosystem (STAC API), plus NASA GPM IMERG rainfall and Open-Meteo forecast context. Every observation records source, acquisition time, processing time, spatial footprint, and quality metadata.
 
 **6.2 Preprocessing, co-registration, and quality gate.** Scenes are clipped to the basin boundary, reprojected onto the SRTM baseline grid, and checked for cloud cover, missing pixels, and alignment error. If optical cloud fraction exceeds ~20%, the pipeline automatically promotes Sentinel-1 SAR to the primary change-detection path — SAR backscatter is unaffected by cloud or darkness. The gate outputs a usability verdict and a confidence multiplier, never a silent pass.
 
-**6.3 Change detection (hybrid, weather-adaptive).**
-- *SAR path (primary during cloud/monsoon conditions):* dual-polarization (σ⁰VV, σ⁰VH) backscatter differencing and ratio thresholding flags open-water expansion and surface scouring regardless of weather or daylight.
-- *Optical path (used when skies are clear):* NDWI differencing, cross-checked against DynamicWorld water/flooded-vegetation probabilities. (The originally named Siamese U-Net / ChangeFormer optical change path is deferred per ADR-010 until real labeled bi-temporal pairs exist.)
-- Semantic classification of changed pixels into functional classes (open water, inundation/debris, glacier/snow, moraine/bare rock, forest, built-up, cloud/shadow) is deferred until defensible labels exist — the implemented crop classifier is not SegFormer (see `docs/reference/DL_MODEL_AUDIT.md`).
+**6.3 DL-led detection (research target).**
+- Train a compact PyTorch U-Net/ResUNet on real SAR imagery and water labels. Research mode uses its georeferenced water mask for measured area and exposure analysis, with checkpoint and input provenance visible. It must not masquerade as the approved operational path.
+- Segment each acquisition independently and difference compatible masks for observed change. Compare SAR-only and terrain-aware models where real co-registered DEM coverage exists; add paired-image models only after the paired dataset's channel semantics, label target, registration, and event splits are verified.
+- Retain SAR thresholds and optical NDWI as explicit comparison baselines and labeled fallbacks, not hidden replacements for failed ML inference. Optical imagery remains useful for quality-controlled cross-checks.
+- Water segmentation does not establish debris, moraine movement, or future flooding. Additional semantic classes require defensible labels. Synthetic temporal channels, fabricated terrain, and target-derived inputs are prohibited.
 
 **6.4 Temporal trend, hydrological corridor, and exposure mapping.** Two-to-four observations are compared chronologically; persistence across multiple passes is required before escalation (stable / slowly expanding / rapidly expanding / uncertain — never a precise collapse time). The downstream exposure corridor uses a **combined D8 + OSM river buffering** approach (ADR-005 / Roadmap Phase 3):
 
@@ -156,23 +172,32 @@ The primary MVP user is an **authorized emergency coordinator**. The public aler
 
 **7.8 Auditability.** Preserve every run, model version, input snapshot, risk result, reviewer decision, and alert action so a later user can reconstruct why an alert was created and how it was handled.
 
+**7.9 Forecasting readiness and onset forecasts (data-gated).** Select one pilot basin, hazard type, event definition, and prediction horizon after inspecting historical coverage. Train only on predictors available at issue time, with verified event and non-event periods. Report an explicit unavailable/insufficient-data outcome when coverage or freshness is inadequate. A susceptibility score without a time horizon is not an onset forecast. GLOFs and rainfall-driven river floods must not share unsupported labels or evaluation claims.
+
+**7.10 Impact and regional exposure.** Distinguish observed inundation, potential downstream exposure from a static corridor, and any future forecast/scenario inundation. Intersect each with versioned administrative boundaries, settlements, population, roads, bridges, and essential facilities; record the evidence type for every affected-area count. Include partially covered regions and missing population data explicitly; never substitute a demo population default in research results. Predicted depth and arrival require separate held-out validation and uncertainty, not just segmentation IoU.
+
+**7.11 Candidate evacuation routes (planned research capability).** Build a connected road/path graph with travel-mode restrictions, bridge connectivity, terrain, and timestamped closure evidence. Route from coordinator-selected settlement/access points to verified suitable destinations with recorded access and capacity information. Exclude known impassable or inundated edges, treat uncertain/stale edges explicitly, and never equate unmapped flooding with safety. Prefer graph search over unnecessary learned routing. Report route geometry, destination, estimated travel time, assumptions, and unavailable alternatives. Return “no verified route available” for disconnected or insufficiently verified networks. Arrival-aware routing is deferred until flood-arrival estimates are validated; it must compare travel time along the route plus a safety margin against flood arrival at each relevant segment, not only at the destination. All recommendations require coordinator review and are not guaranteed safe escape paths.
+
+**7.12 Research/operational separation.** Display run mode and output provenance in the API, map, review card, and audit. Research inference must not modify the frozen operational dispatch path or automatically promote a checkpoint when a numeric metric is exceeded. Missing weights, incompatible channels, missing pairs, and absent terrain cause typed errors or an explicitly requested/labeled baseline fallback. Research and demonstration outputs cannot silently appear as live public warnings.
+
 ---
 
 ## 8. Recommended Stack (implementation guidance)
 
-Chosen for a 2–3 person team in 36 hours; every choice optimizes for "working end-to-end demo" over sophistication.
+Reuse the existing local-first stack for a reproducible single-basin ML research app. PyTorch is central to research inference; the existing baseline can still run without it. PostGIS, Redis, cloud orchestration, and additional dependencies are not prerequisites for this milestone; additions remain subject to project approval.
 
 | Layer | Choice | Rationale |
 |---|---|---|
 | Pipeline / backend | Python 3.11+, FastAPI | Geospatial ecosystem (rasterio, geopandas, xarray) is unmatched; FastAPI gives typed endpoints for free |
 | Raster ops | rasterio, numpy, xarray | COG read/write, reprojection, NDWI/backscatter math |
-| Hydrology (D8) | WhiteboxTools (pysheds fallback) | Battle-tested D8 flow accumulation; pysheds is pure-Python fallback if binary install fails |
+| Hydrology (D8) | pysheds with existing NumPy compatibility handling | Physical drainage context; explicit OSM corridor fallback where appropriate |
 | Vector ops | geopandas + shapely | Buffer/intersect against OSM layers |
 | Database | SQLite (JSON columns) + GeoJSON files on disk | Zero-ops, offline-safe; PostGIS is the V2 migration path |
 | Frontend | React + Vite + TypeScript | Fast scaffolding, typed API contracts |
 | Map | MapLibre GL JS | Free, no token, raster+vector overlays, swipe-compare support |
 | State/data | TanStack Query | Polling for pipeline run status |
-| ML (optional) | PyTorch + pretrained Siamese U-Net weights (Sen1Floods11) | Only if hours 0–16 go well; deterministic baseline is the deliverable |
+| Deep learning | PyTorch U-Net/ResUNet; paired-image architecture after dataset qualification | Train and evaluate a focused water/flood model; never assume existing checkpoints are qualified |
+| Routing | Road/path graph search with geospatial constraints | Candidate routes based on closures, access, and verified destinations; library choice subject to approval |
 
 **Key tradeoff:** SQLite over PostGIS sacrifices spatial indexing for zero setup time. All spatial joins run in-memory via geopandas on a small basin extract (<100 MB), so this is safe at hackathon scale.
 
@@ -182,51 +207,32 @@ Chosen for a 2–3 person team in 36 hours; every choice optimizes for "working 
 
 SIREN is a hybrid pipeline — deterministic physical modeling plus deep-learning vision — deliberately avoiding a single black-box model so every score stays explainable.
 
+The diagram below is the target research architecture, not a claim of completed wiring. Dashed paths are data-gated extensions; operational promotion remains subject to ADR acceptance.
+
 ```mermaid
 flowchart TD
-  subgraph Data_Layer [Data Ingestion & Context]
-    S1[Sentinel-1 SAR GRD]
-    S2[Sentinel-2 Optical]
-    DEM[SRTM 30m DEM]
-    GPM[NASA GPM IMERG Rainfall]
-    OSM[OSM Infrastructure & Water Assets]
-  end
-
-  subgraph Processing_Layer [Vision & Analysis Engine]
-    QC{Quality Gate / Cloud Check}
-    SAR_Diff[SAR Backscatter Differencing]
-    Siam[Siamese U-Net / ChangeFormer]
-    Seg[SegFormer Land-Cover Classifier]
-    Hydro[D8 Flow Accumulation & Corridor Buffer]
-  end
-
-  subgraph Risk_Layer [Risk & Disease Fusion]
-    Trend[Temporal Trend: Persistence / Regression]
-    ScoreEngine[Multivariate Risk-Fusion Engine]
-    DiseaseEngine[Waterborne Disease Risk Index]
-  end
-
-  subgraph Review_Layer [Decision & Output]
-    Deck[Coordinator Review Console]
-    Audit[(Immutable Audit Log)]
-    Dispatch[Resilient Alert Engine: SMS / Mesh / Push]
-  end
-
-  S1 & S2 --> QC
-  QC -- Optical OK --> Siam
-  QC -- Cloud / Rain --> SAR_Diff
-  Siam & SAR_Diff --> Seg
-  Seg --> Hydro
-  DEM --> Hydro
-  OSM --> Hydro
-  GPM --> ScoreEngine
-  Hydro --> ScoreEngine
-  Hydro --> DiseaseEngine
-  Seg --> Trend
-  Trend --> ScoreEngine
-  ScoreEngine & DiseaseEngine --> Deck
-  Deck -->|Confirm| Dispatch
-  Deck -->|Confirm / Reject| Audit
+  Inputs[Real satellite imagery and terrain] --> QC[Provenance and quality gates]
+  QC --> DL[DL water segmentation]
+  QC --> Baseline[Threshold baseline comparison]
+  DL --> Observed[Observed extent and time-aware change]
+  Observed --> Exposure[Regional and infrastructure exposure]
+  Terrain[DEM and drainage] --> Exposure
+  Assets[OSM and administrative boundaries] --> Exposure
+  History[Pre-event sequences and issue-time weather] -.-> Forecast[Data-gated onset forecast]
+  Event[Known or specified upstream event] -.-> Impact[Data-gated inundation and arrival model]
+  Terrain -.-> Impact
+  Impact -.-> Exposure
+  Exposure --> Routes[Candidate route graph search]
+  Network[Roads, closures and verified destinations] --> Routes
+  Impact -.-> Routes
+  Observed --> Review[Coordinator research review]
+  Forecast -.-> Review
+  Exposure --> Review
+  Routes --> Review
+  Baseline --> Review
+  Review -->|Recorded confirmation| Dispatch[Simulated compact alert]
+  Review --> Audit[Append-only versioned lineage]
+  Dispatch --> Audit
 ```
 
 ### 9.1 Quality gate
@@ -247,15 +253,19 @@ Confidence multiplier = (1.0 − cloud_fraction) × sensor-freshness weight. For
 
 **Implemented (MVP):** registered raster differencing plus NDWI (optical, `detect/ndwi.py`) and SAR backscatter log-ratio thresholding with multi-look speckle suppression and DEM slope masking (`detect/sar.py`). Scenario masks (`detect/scenario.py`) provide deterministic, reproducible demo masks near the Imja lake when the available SAR swath doesn't cover the change source.
 
-**Implemented (post-build ML layer — audited 2026-09-07):** `ml/` contains a Siamese U-Net (ResNet-34 encoder) trained on synthetic bi-temporal Sen1Floods11 pairs, a five-class changed-crop classifier internally named "SegFormer" (not the SegFormer architecture), and a ConvLSTM trend classifier trained on synthetic water-mask progressions. The audit found train/inference input mismatches, threshold-generated labels, no held-out evaluation, and integration paths that can suppress rule-based evidence. No existing checkpoint is qualified for live hazard assessment — see `docs/reference/DL_MODEL_AUDIT.md`.
+**Historical audit (2026-09-07, not current qualification):** the post-build `ml/` layer contained a Siamese U-Net (ResNet-34 encoder) trained on synthetic bi-temporal Sen1Floods11 pairs, a five-class changed-crop classifier internally named "SegFormer" (not the SegFormer architecture), and a ConvLSTM trend classifier trained on synthetic water-mask progressions. The audit found train/inference input mismatches, threshold-generated labels, no held-out evaluation, and integration paths that can suppress rule-based evidence. No existing checkpoint is qualified for live hazard assessment — see `docs/reference/DL_MODEL_AUDIT.md`.
 
-**Research-grade (per ADR-010, proposed):** a compact single-date SAR water-segmentation U-Net (VV/VH σ0 input, Sen1Floods11 hand-labeled event-level splits) as the first trained model, with change detection performed by deterministic bi-temporal differencing of per-date water masks on a fixed basin grid. Paired Siamese change detection (FC-Siam-diff / ChangeFormer adapted to SAR) is deferred until real labeled bi-temporal pairs exist; semantic classification is deferred until defensible labels exist. See `docs/reference/PRODUCTION_ML_PLAN.md`.
+**Next implementation:** establish a reproducible U-Net/ResUNet baseline using real calibrated Sen1Floods11 VV/VH and original labels. Compare SAR-only against terrain-aware input where co-registration and coverage are valid. Use separate dataset adapters with explicit normalization and target semantics; water extent and new-flood/change labels are not interchangeable. Compare early-fusion and shared-encoder paired models only after S1GFloods qualification (§11.1). A missing pre-event image must fail closed, never invoke label-derived differences. Six channels are not mandatory; the available measurements determine the contract.
 
-### 9.3 Temporal trend model
+**Inference acceptance:** the selected checkpoint must load through the same preprocessing contract used during evaluation. Research-mode area and exposure results must derive from the model mask, not a hidden scenario mask; show the baseline separately. Probability maps must not be described as calibrated uncertainty unless calibration is evaluated. Permanent water, radar shadow, snow/ice, dry soil, empty-water chips, and invalid pixels require explicit error analysis. General flood-benchmark scores do not establish Himalayan GLOF warning performance.
 
-**Implemented (MVP):** deterministic trend classification (`stable | slowly | rapidly | uncertain`) configured per observation in the pipeline orchestrator, with a ConvLSTM hybrid (Stage 4) that can replace the configured class when trained weights are available. Audit note (2026-09-07): the ConvLSTM was trained on synthetic mask progressions, has no elapsed-time input, and its inference wrapper fabricates missing timesteps by dilating the last mask — see `docs/reference/DL_MODEL_AUDIT.md`. The trend class feeds the hazard score's S_trend factor (weight 0.30).
+### 9.3 Temporal trend and flood-onset forecasting
 
-**Research-grade (per ADR-010, proposed):** deterministic time-aware trend estimation first — water-area change per elapsed day over a trailing window, with minimum-observation counts, data-age gating, and an explicit "insufficient observations" outcome. A learned temporal model (with elapsed-time features) is revisited only after ≥2 seasons of real observations. Deliberately never a precise event-time prediction.
+**Existing baseline:** retain deterministic `stable | slowly | rapidly | uncertain` trend classification. The archived synthetic ConvLSTM is not qualified. Use observation timestamps, elapsed time, minimum coverage, and data-age checks for measured area trends; missing timesteps remain missing.
+
+**Forecast target (data-gated):** estimate the probability of a defined event within a declared horizon from issue-time information. Before choosing a temporal architecture, specify the basin/hazard, target, horizon, event/non-event sampling, observation cadence, missingness policy, and sources of event timing. Require adequate real pre-event histories across independent events and seasons; the earlier ≥2-season prerequisite alone is not evidence of sufficiency. Include rainfall and lake-level/river-gauge series when available. Archived weather forecasts must retain their issue times; future observed weather or retrospective reanalysis unavailable at issue time cannot be used as live forecast predictors.
+
+Compare persistence/climatology and a compact statistical or ML baseline with a temporal DL model only when sequence coverage supports it. Fit normalization, feature selection, and calibration on training/validation data only. Hold out time periods and events/locations, evaluate useful lead time after acquisition/processing delays, and report false alarms, missed events, precision-recall, and probability calibration. Until this gate is feasible, show trends and “forecast unavailable,” not a fabricated breach probability or countdown. GLOF onset and rainfall-driven river flooding require separate target definitions and evidence.
 
 ### 9.4 GIS exposure engine
 
@@ -264,7 +274,9 @@ Deterministic spatial analysis (not learned) for MVP transparency and easy valid
 - **D8 flow accumulation** validates the gravity gradient — that floodwater from the change source drains into the expected sub-basin.
 - **OSM river buffering** captures the real surveyed riverbed through inhabited valleys, which a raw D8 path can miss at 30 m resolution in steep Himalayan terrain.
 
-The engine intersects the buffered corridor with terrain and asset layers using the tolerance buffers in §6.4. A future graph neural network could rank connected-asset failure cascades, but the MVP stays deterministic by design.
+The engine intersects the buffered corridor with terrain and asset layers using the tolerance buffers in §6.4. Research mode additionally intersects the georeferenced DL mask with assets and administrative boundaries. Keep observed-mask exposure separate from potential corridor exposure; neither proves that an unobserved road is passable. Graph-based evacuation support follows §7.11 and does not require a graph neural network.
+
+**Future impact/arrival model:** estimate inundation and downstream arrival conditional on specified upstream conditions and terrain. Require real georeferenced inundation labels and independently sourced timing/depth/discharge evidence, with consistent event origin, units, dates, and measurement uncertainty. Do not derive “observed” travel times from an assumed speed or adjust speed limits against the final validation events. Static buffers and current FNO demonstrations are not validated hydraulic forecasts. Under the current no-synthetic-data scope, do not create synthetic terrain or simulated hydrodynamic training targets; any future physics-simulation training proposal requires explicit approval and separate provenance. Flood-arrival and depth use for evacuation prioritization remains subject to ADR-012 and a future accepted ADR.
 
 ### 9.5 Risk-fusion and disease scoring
 
@@ -280,7 +292,7 @@ H = 0.30 × satellite-change trend (S_trend)
   + 0.10 × downstream proximity (D_prox)
 ```
 
-> **Audit note (2026-09-07):** `risk/fusion.py` currently implements `H = 0.25·S_trend + 0.20·A_expansion + 0.15·R_rain + 0.10·T_slope + 0.10·D_prox + 0.20·ML_confidence` — a six-factor formula diverging from the documented weights above. ADR-010 (Proposed) restores the documented five-factor weights and records ML confidence as separate evidence. See `docs/reference/DL_MODEL_AUDIT.md`.
+> **Current baseline:** retain the five-factor formula above. Model confidence is not a physical hazard factor and the score is not a calibrated event probability. A future learned forecast is a separate, time-defined output until a validated comparison and accepted contract/scoring amendment justify integration. This PRD does not select arbitrary sixth-factor weights or qualify the current XGBoost checkpoint.
 
 **Exposure priority:**
 
@@ -296,7 +308,7 @@ D_risk = Inundated Water Points × Population Density × Temperature Index
 
 `D_risk` flags zones for immediate water-purification and medical-supply dispatch — it is explicitly a triage priority signal, not a medical diagnosis.
 
-Initial deployment uses explainable weighted scoring; XGBoost/LightGBM fusion becomes viable once historical event labels are available. Every score displayed to a coordinator is accompanied by the reasons behind it, never a bare number.
+Initial deployment uses explainable weighted scoring. Historical event labels alone do not qualify a susceptibility model: real feature measurements, an appropriate population at risk, non-event follow-up, spatial/temporal separation, and held-out calibration are required. HMAGLOFDB is an event inventory, not a complete supervised feature/control table. Unmatched inventory lakes cannot automatically be labeled stable. Every score displayed to a coordinator is accompanied by reasons, never a bare number.
 
 ### 9.6 Explanation layer
 
@@ -306,27 +318,29 @@ Deterministic templates generate evidence summaries for safety-critical output. 
 
 ## 10. Data Pipeline & Contracts
 
-### 10.1 Pipeline steps
+### 10.1 Target research pipeline steps
 
 ```text
- 1. Select basin and time range
- 2. Acquire scenes and contextual datasets (or load from local cache)
- 3. Validate provenance and spatial metadata
- 4. Clip, reproject, resample, align to SRTM baseline grid
- 5. Apply cloud and invalid-pixel masks
- 6. Run weather-adaptive change detection (SAR and/or optical path)
- 7. Extract water, glacier, debris, and change statistics
- 8. Join rainfall, temperature, and hydrology features
- 9. Derive slope, drainage, river proximity, and exposure features
-10. Calculate temporal persistence and trend
-11. Intersect hazard polygon + corridor with settlements and infrastructure
-12. Fuse evidence into hazard, exposure, and disease-risk scores
-13. Apply data-quality and alert policies
-14. Create human-review alert
-15. Confirm, reject, or postpone
-16. Dispatch simulated geofenced alert if confirmed
-17. Store complete audit record
+ 1. Select approved pilot basin, hazard type, run mode, and time range
+ 2. Ingest approved AOI subsets or load pinned local inputs
+ 3. Validate provenance, timestamps, channel semantics, and spatial metadata
+ 4. Calibrate/clip/reproject/align; apply quality and invalid-pixel masks
+ 5. Load the declared checkpoint and matching preprocessing contract
+ 6. Run DL water segmentation and the separate comparison baseline
+ 7. Measure observed water area and time-aware change on compatible grids
+ 8. Join available weather, terrain, boundaries, and infrastructure
+ 9. If qualified, issue a time-window onset forecast; otherwise mark unavailable
+10. Separate observed inundation, corridor exposure, and qualified impact forecasts
+11. Compute regional/asset exposure with provenance and missing-data status
+12. Generate candidate routes using verified destinations and edge constraints
+13. Present baseline scores, ML evidence, limitations, and route alternatives
+14. Apply data freshness, research-mode, and human-review gates
+15. Record confirm, reject, or postpone against the exact run version
+16. Simulate the compact alert only after recorded confirmation
+17. Preserve input, checkpoint, processing, graph, and review lineage
 ```
+
+Steps 9 and forecast-dependent parts of steps 10–12 are gated milestones, not mandatory fabricated outputs. The legacy deterministic offline demo remains independently runnable. New research endpoints must remain thin and delegate to domain modules.
 
 ### 10.2 Observation data contract
 
@@ -385,12 +399,28 @@ The public-facing message avoids false certainty:
 
 ---
 
+### 10.5 Planned research result contracts
+
+The existing §9.1 and §10.2–10.4 field names and payload contract remain unchanged. Before implementing research APIs, define and test versioned schemas for the following records; this table specifies required information, not already implemented JSON fields or endpoint names.
+
+| Record | Required information |
+|---|---|
+| Research run | Mode, run/observation/basin IDs, issue time, input availability cutoff, processing version, input/checkpoint hashes, spatial footprint, quality, reasons and unavailable-data status |
+| Segmentation | Target semantics, channel/normalization contract, model version, georeferenced mask/probability asset references, nodata/coverage, area units, separately identified baseline output |
+| Onset forecast | Hazard/event definition, forecast issue time, horizon start/end, calibrated probability when qualified, supporting observation times, uncertainty method, validity/expiry and unavailable reason |
+| Impact layer | Observed/corridor/forecast/scenario evidence type, origin time and upstream assumptions where applicable, depth/time units, geometry/CRS, affected region/asset IDs, source dates and uncertainty |
+| Candidate route | Origin, verified destination and verification date, graph/closure versions, travel mode, route geometry and edge IDs, estimated travel time, excluded edges, evidence age, assumptions, alternatives and no-route reason; conditional arrival margins only when qualified |
+
+Keep full route geometries and detailed evidence in the app/audit, not the compact radio payload. Any payload extension requires explicit schema review and byte-limit tests. A review must bind to an immutable result version; changed evidence or routes require a new review. Research output unavailable does not mean risk is zero.
+
+---
+
 ## 11. Dataset Plan
 
 | Dataset | Type / Source | Role in SIREN | Storage |
 |---|---|---|---|
 | Sentinel-1 C-SAR | Copernicus CDSE, 10 m GRD | All-weather backscatter differencing for water/debris tracking | GeoTIFF/COG + metadata |
-| Sentinel-2 MSI | Copernicus CDSE, 10–20 m multispectral | Cloud-free optical NDWI and Siamese U-Net segmentation | GeoTIFF/COG + metadata |
+| Sentinel-2 MSI | Copernicus CDSE, 10–20 m multispectral | Quality-controlled optical NDWI and visual cross-checks; learned optical models deferred | GeoTIFF/COG + metadata |
 | SRTM 1 Arc-Second | NASA Earthdata, 30 m DEM | Elevation, slope angle, D8 downstream hydrological flow | Raster DEM |
 | GPM IMERG | NASA GES DISC, 0.1° NRT | Basin-wide antecedent rainfall and storm-intensity metrics | NetCDF/GeoTIFF/feature table |
 | Open-Meteo | HTTP API | Development weather and soil-moisture context | JSON time series |
@@ -404,27 +434,49 @@ The public-facing message avoids false certainty:
 | HydroLAKES / GLIMS-RGI | Global lake extents / glacier outlines | Lake identity, naming, historical extents for baselines and reporting | GeoJSON/GeoPackage |
 | SSL4EO-S12 | Self-supervised S1/S2 encoders (ResNet/ViT; MoCo/DINO/MAE) | Optional encoder initialization for the Stage-1 SAR segmenter (ADR-010) | PyTorch checkpoints |
 
-**Production dataset plan** — training/evaluation splits, per-basin operational inputs, and event-validation data (incl. the South Lhonak October 2023 GLOF) are specified in `docs/reference/PRODUCTION_ML_PLAN.md` (companion to ADR-010).
+### 11.1 Immediate local-data plan
 
-**Prepared demo dataset (verified on disk, `data/`):**
-- Sentinel-1 GRD triplet: 2026-07-23 (obs-001) + 2026-08-04 (obs-002) + 2026-08-12 (obs-003), IW dual-pol VV/VH, full AOI coverage.
-- Sentinel-2 L2A: 2025-11-22, tile **T45RVL** (covers 100% of AOI — the clean post-monsoon optical baseline). Note: the AOI spans 4 S2 tiles; T45RVL is the correct one for this basin.
-- SRTM 30 m clip: 1188×1260, EPSG:4326, elevation 1930–8429 m, no nodata gaps.
-- OSM extract: 1100 features — 63 settlements, 92 bridges (incl. Hillary suspension bridges), 16 drinking-water points, 3 clinics, 1 hospital, Dudh Koshi/Imja rivers.
-- Weather context: `data/assets/weather_series.json` (three-row prepared series derived from the Open-Meteo historical archive at basin centroid (27.815°N, 86.825°E); refresh with `backend/siren/ingest/openmeteo.py`). Note: this file has no embedded provenance fields. `backend/siren/ingest/imerg.py` downloads NASA GPM IMERG daily NetCDF files but is not invoked by the runtime pipeline.
+| Source | Verified or known limitation | Next action |
+|---|---|---|
+| Sen1Floods11 | Real georeferenced SAR and water labels available locally | Validate manifests, units, label/nodata handling and event-separated splits; train the first segmentation baseline |
+| S1GFloods | Local archive integrity check passed; 5,360 A/B/Label triplets extracted (16,080 files, approximately 868 MB uncompressed). Inspected A/B samples are three-channel uint8 256×256 PNGs without embedded georeferencing | Verify A/B acquisition order, channel encoding, label meaning, licensing, event/location IDs, and original split policy before using a dedicated adapter. PNG channels are not assumed to be calibrated VV/VH. Do not supply this directory to the Sen1Floods11 `pre_sar_dir` interface |
+| Cached Copernicus GLO-30 / SRTM | Terrain exists locally; coverage is chip/basin dependent | Check spatial coverage, nodata, scale, and co-registration before computing slope/HAND. Do not fabricate terrain for ungeoreferenced PNGs |
+| HMAGLOFDB + lake inventories | Real event and lake records; incomplete measured susceptibility features and no automatic verified negative labels | Preserve event provenance; audit pre-event feature availability and monitored non-event periods. Do not manufacture dam geometry, rainfall, expansion, or negative outcomes |
+| Local satellite scenes and OSM | Useful for an inference case study, not automatically labeled evaluation data | Verify footprints, pre/post acquisition order, orbit compatibility, asset dates, and overlap for the chosen basin |
 
-**Data hygiene rules.** Record OSM extraction date (completeness varies by region). Never randomly split adjacent image chips from the same event into train/test — split by event, basin, or geographic region to prevent leakage. Store label source, annotator, date, class schema, and confidence for any hand-labeled validation set.
+A paired benchmark with unrecoverable event/location grouping cannot support a claim of event-held-out generalization. It may remain exploratory, explicitly labeled, or be excluded from the final benchmark. Do not attach geographically specific exposure results to images without a validated spatial mapping.
+
+### 11.2 Additional evidence needed for forecasting and routing
+
+- Onset forecasting: timestamped pre-event histories, verified event definitions/times, monitored non-event periods, rainfall/gauge/lake-level coverage, and archived forecast issue times where forecasts are used. Segmentation benchmarks alone are insufficient.
+- Impact/arrival evaluation: observed inundation extents and independently documented timing/depth/discharge with citations and measurement uncertainty. Do not substitute assumed-speed calculations for observations.
+- Regional exposure: versioned administrative boundaries, population coverage, and infrastructure attributes with source dates; overlapping/partial regions must not double-count exposure.
+- Routes: connected roads and paths, bridge connectivity, mode/access restrictions, timestamped closures/field verification, and suitable destination locations with access/capacity status. OSM presence alone does not prove present-day passability or shelter suitability.
+- Record missing evidence as a blocker with alternatives. Pilot basin, hazard type, forecast horizon, route travel mode, and destination policy require user/domain review before locking their implementation.
+
+### 11.3 Bandwidth, storage, and provenance policy
+
+Use existing local observations first. Full Kuro Siwo (~164 GB) and FloodPlanet downloads are **not prerequisites**. No bulk downloads or automatic restarts: the user controls acquisitions. Any approved additional acquisition should be bounded by basin, dates, bands, resolution, and a stated transfer/cache budget.
+
+Prefer remote COG window reads or provider-side AOI processing when supported and authorized; verify authentication, quotas, format, and actual transfer volume. Dataset streaming transfers samples as consumed and may repeat transfers each epoch; it is not zero-bandwidth access and archive layout can prevent efficient random reads. Cache a reproducible working subset for offline inference, with source/product IDs, acquisition and availability times, CRS/units, preprocessing, licenses, checksums, and split membership. Connected ingestion remains separate from offline execution.
+
+**Real-data-only requirement:** no generated temporal SAR, randomized environmental features, synthetic negative labels, invented event times, or synthetic/simulated hydrodynamic training targets in the research training/evaluation datasets. Missing measurements remain missing or the sample/task is rejected. Any justified statistical missing-data handling must be training-only, documented, and must not be presented as observed data. Existing isolated software-test fixtures may remain; they cannot count as scientific validation or feed research inference. Demo/scenario artifacts remain visibly separate from observations.
+
+Record OSM extraction date and label source, annotator, date, class schema, and confidence. Split by event/location before training; related or overlapping chips must stay together. Once a test set informs architecture or tuning, treat it as development data and reserve an untouched final evaluation. Older dataset plans in `docs/reference/PRODUCTION_ML_PLAN.md` are background; this section governs the immediate resource-constrained scope.
 
 ---
 
 ## 12. User Interface Requirements
 
-The coordinator console has four primary views. **The authoritative layout, component hierarchy, and design system are specified in `docs/design/UI_DESIGN.md`** (dark ops-console theme, status colors, wireframes for each view). Functional requirements:
+Reuse the existing Map, Timeline, Review, Audit, and Models views and the design conventions in `docs/design/UI_DESIGN.md`. Extend them rather than building a second console.
 
-1. **Monitoring map.** Basin boundary, baseline vs. current observation, detected-change overlay, D8 exposure corridor, settlements, roads, bridges, shelters, hospitals, water points. Layer toggles; swipe-compare for before/after.
-2. **Observation timeline.** Image dates, weather values, water-area measurements, quality scores, trend classification. A **Run Monitoring** button processes the prepared observation sequence sequentially. A weather-adaptive router strip shows the optical→SAR switch.
-3. **Review panel.** Severity, hazard score, exposure priority, confidence, evidence list (minimum three factors on high-priority alerts), affected assets, disease action sheet, and Confirm / Reject / Postpone controls.
-4. **Audit & dispatch panel.** Decision timeline and simulated delivery log: target geofence, recipient groups, message content, payload size (must show ≤250 bytes), timestamp, status.
+1. **Monitoring map.** Toggle source imagery, DL mask/probabilities, baseline mask, observed change, static corridor, and qualified forecast/scenario layers separately. Show affected administrative regions/assets and candidate routes with destination, mode, closure evidence, and no-route status. Probability colors must not imply calibrated confidence without validation.
+2. **Observation timeline.** Show acquisition, data availability, processing, and forecast issue times distinctly. Display water-area history with elapsed time and gaps. Forecast horizon and upstream-event-relative arrival are different concepts and must not share an ambiguous countdown.
+3. **Review panel.** Show mode, source freshness, model status, severity/baseline scores, exposure evidence, route limitations, minimum three reasons on elevated/critical results, and Confirm / Reject / Postpone controls. Unsupported forecasting/routing capabilities show unavailable states, not mock results.
+4. **Audit & dispatch panel.** Preserve input, checkpoint, preprocessing, graph/closure versions, reviewer, and simulated delivery lineage. Show payload size ≤250 bytes. Changed results require renewed review.
+5. **Models view.** Present measured experiments, split definitions, per-event metrics, baselines/ablations, latency, and failure cases. Invalidated checkpoints show disqualified status; missing metrics remain missing. Demonstration examples cannot be displayed as test performance.
+
+Research mode must be visually distinct from the legacy demo and any operational mode. Backend failure must not silently switch a research screen to `mockData`; expose loading, error, stale, and insufficient-data states explicitly. Optional connected ingestion cannot become a dependency of the offline demonstration.
 
 ---
 
@@ -440,95 +492,105 @@ All model outputs are advisory. The system displays uncertainty, data freshness,
 
 ## 14. Explicit Scope Boundaries
 
-**In scope.** Monitor one selected Himalayan basin; process a small SAR/optical image sequence; detect progressive water or surface change under all-weather conditions; fuse weather and terrain context; map downstream exposure and disease risk; generate an explainable risk result; require human confirmation; simulate a geofenced resilient dispatch; maintain a full audit trail.
+**Immediate implementation scope.** Correct invalid ML claims and unsafe synthetic fallbacks; qualify existing real datasets; train/evaluate a focused DL segmenter; make its predictions primary in a labeled research mode; map observed water/change and potential regional/asset exposure; implement candidate route support once graph/destination evidence is adequate; preserve offline review, human confirmation, compact simulated dispatch, and auditability. Forecast-data feasibility is an immediate task, not a promise that forecasting is already possible.
 
-**Out of scope for the MVP.** Processing the entire Himalayas; continuous satellite video streaming; predicting the exact time of glacial-lake collapse; guaranteeing exact flood depth or flow path; diagnosing specific diseases from satellite imagery; autonomous evacuation orders; guaranteed delivery to every person in an area; replacing government early-warning systems; identifying individuals, locating trapped persons, or family reunification (roadmap — see §18); training a large vision foundation model from scratch (the MVP uses deterministic baselines and, time permitting, fine-tunes a focused change-detection model).
+**Data-gated scope.** Time-window flood-onset forecasting, conditional future inundation/depth, and downstream arrival estimates require the real observations and validation described in §9, §11, and §17. Arrival-aware routing additionally requires ADR-012's operational acceptance path. GLOF and rainfall-driven flood targets cannot be interchanged to claim coverage of both.
 
----
+**Deferred rather than required now.** XGBoost susceptibility retraining, FNO retraining, semantic crop classification, large vision transformers, learned routing, multi-basin hosted infrastructure, PostGIS/Redis migration, and full Kuro Siwo/FloodPlanet acquisition. Revisit only when evidence, product value, and resource constraints justify them; do not delete functioning code solely because it is deferred.
 
-## 15. 36-Hour Build Plan
-
-| Hours | Deliverable |
-|---|---|
-| 0–4 | Lock basin (Nepal or Indian Himalaya), prep GeoJSON assets and OSM asset layers, define data schema, load baseline scene. |
-| 4–10 | Implement quality gate, SAR backscatter differencing + optical NDWI change mask, observation timeline. |
-| 10–16 | Build map layers, D8 corridor generation, exposure intersections with tolerance buffers, hazard-score fusion. |
-| 16–22 | Add disease-risk index (§9.5), temporal sequence playback, and the coordinator review console. |
-| 22–28 | Implement Confirm/Reject/Postpone workflow, resilient compressed-payload dispatch simulation, audit log. |
-| 28–32 | Wire the 4-observation demo sequence end-to-end; polish evidence explanation panel. |
-| 32–36 | Full offline rehearsal, backup demo video, document known limitations, final pitch pass. |
-
-**Team roles.** A 2–3 person team splits across geospatial/data processing, backend/risk-fusion workflow, and frontend/review-console. If working solo, prioritize the complete evidence→review→dispatch loop over a sophisticated trained model — a rule-based change mask that completes the full workflow beats a partially-trained neural net that doesn't.
-
-**Devin AI credit note:** platinum-sponsor Devin AI credits are well spent scaffolding ingestion/preprocessing boilerplate (STAC queries, GeoJSON handling, quality-gate rules) — buy back hours for the risk-fusion and review-console work, which is what judges will actually interact with.
-
-**Stretch goal (only if the core loop is complete by hour 28): Search & Rescue Priority Layer.** Ranks downstream sectors by `population × access-loss` (bridges/roads cut = harder to reach = higher SAR priority). Reuses corridor and asset data already computed; ~3–4 hours. Skip it if the evidence→review→dispatch loop isn't finished — a missing stretch goal costs nothing; a broken core demo costs everything.
+**Out of scope.** Exact glacial-lake-collapse timestamps, guaranteed safe routes or exact flood paths/depths, autonomous evacuation orders, guaranteed public delivery, medical diagnosis, individual tracking/reunification, continuous satellite video, a Himalaya-wide rollout, and replacing official warning systems. No synthetic replacement observations or training targets under the current user requirement. A scoped research demonstration is not operational certification.
 
 ---
 
-## 16. Demo Scenario (36-Hour Script) — Retrospective "What-If" Prevention
+## 15. Active Implementation Plan
 
-The demo is framed as a **retrospective reconstruction**: "what would SIREN have caught, and how could it have prevented the disaster?" The coordinator console starts in the **before** state, then a **Simulation** control advances the data to the disaster day, showing how the models would have flagged the warning signs.
+All milestones below are **planned**, not completed by this PRD edit. Execute in dependency order; keep data-blocked capabilities visible rather than fabricating a passing result or silently dropping them.
 
-1. **Before state (baseline):** Dudh Koshi basin loaded in its normal state — clear post-monsoon optical baseline (2025-11-22), normal glacial-lake boundary, intact access roads, all assets green (safe).
-2. **Click "Simulation":** The console advances to the disaster window. The optical scene is 95% cloud-blocked (monsoon); the **Weather-Adaptive Router** switches to the Sentinel-1 SAR path, which penetrates the clouds.
-3. **Observation 1 (2026-07-23):** SAR pass reveals small supraglacial pond expansion (+8% area); rainfall 18.2 mm → **Watch**. SIREN logs a watch.
-4. **Observation 2 (2026-08-04):** SAR reveals moraine shift and rapid water expansion (+28% area); 24h rainfall 84.6 mm → **Critical**. *This is the disaster-day trigger.*
-5. **Observation 3 (2026-08-12):** SAR reveals continued peak expansion (+43% area); 24h rainfall 60.0 mm → **Critical**. *This is the peak.*
-6. **The prevention story:** The console shows that the +8% expansion on 07-23 was the early warning — had SIREN been monitoring in real time, the watch would have escalated to a critical alert 20 days before the peak (08-12), buying lead time to evacuate.
-7. **Trigger & review:** System raises an **Elevated/Critical** review card, highlighting the combined D8 + OSM downstream corridor, 2 flagged villages (**Benkar**, **Jorsale**), 1 critical suspension bridge (**Hillary Bridge**), and 3 primary drinking wells along the Dudh Koshi corridor.
-8. **Coordinator action:** Presenter inspects the evidence panel and the Disease Prevention Action Sheet, then clicks **Confirm SOS**.
-9. **Dispatch & response:** System shows the simulated geofenced compressed-payload dispatch (Track 7.ii) alongside the water/medical distribution manifest (Track 7.iii); the audit panel records reviewer, decision, and timestamp.
+| Phase | Work | Exit criteria / blocker |
+|---|---|---|
+| P0 — Integrity and scope | Invalidate contaminated checkpoint metrics in registry/metadata/UI; remove label-derived training and runtime synthetic-training fallbacks from the active research path; inventory dependencies before cleanup. Review pilot basin/hazard, forecast-data coverage, and routing evidence with the user | Invalid models cannot be auto-promoted or presented as calibrated; legacy demo remains runnable; missing sources and user decisions are recorded |
+| P1 — Real data and splits | Validate Sen1Floods11/DEM coverage; audit S1GFloods semantics and event IDs; define training-only preprocessing and fixed split manifests; reserve untouched evaluation | Reproducible loaders reject missing/incompatible inputs; target meanings and licenses documented; no leakage or generated observations |
+| P2 — DL experiments | Train U-Net/ResUNet, compare threshold baseline and SAR-only/terrain-aware variants; add paired-image experiments only when P1 qualifies them | Actual held-out per-event metrics, error analysis, ablations, latency/memory and input/checkpoint lineage reported; no forced gate pass |
+| P3 — Research inference and exposure | Add versioned research contracts, shared train/inference preprocessing, georeferenced model outputs, observed-change statistics, administrative/asset intersections, and baseline comparison in the existing UI | Real cached scenes produce model-derived results; mock/scenario substitution is impossible in research mode; missing data, research status and provenance visible |
+| P4 — Candidate evacuation support | Validate network topology/mode restrictions and destination suitability; incorporate closure evidence; implement graph search, alternatives and explicit no-route states | Routes never traverse known excluded edges; origins/destinations and edge evidence can be inspected; stale/unknown data triggers review; no unsupported arrival countdown |
+| P5 — Onset forecasting, data-gated | Build pre-event temporal dataset and non-event periods; lock event definition/horizon; compare temporal DL to simple baselines | Held-out calibrated performance, lead-time/false-alarm evaluation and issue-time integrity. If data is insufficient, retain unavailable status and list the evidence needed |
+| P6 — Impact/arrival forecasting, data-gated | Obtain real terrain and observed extent/timing/depth evidence; evaluate conditional inundation/arrival without tuning to the final events | Independent hydrodynamic evaluation; ADR-012 gate and future ADR before load-bearing depth/arrival or arrival-aware evacuation use |
+| P7 — Reproducible release | Verify local deployment, offline inference/review chain, model card, experiment table, test coverage and limitations; refresh conflicting implementation docs after verified changes | Repeatable demo and evaluation commands, honest measured results, traceable model/data versions; résumé claims match demonstrated capabilities |
 
-**Closing line for judges:**
+Forecasting-data feasibility starts in P0; P5/P6 training is not a prerequisite for shipping P2–P4 as an explicitly limited research prototype. It is still required to claim the full warning/arrival product. Do not silently switch the pilot from GLOF to river flooding to obtain easier metrics. Architecture and dataset expansion follow evidence, not résumé keyword count.
 
-> "SIREN doesn't replace emergency authorities — it buys them the lead time to identify who to rescue, how to reach them when networks are down, and how to stop the outbreak that follows the flood. This demo shows the 20 days of warning we could have had."
+**Implementation safeguards:** preserve the frozen demo, use typed errors and thin API routes, seed experiments, retain ≥3 reasons for elevated/critical results, preserve recorded human confirmation and ≤250-byte payload tests, and do not change production scoring weights in this scope. A separately reviewed mode/contract design is required before wiring DL outputs into the application. Research status alone does not relax data integrity or public-dispatch controls.
+
+---
+
+## 16. Demonstration and Case-Study Requirements
+
+Keep the original three-observation offline demo as a labeled legacy scenario and regression target. Its scripted expansion percentages and escalation timeline do not establish measured flood onset, prevention, or 20 days of warning. Real source imagery does not make a scenario-generated mask an observed disaster label. Do not present unknown road status as “safe.”
+
+The new research demonstration must:
+
+1. Load a real cached scene with acquisition date, spatial coverage, provenance, and checkpoint version.
+2. Run the trained DL segmenter; display source imagery, predictions, and the independent baseline. Show ground truth only where independently available.
+3. Calculate model-derived area/change and show observed-mask exposure separately from potential downstream corridor exposure.
+4. List affected regions/assets with source dates, coverage limitations, and evidence type. Unavailable population stays unavailable.
+5. Offer candidate routes only when graph and destination checks pass; demonstrate disconnected/closed-network and stale-data outcomes as well as a valid candidate.
+6. Display onset forecasts or arrival estimates only after their own evaluation milestones. Otherwise explain what data is missing; no fabricated forecast is needed to complete a segmentation/exposure demonstration.
+7. Require coordinator review before simulated dispatch; display payload size and reconstruct input/model/route/review lineage in the audit view.
+8. Present the actual held-out experiment table and failure cases, not expected performance or metrics from the demo scene.
+
+**Positioning:** “SIREN is a DL-led flood-mapping and response research prototype with geospatial exposure analysis and coordinator-reviewed route support. Time-window forecasting and conditional flood-arrival modeling are separate, data-gated capabilities.” Describe route support as planned until implemented and evaluated; claim only the milestones demonstrated by the released version.
 
 ---
 
 ## 17. Evaluation & Acceptance Targets
 
-### 17.1 Component metrics
+### 17.1 Scientific evaluation
 
-| Component | Metrics |
+| Component | Required evaluation |
 |---|---|
-| Change/segmentation model | IoU, precision, recall, F1, boundary quality |
-| Flood detection | Recall at selected false-alarm rate, event-level detection rate |
-| Trend model | Accuracy/F1 for stable vs. expanding trend; calibration error |
-| Exposure analysis | Asset-intersection precision, missed-critical-asset rate |
-| Risk model | Brier score, calibration curve, precision-recall, lead-time distribution |
-| Alert workflow | Processing latency, review time, dispatch success in simulation |
+| Segmentation | IoU, Dice/F1, precision, recall, boundary errors, per-event and global aggregation; explicit empty-water/nodata policy; permanent/new-water and terrain failure cases |
+| Baselines and ablations | Same test inputs for threshold baseline vs DL; SAR-only vs real terrain inputs; paired vs single-date only where targets/data are comparable; loss comparison and documented seeds |
+| Forecasting | Event/time-held-out Brier and calibration curves, precision-recall, missed events, false alarms per monitored interval, lead-time distribution after data latency; comparison with persistence/climatology and a simple learned baseline |
+| Impact/arrival | Held-out inundation overlap, depth error where observations exist, timing MAE/MAPE with event-origin definitions and observation uncertainty; per-event and per-point failures |
+| Regional/asset exposure | Asset-intersection precision, missed-critical-asset rate, regional coverage and population uncertainty; observed and corridor/forecast exposure evaluated separately |
+| Candidate routing | Connected valid paths, zero traversal of known closed/excluded edges, bridge/mode restrictions, destination verification, no-route and stale-data behavior; independent route review, not just shortest-path unit tests |
+| Engineering | Inference latency, peak memory, input validation, shared train/inference preprocessing, reproducibility, offline behavior, review/dispatch/audit regression tests |
 
-For emergency use, a model with a slightly lower pixel score may still be preferable if it reduces missed critical areas and explains its uncertainty. Evaluate both detection quality and operational usefulness.
+Create immutable dataset/split manifests before model selection. Use event/location grouping and chronological separation where appropriate; no adjacent-chip leakage or preprocessing/calibration fit on held-out data. The previously inspected Pakistan/Somalia results are development evidence if they guide new choices, not an untouched final benchmark. Report uncertainty across independent events where sample counts permit; disclose small-sample limitations. Never tune feature distributions or labels to achieve a desired metric.
 
-### 17.2 MVP acceptance targets
+### 17.2 Acceptance and promotion
 
-| Target | Acceptance condition | Status |
+- **Research DL milestone:** real-data training, a reproducible evaluation report, explicit limitations, and model-derived geospatial output in the research app. A disappointing metric may be reported honestly; it is not an operational gate pass.
+- **Operational segmentation gate:** retain ADR-011's event-held-out IoU > 0.65 requirement plus the relevant evaluation/acceptance process. A revised channel/target contract must be reviewed explicitly; a generic benchmark pass alone is insufficient for basin deployment.
+- **Susceptibility gate if revisited:** real, appropriate labels/features, spatial/time separation, calibrated improvement over the rules-only baseline, and Brier < 0.15 under ADR-011. A sampled case/control score does not by itself establish real-world event probability.
+- **FNO operational gate if revisited:** retain ADR-012's MAPE ≤20% on at least two of three events (South Lhonak, Chamoli, Dig Tsho), no evaluated point >30%, and a future accepted ADR. Targets must be independently sourced and terrain real; passing illustrative calculations is not acceptable. Chamoli's rock/ice debris process requires explicit applicability analysis, not assumed pure-water equivalence.
+- **Onset forecast gate:** define horizon-specific operating thresholds and acceptable missed-event/false-alarm tradeoffs with the domain reviewer before final evaluation. No supported numeric target is claimed yet; without adequate history or acceptance criteria the capability stays unavailable.
+- **Routing gate:** §7.11 constraints, stale/unknown handling, and independent destination/network review must pass. Arrival-aware recommendations require qualified arrival estimates and the applicable ADR; no route is represented as a guarantee.
+- **Application regression gate:** preserve the existing offline baseline → observations → elevated/critical review with ≥3 reasons → confirmed ≤250-byte simulated dispatch → SHA-256 audit lineage chain. Reject/postpone and missing confirmation must suppress dispatch. Report current test pass/skip/failure counts from an actual run, not historical documentation.
+
+### 17.3 Invalidated results and required remediation
+
+These are disqualifications, not “passes with caveats”:
+
+| Artifact / claim | Finding | Required remediation |
 |---|---|---|
-| Reproducible run | Same inputs and version produce the same risk result. | ✅ Verified (test_pipeline::test_pipeline_deterministic) |
-| End-to-end completion | A prepared observation sequence reaches human review without manual intervention. | ✅ Verified (POST /runs/process-all) |
-| Visible change | The map clearly shows the detected change and affected corridor. | ✅ MapView renders corridor + change masks |
-| Explainability | Every high-priority alert lists at least three evidence factors. | ✅ Verified (obs-002: 8 reasons, obs-003: 8 reasons) |
-| Human gate | No alert is dispatched before a coordinator confirmation. | ✅ Verified (SQLite trigger + test_api) |
-| Offline demo resilience | Prepared data supports the complete demo without external API availability. | ✅ All data local, frontend has mock fallback |
-| Auditability | The system records inputs, model version, reviewer, decision, and alert result. | ✅ Verified (test_audit + test_pipeline DoD chain) |
-| Payload ≤ 250 bytes | Compressed dispatch payload fits in LoRa/SMS constraint. | ✅ Verified (118 bytes, test_codec) |
+| `water_resunet_6ch_v1` test IoU approximately 0.9999 | Synthetic delta-SAR channels were constructed using target water labels | Mark evaluation invalid and promotion false in metadata/registry/UI; eliminate label-derived input fallback and retrain/evaluate on real compatible inputs |
+| `xgboost_susceptibility_v2_real` and the overwritten `xgboost_susceptibility_v1` Brier approximately 0.0253 | The “real” loader generated label-dependent dam, rainfall, expansion and missing-area features; sampled inventory lakes were treated as verified negatives | Disqualify the checkpoint and calibration claim; prevent runtime use/retraining from that loader; retain measured fields/missingness and design valid event/non-event data before revisiting |
+| South Lhonak 12.3% MAPE and subsequent multi-basin results | Evaluation used generated corridor DEMs; timing provenance is inadequate for several targets and some new targets were inferred from assumed speeds | Treat as illustrative, unqualified experiments, not independent real-world validation. Rebuild evaluation with verified observations; no event currently counts as an accepted real-data pass for this plan |
+
+Existing sidecars and other documents may still contain outdated pass flags until P0 is implemented. This PRD edit does not itself quarantine files, restore overwritten checkpoints, or fix runtime fallbacks. Preserve lineage and rollback copies until replacements and references are reviewed; cleanup must not erase the evidence or break the application.
 
 ---
 
-## 18. Future Roadmap
+## 18. Roadmap Boundaries and Cleanup
 
-**V1 — Hackathon MVP:** prepared SAR/optical image sequence, backscatter/NDWI change detection, rainfall context, terrain and exposure overlays, disease-risk index, explainable hazard score, human confirmation, simulated resilient dispatch, audit log. *Stretch:* Search & Rescue Priority Layer (§15). **Status: complete.**
+**Current release target:** the local-first, single-basin research milestones in §15. Detection, onset forecasting, impact forecasting, and routing each have their own evidence and acceptance criteria; progress in one does not certify the others. One well-evaluated DL model integrated into the app takes priority over unvalidated model breadth.
 
-**V1.5 — Live acquisition service (in planning):** automated discovery and download of new satellite products from Copernicus CDSE, IMERG, OSM Overpass, and SRTM; durable job ledger with idempotency (ADR-008); acquisition-health alerting; credential management via Secrets Manager. The frozen deterministic pipeline is not changed in this phase — it receives verified registered inputs rather than being rewritten. Key defects to fix: CDSE deprecated endpoint, Overpass missing river geometry, openmeteo date window bug, and silent failure exits. See `docs/spec/BUILD_ROADMAP.md` Live Phase 1 and `docs/reference/KNOWN_LIMITATIONS.md` Production Transition Gaps.
+**Later connected pilot:** bounded AOI acquisition, durable jobs, credential management, authenticated basin-scoped review, and delivery receipts may be revisited after the research pipeline is reproducible. Existing production ADRs remain relevant, but a hosted multi-service deployment is not required to demonstrate ML engineering. Obtain domain/authority review before any real public-warning deployment.
 
-**V2 — Hosted operational service:** PostgreSQL/RDS persistence with idempotency constraints (ADR-007); S3 object storage for rasters; OIDC authentication and basin-scoped RBAC (ADR-009); paginated API; server-side delivery outbox with provider receipts; multi-instance API behind ALB; live-timeline frontend without simulation controls. PostGIS enabled for the operational asset catalogue and footprint queries — the frozen pipeline's spatial joins remain in-memory via geopandas. See ADR-006 for the connected-acquisition/isolated-execution boundary and ADR-009 for authenticated review. **Dual-basin pilot:** Imja/Dudh Koshi (monitoring) + South Lhonak/Teesta (event validation — the real October 2023 GLOF); see `docs/reference/PRODUCTION_ML_PLAN.md` §4. Chorabari/Kedarnath is dropped as a validation basin: the 2013 event predates Sentinel-1 (S1A launched April 2014), so the SAR-primary pipeline cannot be validated on it.
+**Deferred extensions:** broader regional transfer, additional hazard types, hydrodynamic surrogates, multilingual field tools, logistics, and multi-basin infrastructure. Personnel identification/reunification remains outside the current privacy and product scope. Existing research proposals are not evidence that their checked-off models are validated.
 
-**Critical blocker between V1.5 and V2:** the frozen `run_pipeline()` accepts only the three hardcoded demo observation IDs. The pipeline must reject unknown observations, not silently process them with demo defaults. An approved scope decision is required to extend the observation-acceptance interface before automatic live scoring is possible. See `docs/reference/KNOWN_LIMITATIONS.md` → "Pipeline observation acceptance (Phase 4 blocker)".
-
-**V3 — Research system (revised per ADR-010):** single-date SAR water segmentation (Sen1Floods11 with event-level splits) with deterministic bi-temporal differencing; paired SAR change detection (FC-Siam-diff / ChangeFormer adapted to SAR) once real labeled bi-temporal pairs exist; time-aware deterministic trend, with learned temporal models (elapsed-time-aware) only after ≥2 seasons of real observations; calibrated risk fusion with uncertainty estimation; regional transfer testing (optional non-Himalayan generalization basin, e.g. Cordillera Blanca); hydrodynamic flow modeling; post-event damage assessment; what-if scenario simulation (e.g., partial lake-release planning mode for preparedness exercises); UAV/drone tasking for high-resolution local verification; landslide-susceptibility modeling.
-
-**V4 — Resilience platform:** integration with river gauges, local field reports, telecom status feeds, food/water logistics, shelter capacity, multilingual alert templates, offline field applications, cross-border basin coordination; multi-basin national portfolio dashboard; **Area i expansion — personnel identification and family reunification** (missing-persons registry, survivor tracking, reunification workflow), built only in partnership with approved disaster-management authorities and subject to the privacy constraints in §13.
+**Cleanup policy for this transition:** identify abandoned experimental scripts and reproducible duplicate outputs; check imports, tests, UI references, checkpoints, and documentation before proposing removals. Retain datasets, split manifests, source provenance, audit records, rollback backups, and the functioning baseline. Invalidated experiments must not remain advertised as qualified, but deleting their evidence is not a substitute for correcting runtime selection and registry status. Remove existing files only after the user confirms the exact list; do not bulk-delete `ml/`, deferred modules, or historical ADRs. Historical hackathon implementation details remain in `docs/spec/BUILD_ROADMAP.md`; the current execution order is §15 here.
 
 ---
 

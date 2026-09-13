@@ -1,0 +1,160 @@
+{
+  "events": [
+    {
+      "event": "South Lhonak GLOF, Oct 3-4, 2023",
+      "corridor": "Teesta River, Sikkim Himalaya",
+      "breach_params": {
+        "v_breach_mcm": 45.0,
+        "q_peak_cms": 20000
+      },
+      "inference_time_s": 0.204,
+      "h_water_max_m": 31.06,
+      "h_water_mean_m": 11.0758,
+      "points": [
+        {
+          "name": "Chungthang",
+          "distance_km": 35,
+          "t_observed_min": 65,
+          "t_observed_max": 75,
+          "t_observed_mid": 70.0,
+          "t_predicted": 55.5,
+          "abs_error_min": 14.5,
+          "percentage_error": 20.7,
+          "within_documented_range": false
+        },
+        {
+          "name": "Dikchu",
+          "distance_km": 65,
+          "t_observed_min": 140,
+          "t_observed_max": 150,
+          "t_observed_mid": 145.0,
+          "t_predicted": 134.9,
+          "abs_error_min": 10.1,
+          "percentage_error": 7.0,
+          "within_documented_range": false
+        },
+        {
+          "name": "Singtam",
+          "distance_km": 85,
+          "t_observed_min": 170,
+          "t_observed_max": 190,
+          "t_observed_mid": 180.0,
+          "t_predicted": 196.4,
+          "abs_error_min": 16.4,
+          "percentage_error": 9.1,
+          "within_documented_range": false
+        }
+      ],
+      "mape": 12.3,
+      "max_point_error": 20.7,
+      "gate_passed": true
+    },
+    {
+      "event": "Chamoli rock-ice avalanche, Feb 7, 2021",
+      "corridor": "Rishiganga \u2192 Dhauliganga, Uttarakhand Himalaya",
+      "breach_params": {
+        "v_breach_mcm": 27.0,
+        "q_peak_cms": 15000
+      },
+      "inference_time_s": 0.001,
+      "h_water_max_m": 26.89,
+      "h_water_mean_m": 9.9987,
+      "points": [
+        {
+          "name": "Rishiganga HEP",
+          "distance_km": 13,
+          "t_observed_min": 7,
+          "t_observed_max": 10,
+          "t_observed_mid": 8.5,
+          "t_predicted": 21.2,
+          "abs_error_min": 12.7,
+          "percentage_error": 149.2,
+          "within_documented_range": false
+        },
+        {
+          "name": "Raini",
+          "distance_km": 15,
+          "t_observed_min": 9,
+          "t_observed_max": 12,
+          "t_observed_mid": 10.5,
+          "t_predicted": 24.3,
+          "abs_error_min": 13.8,
+          "percentage_error": 131.7,
+          "within_documented_range": false
+        },
+        {
+          "name": "Tapovan HEP",
+          "distance_km": 25,
+          "t_observed_min": 14,
+          "t_observed_max": 18,
+          "t_observed_mid": 16.0,
+          "t_predicted": 57.2,
+          "abs_error_min": 41.2,
+          "percentage_error": 257.5,
+          "within_documented_range": false
+        }
+      ],
+      "mape": 179.5,
+      "max_point_error": 257.5,
+      "gate_passed": false
+    },
+    {
+      "event": "Dig Tsho GLOF, Aug 4, 1985",
+      "corridor": "Langmoche Chu \u2192 Dudh Koshi, Khumbu Himalaya",
+      "breach_params": {
+        "v_breach_mcm": 5.5,
+        "q_peak_cms": 2350
+      },
+      "inference_time_s": 0.001,
+      "h_water_max_m": 19.63,
+      "h_water_mean_m": 6.4696,
+      "points": [
+        {
+          "name": "Thami",
+          "distance_km": 10,
+          "t_observed_min": 33,
+          "t_observed_max": 42,
+          "t_observed_mid": 37.5,
+          "t_predicted": 16.8,
+          "abs_error_min": 20.7,
+          "percentage_error": 55.2,
+          "within_documented_range": false
+        },
+        {
+          "name": "Ghat",
+          "distance_km": 20,
+          "t_observed_min": 67,
+          "t_observed_max": 83,
+          "t_observed_mid": 75.0,
+          "t_predicted": 39.9,
+          "abs_error_min": 35.1,
+          "percentage_error": 46.8,
+          "within_documented_range": false
+        },
+        {
+          "name": "Lukla",
+          "distance_km": 30,
+          "t_observed_min": 100,
+          "t_observed_max": 125,
+          "t_observed_mid": 112.5,
+          "t_predicted": 67.5,
+          "abs_error_min": 45.0,
+          "percentage_error": 40.0,
+          "within_documented_range": false
+        }
+      ],
+      "mape": 47.4,
+      "max_point_error": 55.2,
+      "gate_passed": false
+    }
+  ],
+  "n_events_passed": 1,
+  "n_events_total": 3,
+  "max_point_error_pct": 257.5,
+  "load_bearing_gate": {
+    "requirement": "MAPE \u2264 20% on \u2265 2 of 3 events, no single point > 30%",
+    "n_passed": 1,
+    "max_point_error": 257.5,
+    "passed": false
+  }
+}
