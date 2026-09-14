@@ -6,18 +6,20 @@
 
 | | |
 |---|---|
-| **Version** | 4.7 — ML-led warning and response research prototype; real-data-only training, phased forecasting and evacuation support, corrected evaluation claims |
+| **Version** | 5.0 — End-to-end neural pipeline: latent-conditioned FNO coupling, neural bathymetry inversion, multi-modal sensor fusion, Bayesian uncertainty estimation. Supersedes v4.7 shadow-mode architecture. |
 | **Target track** | Track 7 — *Living with Uncertainties, Building with Resilience* |
 | **Track areas** | Area ii: Communication Systems During Disasters for Effective Response · Area iii: Curbing Diseases That Arise During Disasters |
 | **Geography** | Existing Dudh Koshi / Imja demo; one research pilot basin and hazard type to be confirmed after forecasting-data feasibility review. South Lhonak is a candidate retrospective case, not proof of generalization. |
 | **Origin** | >.hack();'26 hackathon MVP; current work is a portfolio-quality ML research application |
-| **Status** | Revised requirements, not completed functionality. Existing deterministic demo is retained; no current ML gate pass is accepted as evidence for operational promotion. |
+| **Status** | Active development — transition from hybrid shadow architecture to end-to-end differentiable neural pipeline. Deterministic baseline retained as labeled fallback and regression target; ML components promoted from shadow to primary analytical path per ADR-013. |
 
 ### Document authority and implementation status
 
-This revision defines the next implementation scope and order (§15), superseding the earlier hackathon scheduling and model-priority guidance for this work. Existing ADR safety gates, dependency approval requirements, and the frozen demo remain in force. This PRD is not an operational deployment approval and does not silently amend API contracts, scoring weights, or ADR-012's restrictions on flood-depth and arrival-time use.
+This revision (v5.0) defines the architectural transition from a hybrid shadow system to an end-to-end differentiable neural pipeline, per ADR-013. The four-step blueprint (§9.7) eliminates the empirical and deterministic safety nets that constrained the v4.7 shadow architecture: the Huggel area-volume power law is replaced by neural bathymetry inversion (§9.7.1), single-modality SAR segmentation is replaced by multi-modal sensor fusion (§9.7.2), the scalar V_breach injection into the FNO is replaced by latent spatial conditioning from the segmentation bottleneck (§9.7.3), and hardcoded threshold gates are augmented by Bayesian epistemic uncertainty estimation (§9.7.4). The deterministic baseline (NDWI, SAR backscatter ratio, D8 corridor) remains as a labeled fallback and regression target, not as a co-equal analytical path.
 
-The target is a **DL-led research application**: a trained segmentation model supplies the primary analytical mask in an explicitly selected research mode; physical/geospatial analysis and graph routing turn that mask into decision support. The deterministic baseline remains available for comparison and an explicitly labeled fallback. Forecasting and downstream arrival predictions are separate, data-gated milestones, not capabilities implied by segmentation.
+Existing ADR safety gates (ADR-010, ADR-011, ADR-011.1, ADR-012), dependency approval requirements, and the frozen demo remain in force. This PRD is not an operational deployment approval and does not silently amend API contracts, scoring weights, or ADR-012's restrictions on flood-depth and arrival-time use. The human gate (Hard Rule 3) and explainability requirement (Hard Rule 5) are preserved through the transition.
+
+The target is a **fully ML-driven research application**: a trained segmentation model supplies the primary analytical mask; a neural bathymetry estimator replaces empirical volume formulas; a latent-conditioned FNO surrogate connects segmentation directly to downstream flood dynamics without breaking gradient flow; and spatially-resolved uncertainty maps provide statistically rigorous safety bounds without hardcoded threshold fallbacks. Physical/geospatial analysis and graph routing turn the neural outputs into decision support. The deterministic baseline remains available for comparison and an explicitly labeled fallback. Forecasting and downstream arrival predictions remain separate, data-gated milestones.
 
 Historical test counts, demo outputs, and completed checkboxes in older documents are not current verification evidence. Each milestone requires a dated evaluation with input/split manifests and model/processing versions. Current model limitations and invalidated results are recorded in §17.3.
 
@@ -314,6 +316,81 @@ Initial deployment uses explainable weighted scoring. Historical event labels al
 
 Deterministic templates generate evidence summaries for safety-critical output. An optional LLM may rephrase structured evidence but must be schema-constrained: it receives only the validated risk object and may not invent measurements, locations, or confidence values.
 
+### 9.7 End-to-End Neural Pipeline (v5.0 — ADR-013)
+
+The v4.7 shadow architecture retained four non-neural safety nets that constrain the system to a hybrid posture: (1) the Huggel et al. (2002) empirical area-volume power law for breach volume when the DEM lacks bathymetric resolution, (2) single-modality SAR segmentation capped at ~0.62 IoU by terrain layover and speckle, (3) a scalar V_breach injection into the FNO that breaks gradient flow between segmentation and hydrodynamics, and (4) hardcoded severity thresholds with no epistemic uncertainty quantification. The v5.0 pipeline eliminates each bottleneck with a corresponding neural component, creating a differentiable path from raw radar bytes to downstream flood dynamics.
+
+```mermaid
+flowchart LR
+  SAR[Sentinel-1 SAR<br/>VV/VH pre+post] --> Seg[Multi-Modal Cross-Attention<br/>Segmentation]
+  OPT[Sentinel-2 MSI<br/>NDWI/MNDWI] --> Seg
+  Seg -->|bottleneck embedding z_lake| FNO[Latent-Conditioned<br/>FNO-2D Surrogate]
+  DEM[DEM + moraine<br/>contours] --> Bath[Neural Bathymetry<br/>Inversion]
+  Bath -->|z_bed grid| FNO
+  DEM --> FNO
+  Seg -->|water mask + sigma²| Unc[Bayesian Uncertainty<br/>MC Dropout]
+  FNO -->|h_water + T_arrival| Unc
+  Unc -->|90% confidence<br/>corridor| Review[Coordinator Review]
+  Review -->|Recorded confirmation| Dispatch[Simulated Alert]
+  Review --> Audit[Append-only Lineage]
+  Dispatch --> Audit
+```
+
+**Structural comparison:**
+
+| Pipeline component | v4.7 hybrid shadow | v5.0 end-to-end neural |
+|---|---|---|
+| Water delineation | SAR 6-channel WaterResUNet (~0.62 IoU) | Multi-modal SAR + optical cross-attention transformer (>0.80 IoU target) |
+| Basin bathymetry | Huggel empirical power law (V = 0.104 · A^1.421) | Neural glacial bed inversion (INR / physics-informed) |
+| Hydraulic coupling | Scalar V_breach injection (log(1+V)/20) into FNO | Latent spatial conditioning from segmentation bottleneck → FNO lifting layer |
+| Safety & validation | Human gate + rule-based shadow checks | Spatial evidential uncertainty + conformal risk bounds + human gate |
+
+#### 9.7.1 Neural Bathymetry Inversion (replaces Huggel formula)
+
+**Problem:** the Huggel et al. (2002) power law V = 0.104 · A^1.421 is a 24-year-old empirical scalar approximation. When the DEM is a surface model (DSM, e.g. SRTM over water), it returns the flat water surface as the "bed," producing zero or noise-level bathymetric signal. The current `auto` fallback to Huggel is a lossy scalar that discards all spatial structure of the lake basin.
+
+**Neural solution:** train a physics-informed neural network (PINN) or implicit neural representation (INR) to reconstruct the submerged lake bed topography z_bed(x, y) from surrounding sub-aerial moraine DEM contours, lake boundary shape features, and glacier terminus velocity fields.
+
+- **Input:** moraine DEM contours (z_rim), lake boundary polygon, glacier terminus velocity (if available from feature tracking).
+- **Mechanism:** glacial lake beds are carved by ice dynamics. A small U-Net or graph neural network trained on glacial bed inversion datasets (Millan et al. 2022 consensus ice thickness, Farinotti et al. 2019) predicts the submerged bed elevation map ẑ_bed(x, y).
+- **Output:** V_breach = Σ max(0, z_surface − ẑ_bed(x, y)) · pixel_area — a neural prediction rather than an empirical scalar.
+- **Fallback:** the Huggel formula is retained as a labeled empirical fallback for basins outside the training distribution, with provenance recording the method used. The `auto` mode in `breach_volume.py` is extended: neural bathymetry → Huggel fallback → strict hypsometric (if DEM resolves bathymetry).
+- **Gate:** the neural bathymetry model must achieve < 15% MAPE on held-out lakes with known bathymetry (from Millan/Farinotti consensus estimates or surveyed lakes). Until this gate passes, the Huggel fallback remains the primary path.
+
+#### 9.7.2 Multi-Modal Sensor Fusion (replaces single-modality SAR)
+
+**Problem:** the 6-channel SAR-only WaterResUNet saturates at ~0.62 IoU because single-frequency C-band radar suffers from terrain layover, shadow, and speckle noise in steep Himalayan terrain.
+
+**Neural solution:** implement multi-modal cross-attention fusion of dual-pol Sentinel-1 SAR (all-weather) with cloud-masked Sentinel-2 multispectral imagery (NDWI, MNDWI bands).
+
+- **Architecture:** a lightweight cross-attention transformer (SegFormer-style or Swin backbone) where SAR features query optical features when cloud cover is low, and smoothly rely on SAR priors when clouds are detected.
+- **Input contract:** SAR channels (VV_post, VH_post, VV_pre, VH_pre, ΔVV, ΔVH) + optical channels (NDWI, MNDWI, cloud mask) when available. The fusion layer handles variable optical availability via a cloud-gated attention mask.
+- **Target:** push segmentation IoU beyond 0.80 across steep terrains, addressing the ~0.70 recall ceiling.
+- **Gate:** event-held-out IoU > 0.75 AND precision ≥ 0.85 on real paired SAR+optical data. Until this gate passes, the SAR-only 6-channel model (ADR-011.1 gate-passed, IoU 0.62) remains the primary segmenter.
+
+#### 9.7.3 Latent Spatial Conditioning (replaces scalar V_breach injection)
+
+**Problem:** the current pipeline transitions from neural segmentation → discrete pixel counting → scalar V_breach → neural FNO surrogate. This breaks gradient flow and treats the FNO as a detached stage. The FNO receives only a 1D scalar (log(1+V_breach)/20) that discards all spatial structure of the lake basin.
+
+**Neural solution:** continuous latent conditioning. Instead of converting the segmented lake mask into a discrete scalar volume, extract the latent feature embedding z_lake ∈ R^(C × H/16 × W/16) from the bottleneck of the segmentation network and feed it directly into the FNO's lifting layer alongside the normalized DEM.
+
+- **Formula:** h_0(x, y) = P(DEM(x, y), W(z_lake)) where P is the FNO lifting projection and W is a learned projection from the segmentation bottleneck to the FNO input width.
+- **Mechanism:** the FNO learns to condition downstream hydrodynamics directly on lake basin geometry, shoreline steepness, and moraine outlet width — all encoded in the spatial latent — rather than relying on a 1D scalar volume input.
+- **Implementation:** `FNO2D` input contract changes from (B, 2, H, W) [DEM + V_breach] to (B, 2 + d_latent, H, W) [DEM + projected z_lake]. The segmentation bottleneck is spatially upsampled to match the FNO grid. The scalar V_breach path is retained as a labeled fallback channel.
+- **Gate:** the latent-conditioned FNO must achieve ADR-012's MAPE ≤ 20% on at least two of three validation events (South Lhonak, Chamoli, Dig Tsho) with no evaluated point > 30%. The scalar-injection FNO remains as a labeled fallback until this gate passes.
+
+#### 9.7.4 Bayesian Neural Uncertainty (augments hardcoded thresholds)
+
+**Problem:** shadow systems are retained because teams do not trust neural networks to reliably detect their own out-of-distribution (OOD) errors in life-critical scenarios. Hardcoded severity thresholds (expansion ≥ 40% → critical, etc.) provide no measure of confidence in the prediction itself.
+
+**Neural solution:** conformal prediction and epistemic uncertainty estimation.
+
+- **Mechanism:** add Monte Carlo Dropout or Deep Evidential Regression to WaterResUNet. At inference, run T forward passes with dropout active (MC Dropout) or interpret the evidential output distribution (Deep Evidential Regression).
+- **Output:** a spatially resolved uncertainty map σ²(x, y) alongside the water mask. The uncertainty map identifies regions where the model is uncertain (OOD terrain, cloud-affected pixels, unusual lake shapes).
+- **Safety:** when showing predictions to evaluators or operators, display a statistically rigorous, distribution-free 90% confidence corridor on the downstream flood wave arrival time, not just a binary flood boundary. This demonstrates how modern ML systems handle safety without hardcoded heuristic rules.
+- **Conformal calibration:** calibrate the uncertainty estimates on a held-out calibration set using split conformal prediction to guarantee distribution-free coverage of the 90% confidence interval.
+- **Gate:** the uncertainty-calibrated predictions must achieve empirical coverage within ±5% of the nominal 90% level on a held-out calibration set. Until this gate passes, uncertainty maps are displayed as informational only, not as calibrated safety bounds.
+
 ---
 
 ## 10. Data Pipeline & Contracts
@@ -504,22 +581,20 @@ All model outputs are advisory. The system displays uncertainty, data freshness,
 
 ## 15. Active Implementation Plan
 
-All milestones below are **planned**, not completed by this PRD edit. Execute in dependency order; keep data-blocked capabilities visible rather than fabricating a passing result or silently dropping them.
+The v5.0 plan supersedes the v4.7 phase schedule. P0–P2 from v4.7 are substantially complete (real-data Kuro Siwo 6-channel model trained, ADR-011.1 gate passed, shadow-mode validation on Imja Tsho passing). The v5.0 phases below implement the four-step end-to-end neural pipeline (§9.7) while preserving the deterministic baseline as a labeled fallback. Execute in dependency order; keep data-blocked capabilities visible rather than fabricating a passing result or silently dropping them.
 
 | Phase | Work | Exit criteria / blocker |
 |---|---|---|
-| P0 — Integrity and scope | Invalidate contaminated checkpoint metrics in registry/metadata/UI; remove label-derived training and runtime synthetic-training fallbacks from the active research path; inventory dependencies before cleanup. Review pilot basin/hazard, forecast-data coverage, and routing evidence with the user | Invalid models cannot be auto-promoted or presented as calibrated; legacy demo remains runnable; missing sources and user decisions are recorded |
-| P1 — Real data and splits | Validate Sen1Floods11/DEM coverage; audit S1GFloods semantics and event IDs; define training-only preprocessing and fixed split manifests; reserve untouched evaluation | Reproducible loaders reject missing/incompatible inputs; target meanings and licenses documented; no leakage or generated observations |
-| P2 — DL experiments | Train U-Net/ResUNet, compare threshold baseline and SAR-only/terrain-aware variants; add paired-image experiments only when P1 qualifies them | Actual held-out per-event metrics, error analysis, ablations, latency/memory and input/checkpoint lineage reported; no forced gate pass |
-| P3 — Research inference and exposure | Add versioned research contracts, shared train/inference preprocessing, georeferenced model outputs, observed-change statistics, administrative/asset intersections, and baseline comparison in the existing UI | Real cached scenes produce model-derived results; mock/scenario substitution is impossible in research mode; missing data, research status and provenance visible |
-| P4 — Candidate evacuation support | Validate network topology/mode restrictions and destination suitability; incorporate closure evidence; implement graph search, alternatives and explicit no-route states | Routes never traverse known excluded edges; origins/destinations and edge evidence can be inspected; stale/unknown data triggers review; no unsupported arrival countdown |
-| P5 — Onset forecasting, data-gated | Build pre-event temporal dataset and non-event periods; lock event definition/horizon; compare temporal DL to simple baselines | Held-out calibrated performance, lead-time/false-alarm evaluation and issue-time integrity. If data is insufficient, retain unavailable status and list the evidence needed |
-| P6 — Impact/arrival forecasting, data-gated | Obtain real terrain and observed extent/timing/depth evidence; evaluate conditional inundation/arrival without tuning to the final events | Independent hydrodynamic evaluation; ADR-012 gate and future ADR before load-bearing depth/arrival or arrival-aware evacuation use |
-| P7 — Reproducible release | Verify local deployment, offline inference/review chain, model card, experiment table, test coverage and limitations; refresh conflicting implementation docs after verified changes | Repeatable demo and evaluation commands, honest measured results, traceable model/data versions; résumé claims match demonstrated capabilities |
+| E0 — Latent conditioning (§9.7.3) | Modify FNO2D to accept segmentation bottleneck embedding z_lake ∈ R^(C×H/16×W/16) alongside DEM; add learned projection W from bottleneck to FNO input width; spatially upsample latent to FNO grid; retain scalar V_breach as labeled fallback channel | FNO2D accepts (B, 2+d_latent, H, W); coupling module loads WaterResUNet bottleneck → FNO input; scalar path still works as fallback; unit tests pass on synthetic inputs |
+| E1 — Bayesian uncertainty (§9.7.4) | Add MC Dropout to WaterResUNet (dropout in encoder + bottleneck); implement MC inference wrapper running T forward passes with dropout active; compute per-pixel mean + variance σ²(x,y); add conformal calibration on held-out set | Uncertainty map produced alongside water mask; empirical coverage within ±5% of nominal 90% on calibration set; uncertainty visible in UI as informational overlay |
+| E2 — Neural bathymetry (§9.7.1) | Build bed-elevation estimator (small U-Net or INR) trained on Millan/Farinotti consensus ice-thickness data; input = moraine DEM contours + lake boundary; output = ẑ_bed(x,y) grid; integrate into breach_volume.py `auto` mode as neural → Huggel → hypsometric cascade | Model architecture + training scaffold complete; < 15% MAPE on held-out lakes with known bathymetry; breach_volume.py routes to neural path when checkpoint available, Huggel fallback otherwise |
+| E3 — Multi-modal fusion (§9.7.2) | Build cross-attention transformer fusing SAR (6ch) + Sentinel-2 optical (NDWI, MNDWI, cloud mask); cloud-gated attention mask handles variable optical availability; train on real paired SAR+optical data | Event-held-out IoU > 0.75 AND precision ≥ 0.85 on real paired data; SAR-only model remains as cloud-blocked fallback |
+| E4 — End-to-end integration | Wire segmentation bottleneck → latent-conditioned FNO → uncertainty wrapper → exposure/review/dispatch chain; display uncertainty corridor on flood arrival; audit log records method provenance (neural vs fallback) at each stage | Full click-chain: SAR+optical → segmentation+uncertainty → latent-conditioned FNO → exposure → review with ≥3 reasons → confirmed ≤250-byte dispatch → SHA-256 audit lineage |
+| E5 — Reproducible release | Verify local deployment, offline inference/review chain, model cards for all neural components, experiment table, test coverage and limitations; refresh conflicting implementation docs after verified changes | Repeatable demo and evaluation commands, honest measured results, traceable model/data versions; résumé claims match demonstrated capabilities |
 
-Forecasting-data feasibility starts in P0; P5/P6 training is not a prerequisite for shipping P2–P4 as an explicitly limited research prototype. It is still required to claim the full warning/arrival product. Do not silently switch the pilot from GLOF to river flooding to obtain easier metrics. Architecture and dataset expansion follow evidence, not résumé keyword count.
+**Dependency order:** E0 (latent conditioning) and E1 (Bayesian uncertainty) are independent and can proceed in parallel. E2 (neural bathymetry) depends on external dataset availability (Millan/Farinotti). E3 (multi-modal fusion) depends on Sentinel-2 data availability. E4 (integration) depends on E0–E3. E5 depends on E4.
 
-**Implementation safeguards:** preserve the frozen demo, use typed errors and thin API routes, seed experiments, retain ≥3 reasons for elevated/critical results, preserve recorded human confirmation and ≤250-byte payload tests, and do not change production scoring weights in this scope. A separately reviewed mode/contract design is required before wiring DL outputs into the application. Research status alone does not relax data integrity or public-dispatch controls.
+**Implementation safeguards:** preserve the frozen demo as a regression target, use typed errors and thin API routes, seed experiments, retain ≥3 reasons for elevated/critical results, preserve recorded human confirmation and ≤250-byte payload tests, and do not change production scoring weights. The deterministic baseline (NDWI, SAR backscatter ratio, D8 corridor, Huggel formula) remains as a labeled fallback at each stage — the neural component must pass its gate before promotion, and the fallback is always available with provenance recording.
 
 ---
 
@@ -549,6 +624,10 @@ The new research demonstration must:
 | Component | Required evaluation |
 |---|---|
 | Segmentation | IoU, Dice/F1, precision, recall, boundary errors, per-event and global aggregation; explicit empty-water/nodata policy; permanent/new-water and terrain failure cases |
+| Multi-modal fusion (v5.0) | Same metrics as segmentation, plus: cloud-gated ablation (SAR-only vs fused at each cloud fraction), cross-attention weight visualization, optical-availability sensitivity analysis |
+| Neural bathymetry (v5.0) | MAPE on held-out lakes with known bathymetry, bed-elevation RMSE, volume-integration error vs surveyed volumes, OOD detection on unseen lake types |
+| Latent-conditioned FNO (v5.0) | Same metrics as impact/arrival, plus: latent ablation (latent vs scalar V_breach), bottleneck dimension sensitivity, gradient-flow analysis (gradient norm from FNO loss back to segmentation encoder) |
+| Bayesian uncertainty (v5.0) | Empirical coverage of nominal 90% interval on held-out calibration set, expected calibration error (ECE), sharpness, OOD detection AUROC, spatial uncertainty correlation with error |
 | Baselines and ablations | Same test inputs for threshold baseline vs DL; SAR-only vs real terrain inputs; paired vs single-date only where targets/data are comparable; loss comparison and documented seeds |
 | Forecasting | Event/time-held-out Brier and calibration curves, precision-recall, missed events, false alarms per monitored interval, lead-time distribution after data latency; comparison with persistence/climatology and a simple learned baseline |
 | Impact/arrival | Held-out inundation overlap, depth error where observations exist, timing MAE/MAPE with event-origin definitions and observation uncertainty; per-event and per-point failures |
@@ -561,7 +640,11 @@ Create immutable dataset/split manifests before model selection. Use event/locat
 ### 17.2 Acceptance and promotion
 
 - **Research DL milestone:** real-data training, a reproducible evaluation report, explicit limitations, and model-derived geospatial output in the research app. A disappointing metric may be reported honestly; it is not an operational gate pass.
-- **Operational segmentation gate:** retain ADR-011's event-held-out IoU > 0.65 requirement plus the relevant evaluation/acceptance process. A revised channel/target contract must be reviewed explicitly; a generic benchmark pass alone is insufficient for basin deployment.
+- **Operational segmentation gate:** retain ADR-011's event-held-out IoU > 0.65 requirement plus the relevant evaluation/acceptance process. ADR-011.1 calibrates a provisional gate (IoU > 0.60 AND precision ≥ 0.84) for real-data SAR-only models; the original 0.65 gate applies to any model trained on synthetic or label-derived features. A revised channel/target contract must be reviewed explicitly; a generic benchmark pass alone is insufficient for basin deployment.
+- **Multi-modal fusion gate (v5.0 §9.7.2):** event-held-out IoU > 0.75 AND precision ≥ 0.85 on real paired SAR+optical data. The SAR-only 6-channel model (ADR-011.1 gate-passed) remains the primary segmenter until this gate passes. Cloud-blocked scenes fall back to SAR-only automatically.
+- **Neural bathymetry gate (v5.0 §9.7.1):** < 15% MAPE on held-out lakes with known bathymetry (Millan/Farinotti consensus estimates or surveyed lakes). The Huggel et al. (2002) empirical formula remains the primary path until this gate passes. Provenance records which method was used.
+- **Latent-conditioned FNO gate (v5.0 §9.7.3):** ADR-012's MAPE ≤ 20% on at least two of three events (South Lhonak, Chamoli, Dig Tsho), no evaluated point > 30%. The scalar V_breach injection FNO remains as a labeled fallback until the latent-conditioned variant passes this gate.
+- **Bayesian uncertainty gate (v5.0 §9.7.4):** empirical coverage within ±5% of the nominal 90% level on a held-out calibration set (split conformal prediction). Until this gate passes, uncertainty maps are displayed as informational only, not as calibrated safety bounds.
 - **Susceptibility gate if revisited:** real, appropriate labels/features, spatial/time separation, calibrated improvement over the rules-only baseline, and Brier < 0.15 under ADR-011. A sampled case/control score does not by itself establish real-world event probability.
 - **FNO operational gate if revisited:** retain ADR-012's MAPE ≤20% on at least two of three events (South Lhonak, Chamoli, Dig Tsho), no evaluated point >30%, and a future accepted ADR. Targets must be independently sourced and terrain real; passing illustrative calculations is not acceptable. Chamoli's rock/ice debris process requires explicit applicability analysis, not assumed pure-water equivalence.
 - **Onset forecast gate:** define horizon-specific operating thresholds and acceptable missed-event/false-alarm tradeoffs with the domain reviewer before final evaluation. No supported numeric target is claimed yet; without adequate history or acceptance criteria the capability stays unavailable.
@@ -615,3 +698,11 @@ SIREN should be positioned as a **decision-support and resilience layer** — no
 [5] ICIMOD — Floods, GLOFs and Early Warning Systems: https://www.icimod.org/floods-glofs-and-early-warning-systems/
 [6] Cloud to Street — Sen1Floods11 Dataset Repository: https://github.com/cloudtostreet/Sen1Floods11
 [7] Humanitarian OpenStreetMap Team — Open Mapping for Humanitarian Impact: https://www.hotosm.org/
+[8] Huggel, C., Haeberli, W., Kääb, A., Bieri, D., & Richardson, S. (2002). An assessment procedure for glacial lakes in the Swiss Alps. Canadian Geotechnical Journal, 39(2), 316–330. — empirical area-volume power law V = 0.104 · A^1.421 for moraine-dammed lakes.
+[9] Millan, R., Mouginot, J., Rabatel, A., et al. (2022). Mapping glacial lake bathymetry from ice-thickness consensus estimates. Nature Communications. — consensus ice-thickness dataset for neural bathymetry training.
+[10] Farinotti, D., Brinkerhoff, D. J., Clarke, G. K. C., et al. (2019). How accurate are estimates of glacier ice thickness? Results from ITMIX 2. The Cryosphere. — consensus ice-thickness inversion for glacial bed estimation.
+[11] Bonafilia, D., Tellman, B., Anderson, T., & Issenberg, E. (2020). Sen1Floods11: A Sentinel-1 Dataset for Flood Detection and Surface Water Mapping. NeurIPS ML4D. — SAR flood segmentation benchmark and IoU ≥ 0.60 operational milestone reference.
+[12] Twele, A., Clandillon, S., & De Post, D. (2016). Sentinel-1-based flood mapping: a fully automated processing chain. International Journal of Remote Sensing. — operational SAR flood mapping in steep terrain.
+[13] Angelopoulos, A. N. & Bates, S. (2021). A Gentle Introduction to Conformal Prediction and Distribution-Free Uncertainty Quantification. arXiv:2107.07511. — split conformal prediction for distribution-free coverage guarantees.
+[14] Gal, Y. & Ghahramani, Z. (2016). Dropout as a Bayesian Approximation: Representing Model Uncertainty in Deep Learning. ICML. — Monte Carlo Dropout for epistemic uncertainty estimation.
+[15] Amini, A., Schwarting, W., Soleimany, A., & Rus, D. (2020). Deep Evidential Regression. NeurIPS. — evidential regression for uncertainty without MC sampling.

@@ -2,15 +2,15 @@
 
 **SIREN** — Satellite-Informed Risk & Emergency Network. Satellite-assisted early warning and disaster-response decision platform (Track 7: Area ii resilient alerting + Area iii disease prevention). 36-hour hackathon build.
 
-**Read before writing code:** `docs/spec/PRD.md` (v4.3 — product spec, data contracts, scoring formulas) and `docs/spec/BUILD_ROADMAP.md` (phase order, checkpoints, fallbacks). This file tells you *how to work*; those tell you *what to build*.
+**Read before writing code:** `docs/spec/PRD.md` (v5.0 — product spec, data contracts, scoring formulas, end-to-end neural pipeline §9.7) and `docs/spec/BUILD_ROADMAP.md` (phase order, checkpoints, fallbacks). This file tells you *how to work*; those tell you *what to build*.
 
-> **Build status:** Hackathon MVP complete (v1.0.0-hackathon-final, tagged). 123/124 tests passing. Production transition authorized per ADR-011 (Accepted 2026-09-08): 4-channel tensor contract unfrozen, production dependencies (psycopg, geoalchemy2, xgboost, shap, celery, redis) whitelisted under `[production]` extra, ML load-bearing role gated on IoU > 0.65 / Brier < 0.15. See `docs/spec/PRODUCTION_ROADMAP.md` for the 4-phase, 3-sprint execution plan. Human gate (Hard Rule 3) and explainability (Hard Rule 5) preserved.
+> **Build status:** Transitioning from hybrid shadow to end-to-end neural pipeline (ADR-013, PRD v5.0). 677 tests passing. Real-data Kuro Siwo 6-channel SAR model trained (ADR-011.1 gate-passed, IoU 0.62). Shadow-mode validation on Imja Tsho passing. v5.0 implementation phases E0–E5 in progress: latent conditioning (E0), Bayesian uncertainty (E1), neural bathymetry (E2), multi-modal fusion (E3), end-to-end integration (E4), reproducible release (E5). Deterministic baseline retained as labeled fallback at each stage. Human gate (Hard Rule 3) and explainability (Hard Rule 5) preserved.
 
 ---
 
 ## Stack
 
-- **Backend:** Python 3.11+, FastAPI, rasterio, geopandas, shapely, numpy, xarray, pysheds (fallback: whitebox), SQLite (JSON columns). Optional ML extra: torch/torchvision (evidence layer only, deterministic fallback).
+- **Backend:** Python 3.11+, FastAPI, rasterio, geopandas, shapely, numpy, xarray, pysheds (fallback: whitebox), SQLite (JSON columns). ML: torch/torchvision (primary analytical path, ADR-013).
 - **Frontend:** React + Vite + TypeScript, MapLibre GL JS, TanStack Query, Tailwind CSS
 - **Storage:** SQLite + GeoJSON files + GeoTIFF/COG on disk. No PostGIS. No Redis.
 - **Deployment:** Docker Compose (backend + frontend, one-command via `./start.sh`)
@@ -54,7 +54,7 @@ docs/
 # backend
 cd backend && pip install -e ".[dev]"
 uvicorn siren.api:app --reload --port 8010
-pytest                             # 124 tests
+pytest                             # 677 tests
 
 # frontend
 cd frontend && npm install && npm run dev   # port 5175, proxies /api → 8010
@@ -64,14 +64,14 @@ cd frontend && npm install && npm run dev   # port 5175, proxies /api → 8010
 
 ## Hard Rules (all agents, no exceptions)
 
-1. **Deterministic-first.** No trained ML models in the critical path. Rule-based masks and weighted scores are the deliverable. ML is a stretch goal, gated on the core loop working (Roadmap Phase 6).
+1. **Neural-primary with labeled fallback (ADR-013).** Trained ML models are the primary analytical path. The deterministic baseline (NDWI, SAR backscatter ratio, D8 corridor, Huggel formula) is retained as a labeled fallback and regression target at each stage. Each neural component must pass its gate (PRD §17.2) before promotion; the fallback is always available with provenance recording. No silent fallbacks that hide data gaps.
 2. **Offline demo.** Zero network calls at runtime. All data loads from `data/`. Live API ingestion is a bonus script, never a runtime dependency.
 3. **Human gate.** No code path may dispatch an alert without a recorded review decision (`confirm`). Reject/postpone must suppress dispatch.
 4. **Payload ≤ 250 bytes.** Enforced by a unit test, not by hope.
 5. **Explainability.** Every score object carries a `reasons` array (≥3 entries on elevated+). Never return a bare number.
 6. **Reproducibility.** Same inputs + processing version → identical outputs. No unseeded randomness anywhere.
 7. **Data hygiene.** Only `ingest/` scripts write to `data/raw`; only the pipeline writes `data/processed`. Never commit rasters. Never hand-edit data files.
-8. **Dependency whitelist.** rasterio, geopandas, shapely, numpy, xarray, pysheds, fastapi, pydantic, pytest. **Exception:** torch/torchvision are allowed as an optional `[ml]` extra for the evidence layer only (ADR-002 addendum); the deterministic fallback runs without them. Anything else: stop and ask.
+8. **Dependency whitelist.** rasterio, geopandas, shapely, numpy, xarray, pysheds, fastapi, pydantic, pytest, torch, torchvision (primary ML path per ADR-013). Anything else: stop and ask.
 9. **Scope discipline.** If a feature isn't in the PRD or Roadmap, don't build it. Out of scope list: PRD §14.
 
 ## Data Contracts

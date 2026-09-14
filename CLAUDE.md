@@ -1,14 +1,14 @@
 # CLAUDE.md — SIREN
 
-Companion to `AGENTS.md` (agent routing + hard rules) and `docs/spec/PRD.md` (spec). Read all three before writing code.
+Companion to `AGENTS.md` (agent routing + hard rules) and `docs/spec/PRD.md` (v5.0 spec). Read all three before writing code.
 
-**SIREN** — Satellite-Informed Risk & Emergency Network. Satellite-assisted early warning and disaster-response platform for Himalayan basins. Track 7 (resilient alerting + disease prevention). 36-hour hackathon build.
+**SIREN** — Satellite-Informed Risk & Emergency Network. Satellite-assisted early warning and disaster-response platform for Himalayan basins. Track 7 (resilient alerting + disease prevention). Transitioning from hybrid shadow to end-to-end neural pipeline (ADR-013, PRD v5.0).
 
 ---
 
 ## Stack
 
-- **Backend:** Python 3.11+, FastAPI, rasterio, geopandas, shapely, numpy, xarray, pysheds (fallback: whitebox), SQLite (JSON columns). Optional ML extra: torch/torchvision (evidence layer only, deterministic fallback).
+- **Backend:** Python 3.11+, FastAPI, rasterio, geopandas, shapely, numpy, xarray, pysheds (fallback: whitebox), SQLite (JSON columns). ML: torch/torchvision (now primary analytical path, not optional — ADR-013).
 - **Frontend:** React + Vite + TypeScript, MapLibre GL JS, TanStack Query, Tailwind CSS
 - **Storage:** SQLite + GeoJSON files + GeoTIFF/COG on disk. No PostGIS, no Redis.
 - **Deployment:** Docker Compose (backend + frontend, one-command via `./start.sh`)
@@ -21,10 +21,18 @@ backend/
     api/          # FastAPI routes (thin; delegates to modules) + map_assets.py
     ingest/       # CDSE STAC, Earthdata SRTM, IMERG, Overpass downloaders
     preprocess/   # clip, reproject, co-register, quality gate
-    detect/       # NDWI diff, SAR backscatter ratio, weather-adaptive router, change stats
+    detect/       # NDWI diff, SAR backscatter ratio, weather-adaptive router, change stats (deterministic fallback)
     geo/          # combined D8 + OSM river corridor, tolerance buffers, exposure intersections
+                   # hydro_surrogate.py — FNO2D (latent-conditioned, ADR-013)
     risk/         # hazard H, exposure E, disease D_risk, SAR priority + reasons
-    ml/           # optional ML evidence layer (deterministic fallback, torch-gated)
+                   # breach_volume.py — hypsometric / Huggel / neural bathymetry cascade
+    ml/           # ML pipeline (primary analytical path, ADR-013)
+                   #   model.py — WaterResUNet (6ch SAR, MC Dropout-ready)
+                   #   fusion.py — multi-modal SAR+optical cross-attention (E3)
+                   #   bathymetry.py — neural bed elevation estimator (E2)
+                   #   uncertainty.py — MC Dropout inference + conformal calibration (E1)
+                   #   latent_coupling.py — segmentation bottleneck → FNO conditioning (E0)
+                   #   registry.py — model registry with gate status + provenance
     alerting/     # <250-byte payload codec, simulated dispatch
     audit/        # append-only log writer + SHA-256 hash chain (hash_chain.py)
     db/           # schema.sql + repositories
@@ -47,13 +55,14 @@ docs/
 
 ## Conventions
 
-- **Module boundaries:** `api/` routes must not contain logic — delegate to `detect/`, `geo/`, `risk/`, etc. Keeps the pipeline testable without HTTP.
+- **Module boundaries:** `api/` routes must not contain logic — delegate to `detect/`, `geo/`, `risk/`, `ml/`, etc. Keeps the pipeline testable without HTTP.
 - **Data contracts:** implement PRD §10 field names/types exactly. Never rename a field to "make it nicer."
 - **Scoring:** every score object carries a `reasons` array (≥3 entries on elevated+). Never return a bare number.
 - **Errors:** raise typed exceptions; FastAPI handlers map them to structured JSON `{error, detail}`. No silent fallbacks that hide data gaps.
 - **Logging:** use Python `logging`; log run_id/observation_id on every pipeline step for lineage.
 - **Reproducibility:** no unseeded randomness. Seed any RNG explicitly.
 - **Payload size:** the ≤250-byte alert constraint is enforced by a unit test, not by hope.
+- **Neural fallback provenance (v5.0):** every neural component records its method (neural vs fallback) in the result provenance. The deterministic baseline is always available as a labeled fallback — the neural component must pass its gate (PRD §17.2) before promotion.
 
 ## Known Gotchas
 
@@ -68,6 +77,8 @@ docs/
 - **Tolerance buffers:** bridges ±75 m, roads ±50 m, settlements/wells ±100 m. These exist to prevent false intersections at 10–30 m satellite resolution — do not "tighten" them.
 - **Offline demo:** zero network calls at runtime. All data loads from `data/`. Live ingestion is a bonus script, never a runtime dependency.
 - **SQLite spatial joins:** run in-memory via geopandas on the small basin extract. Do not reach for PostGIS.
+- **SRTM is a DSM (v5.0):** SRTM over water returns the flat water surface, not the lake bed. The `breach_volume.py` `auto` mode detects this via mean-depth criterion (`MIN_BATHYMETRIC_MEAN_DEPTH_M = 1.0`) and falls back to Huggel. The neural bathymetry model (E2) will replace this fallback when trained.
+- **FNO input contract (v5.0):** `FNO2D` now accepts (B, 2+d_latent, H, W) for latent conditioning. The scalar V_breach path (B, 2, H, W) is retained as a labeled fallback. Check `in_channels` before loading checkpoints — the scalar-only FNO checkpoint will not load into the latent-conditioned model without the fallback flag.
 
 ## Module Map
 
@@ -75,11 +86,17 @@ docs/
 |---|---|
 | Downloading scenes | `ingest/` |
 | Clip/reproject/align/quality | `preprocess/` |
-| Change masks + stats | `detect/` |
+| Change masks + stats (deterministic fallback) | `detect/` |
 | Corridor + exposure | `geo/` |
+| FNO hydrodynamic surrogate (latent-conditioned) | `geo/hydro_surrogate.py` |
 | H / E / D_risk scores | `risk/` |
+| Breach volume (neural/Huggel/hypsometric cascade) | `risk/breach_volume.py` |
 | SAR priority ranking | `risk/sar_priority.py` |
-| ML evidence layer (optional) | `ml/` |
+| Water segmentation (SAR 6ch + multi-modal fusion) | `ml/model.py`, `ml/fusion.py` |
+| Neural bathymetry inversion | `ml/bathymetry.py` |
+| Bayesian uncertainty (MC Dropout + conformal) | `ml/uncertainty.py` |
+| Latent coupling (segmentation → FNO) | `ml/latent_coupling.py` |
+| Model registry + gate status | `ml/registry.py` |
 | Payload codec + dispatch | `alerting/` |
 | Append-only lineage + hash chain | `audit/` |
 | Persistence | `db/` |
@@ -91,3 +108,5 @@ docs/
 ## Definition of Done
 
 Offline, in one click-chain: baseline loads → 3 observations process → elevated/critical review card with ≥3 evidence reasons → Confirm produces a ≤250-byte simulated dispatch → audit log reconstructs the full lineage with SHA-256 hash chain. If a change breaks this chain, fix it before anything else.
+
+**v5.0 extension:** the click-chain should also display the neural method provenance (neural vs fallback) at each stage and the uncertainty map alongside the water mask.
