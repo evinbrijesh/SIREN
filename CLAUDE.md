@@ -8,7 +8,7 @@ Companion to `AGENTS.md` (agent routing + hard rules) and `docs/spec/PRD.md` (v5
 
 ## Stack
 
-- **Backend:** Python 3.11+, FastAPI, rasterio, geopandas, shapely, numpy, xarray, pysheds (fallback: whitebox), SQLite (JSON columns). ML: torch/torchvision (now primary analytical path, not optional — ADR-013).
+- **Backend:** Python 3.11+, FastAPI, rasterio, geopandas, shapely, numpy, xarray, pysheds (fallback: whitebox), SQLite (JSON columns). ML: torch/torchvision under `[ml]` extra for evidence layer + E0–E3 neural research scaffolds (ADR-013); deterministic fallback runs without them.
 - **Frontend:** React + Vite + TypeScript, MapLibre GL JS, TanStack Query, Tailwind CSS
 - **Storage:** SQLite + GeoJSON files + GeoTIFF/COG on disk. No PostGIS, no Redis.
 - **Deployment:** Docker Compose (backend + frontend, one-command via `./start.sh`)
@@ -62,7 +62,7 @@ docs/
 - **Logging:** use Python `logging`; log run_id/observation_id on every pipeline step for lineage.
 - **Reproducibility:** no unseeded randomness. Seed any RNG explicitly.
 - **Payload size:** the ≤250-byte alert constraint is enforced by a unit test, not by hope.
-- **Neural fallback provenance (v5.0):** every neural component records its method (neural vs fallback) in the result provenance. The deterministic baseline is always available as a labeled fallback — the neural component must pass its gate (PRD §17.2) before promotion.
+- **Neural fallback provenance (v5.0):** the deterministic/empirical baseline (Huggel, scalar FNO, NDWI, D8 corridor) is the load-bearing primary path. Neural modules (E0–E3) are experimental research scaffolds gated behind ADR-013 promotion criteria — no neural module is load-bearing until its gate is evaluated on real held-out data. Every neural component records its method (neural vs fallback) in the result provenance. The deterministic baseline must never be silently removed or bypassed.
 
 ## Known Gotchas
 
@@ -78,7 +78,7 @@ docs/
 - **Offline demo:** zero network calls at runtime. All data loads from `data/`. Live ingestion is a bonus script, never a runtime dependency.
 - **SQLite spatial joins:** run in-memory via geopandas on the small basin extract. Do not reach for PostGIS.
 - **SRTM is a DSM (v5.0):** SRTM over water returns the flat water surface, not the lake bed. The `breach_volume.py` `auto` mode detects this via mean-depth criterion (`MIN_BATHYMETRIC_MEAN_DEPTH_M = 1.0`) and falls back to Huggel. The neural bathymetry model (E2) will replace this fallback when trained.
-- **FNO input contract (v5.0):** `FNO2D` now accepts (B, 2+d_latent, H, W) for latent conditioning. The scalar V_breach path (B, 2, H, W) is retained as a labeled fallback. Check `in_channels` before loading checkpoints — the scalar-only FNO checkpoint will not load into the latent-conditioned model without the fallback flag.
+- **FNO input contract (v5.0):** `FNO2D` accepts `in_channels=2` (scalar-only, the frozen ADR-012 baseline) or `in_channels=2+d_latent` (experimental latent-conditioned, ADR-013). The frozen scalar checkpoint (`input_proj.weight: [32, 2]`) loads only with `in_channels=2`. The latent-conditioned variant is experimental — no trained checkpoint exists yet. See ADR-013-addendum for the dual-contract policy.
 
 ## Module Map
 
@@ -109,4 +109,4 @@ docs/
 
 Offline, in one click-chain: baseline loads → 3 observations process → elevated/critical review card with ≥3 evidence reasons → Confirm produces a ≤250-byte simulated dispatch → audit log reconstructs the full lineage with SHA-256 hash chain. If a change breaks this chain, fix it before anything else.
 
-**v5.0 extension:** the click-chain should also display the neural method provenance (neural vs fallback) at each stage and the uncertainty map alongside the water mask.
+**v5.0 extension:** the click-chain should also display the neural method provenance (neural vs fallback) at each stage and the uncertainty map alongside the water mask. **Note:** the neural modules (E0–E3) are experimental research scaffolds — the deterministic baseline remains the load-bearing path until ADR-013 gates are evaluated on real held-out data.

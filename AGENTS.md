@@ -4,7 +4,7 @@
 
 **Read before writing code:** `docs/spec/PRD.md` (v5.0 — product spec, data contracts, scoring formulas, end-to-end neural pipeline §9.7) and `docs/spec/BUILD_ROADMAP.md` (phase order, checkpoints, fallbacks). This file tells you *how to work*; those tell you *what to build*.
 
-> **Build status:** Transitioning from hybrid shadow to end-to-end neural pipeline (ADR-013, PRD v5.0). 677 tests passing. Real-data Kuro Siwo 6-channel SAR model trained (ADR-011.1 gate-passed, IoU 0.62). Shadow-mode validation on Imja Tsho passing. v5.0 implementation phases E0–E5 in progress: latent conditioning (E0), Bayesian uncertainty (E1), neural bathymetry (E2), multi-modal fusion (E3), end-to-end integration (E4), reproducible release (E5). Deterministic baseline retained as labeled fallback at each stage. Human gate (Hard Rule 3) and explainability (Hard Rule 5) preserved.
+> **Build status:** Dual-track architecture. Deterministic/empirical baseline (Huggel + calibrated 2-channel FNO) is the load-bearing primary path. Real-data Kuro Siwo 6-channel SAR model trained (ADR-011.1 gate-passed, IoU 0.62) and shadow-mode validated on Imja Tsho. Neural modules E0–E3 (latent conditioning, MC Dropout uncertainty, neural bathymetry, multi-modal fusion) are experimental research scaffolds — interfaces and tensor-flow tests only, gates un-evaluated due to missing real training pairs (bathymetry ground truth, paired S2 optical, 500+ shallow-water sims). 724 tests passing. See ADR-013 for promotion criteria. Human gate (Hard Rule 3) and explainability (Hard Rule 5) preserved.
 
 ---
 
@@ -64,14 +64,14 @@ cd frontend && npm install && npm run dev   # port 5175, proxies /api → 8010
 
 ## Hard Rules (all agents, no exceptions)
 
-1. **Neural-primary with labeled fallback (ADR-013).** Trained ML models are the primary analytical path. The deterministic baseline (NDWI, SAR backscatter ratio, D8 corridor, Huggel formula) is retained as a labeled fallback and regression target at each stage. Each neural component must pass its gate (PRD §17.2) before promotion; the fallback is always available with provenance recording. No silent fallbacks that hide data gaps.
+1. **Dual-track architecture (ADR-013).** The deterministic/empirical baseline (NDWI, SAR backscatter ratio, D8 corridor, Huggel formula, calibrated 2-channel FNO) is the active, load-bearing primary path. Neural modules (E0–E3: latent conditioning, MC Dropout uncertainty, neural bathymetry, multi-modal fusion) are experimental research scaffolds gated behind ADR-013 promotion criteria. No neural module is load-bearing until its gate is evaluated on real held-out data. The deterministic baseline must never be silently removed or bypassed.
 2. **Offline demo.** Zero network calls at runtime. All data loads from `data/`. Live API ingestion is a bonus script, never a runtime dependency.
 3. **Human gate.** No code path may dispatch an alert without a recorded review decision (`confirm`). Reject/postpone must suppress dispatch.
 4. **Payload ≤ 250 bytes.** Enforced by a unit test, not by hope.
 5. **Explainability.** Every score object carries a `reasons` array (≥3 entries on elevated+). Never return a bare number.
 6. **Reproducibility.** Same inputs + processing version → identical outputs. No unseeded randomness anywhere.
 7. **Data hygiene.** Only `ingest/` scripts write to `data/raw`; only the pipeline writes `data/processed`. Never commit rasters. Never hand-edit data files.
-8. **Dependency whitelist.** rasterio, geopandas, shapely, numpy, xarray, pysheds, fastapi, pydantic, pytest, torch, torchvision (primary ML path per ADR-013). Anything else: stop and ask.
+8. **Dependency whitelist.** rasterio, geopandas, shapely, numpy, xarray, pysheds, fastapi, pydantic, pytest. **Exception:** torch/torchvision are allowed under the `[ml]` extra for the evidence layer and E0–E3 neural research scaffolds (ADR-013); the deterministic fallback runs without them. Anything else: stop and ask.
 9. **Scope discipline.** If a feature isn't in the PRD or Roadmap, don't build it. Out of scope list: PRD §14.
 
 ## Data Contracts

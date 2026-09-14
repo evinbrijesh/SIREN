@@ -1,6 +1,34 @@
 # ADR-013 — End-to-End Neural Pipeline
 
-**Status:** ACCEPTED · **Date:** 2026-09-14 · **Supersedes:** ADR-002 (deterministic-first ML) in the research path · **Amends:** ADR-012 (FNO input contract) · **Companions:** [PRD v5.0 §9.7](../spec/PRD.md), [ADR-011.1](ADR-011.1-real-data-sar-gate-calibration.md), [ADR-010](ADR-010-ml-evidence-isolation-and-retraining-path.md)
+**Status:** ACCEPTED · **Date:** 2026-09-14 · **Supersedes:** ADR-002 (deterministic-first ML) in the research path · **Amends:** ADR-012 (FNO input contract) · **Companions:** [PRD v5.0 §9.7](../spec/PRD.md), [ADR-011.1](ADR-011.1-real-data-sar-gate-calibration.md), [ADR-010](ADR-010-ml-evidence-isolation-and-retraining-path.md), [ADR-013-addendum (FNO dual-contract)](ADR-013-addendum-fno-dual-contract.md)
+
+---
+
+## Implementation Status (as of 2026-09-14)
+
+> **⚠ SCAFFOLD STATUS:** E0–E3 represent **interfaces and tensor-flow tests only**. No neural module has passed its promotion gate. No neural module is load-bearing. The deterministic/empirical baseline (Huggel formula, calibrated 2-channel FNO, NDWI, D8 corridor) remains the active primary path.
+
+| Module | Code | Tests | Trained checkpoint | Gate evaluated | Load-bearing |
+|---|---|---|---|---|---|
+| E0 Latent conditioning | `ml/latent_coupling.py`, `FNO2D(in_channels=2+d_latent)` | 18 (shapes, gradient flow, backward compat) | None | No — requires 500+ shallow-water sims | No |
+| E1 MC Dropout uncertainty | `ml/uncertainty.py`, `WaterResUNet(dropout>0)` | 15 (shapes, variance, conformal) | None (uses existing SAR checkpoint with dropout added) | No — requires held-out calibration set | No |
+| E2 Neural bathymetry | `ml/bathymetry.py`, `train_bathymetry.py` | 13 (architecture, synthetic data) | None — trained on **synthetic parabolic basins only**, not real bathymetry | No — requires Millan/Farinotti + ICIMOD field bathymetry | No |
+| E3 Multi-modal fusion | `ml/fusion.py` | 15 (cross-attention, cloud gating, shapes) | None | No — requires paired S2 L2A within ±3 days of SAR (current S2 is 8 months off) | No |
+
+**Missing prerequisites blocking gate evaluation:**
+
+1. **Bathymetry ground truth:** No Millan et al. (2022) consensus ice-thickness grids, no GlaThiDa radar soundings, no ICIMOD field bathymetry for Imja/Tsho Rolpa/Thorthormi. The `BathymetryUNet` was trained on synthetic parabolic basins — this proves the architecture can learn a shape, not that it predicts real glacial lake beds.
+2. **Paired Sentinel-2 optical:** The only local S2 scene is `2025-11-22` (tile T45RVL). The SAR pair is `2026-07-02`/`07-14`. The 8-month seasonal gap makes fusion training meaningless. No SCL cloud-mask extractor exists.
+3. **Shallow-water simulation set:** The existing FNO was trained on a synthetic analytical solver (~hundreds of runs). The latent-conditioned variant requires 500+ HEC-RAS/Basilisk/GeoClaw runs across varied mountain DEMs.
+4. **GPU compute:** The development machine has 8 GB VRAM (RTX 5050 Laptop). Training the fusion net at production width (224×224, base_channels=32, batch≥4) requires 16–24 GB. Training is planned on a separate 20 GB RTX 4000 Ada workstation.
+
+**What IS done and verified:**
+
+- 724 tests pass (677 pre-existing + 47 new neural scaffold tests).
+- The deterministic baseline and shadow pipeline are intact — no regression.
+- The Imja integration test passes (exit 0): real SAR → v1 model → Huggel fallback → V_breach = 10.87M m³.
+- The FNO input contract change is backward-compatible (`in_channels=2` default loads the frozen checkpoint).
+- The WaterResUNet dropout change is backward-compatible (`dropout=0.0` default).
 
 ---
 
