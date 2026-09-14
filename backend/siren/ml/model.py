@@ -203,14 +203,22 @@ class ResidualBlock(nn.Module):
 
     Two 3x3 conv-bn-relu layers with a skip connection. If the channel
     count changes, a 1x1 projection matches the residual dimensions.
+
+    Args:
+        in_channels: input channel count.
+        out_channels: output channel count.
+        dropout: dropout rate (0 = disabled). Applied after the second BN
+            and before the residual addition. Used for MC Dropout Bayesian
+            uncertainty estimation (ADR-013 §9.7.4).
     """
 
-    def __init__(self, in_channels: int, out_channels: int) -> None:
+    def __init__(self, in_channels: int, out_channels: int, dropout: float = 0.0) -> None:
         super().__init__()
         self.conv1 = nn.Conv2d(in_channels, out_channels, 3, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(out_channels)
         self.conv2 = nn.Conv2d(out_channels, out_channels, 3, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(out_channels)
+        self.dropout = nn.Dropout2d(dropout) if dropout > 0 else nn.Identity()
         self.skip = (
             nn.Conv2d(in_channels, out_channels, 1, bias=False)
             if in_channels != out_channels
@@ -221,6 +229,7 @@ class ResidualBlock(nn.Module):
         identity = self.skip(x)
         out = F.relu(self.bn1(self.conv1(x)), inplace=True)
         out = self.bn2(self.conv2(out))
+        out = self.dropout(out)
         return F.relu(out + identity, inplace=True)
 
 
@@ -243,21 +252,35 @@ class WaterResUNet(nn.Module):
     Exposes ``forward_with_features(x)`` for DANN training (V3 §2.7):
     returns (logits, bottleneck_features) so the domain discriminator can
     operate on the shared encoder representation.
+
+    Args:
+        in_channels: number of input channels (4 for terrain-aware, 6 for
+            multi-temporal SAR).
+        base_channels: base width of the encoder (default 32). Total params
+            scale as ~base_channels² × 10.
+        dropout: dropout rate for MC Dropout Bayesian uncertainty estimation
+            (ADR-013 §9.7.4). Applied in encoder blocks and bottleneck.
+            Default 0.0 (disabled — deterministic inference). Set to 0.1–0.2
+            for MC Dropout; use the MC inference wrapper in
+            ``siren.ml.uncertainty`` to run T stochastic forward passes.
     """
 
-    def __init__(self, in_channels: int = 4, base_channels: int = 32) -> None:
+    def __init__(
+        self, in_channels: int = 4, base_channels: int = 32, dropout: float = 0.0,
+    ) -> None:
         super().__init__()
         self.in_channels = in_channels
+        self.dropout_rate = dropout
         c = base_channels
 
-        # Residual encoder blocks
-        self.enc1 = ResidualBlock(in_channels, c)       # H
-        self.enc2 = ResidualBlock(c, c * 2)            # H/2
-        self.enc3 = ResidualBlock(c * 2, c * 4)        # H/4
-        self.enc4 = ResidualBlock(c * 4, c * 8)        # H/8
+        # Residual encoder blocks (with optional dropout for MC Dropout)
+        self.enc1 = ResidualBlock(in_channels, c, dropout=dropout)       # H
+        self.enc2 = ResidualBlock(c, c * 2, dropout=dropout)            # H/2
+        self.enc3 = ResidualBlock(c * 2, c * 4, dropout=dropout)        # H/4
+        self.enc4 = ResidualBlock(c * 4, c * 8, dropout=dropout)        # H/8
         self.pool = nn.MaxPool2d(2)
 
-        self.bottleneck = ResidualBlock(c * 8, c * 16)  # H/16
+        self.bottleneck = ResidualBlock(c * 8, c * 16, dropout=dropout)  # H/16
 
         # Decoder with skip connections (same as WaterUNet)
         self.up4 = nn.ConvTranspose2d(c * 16, c * 8, kernel_size=2, stride=2)

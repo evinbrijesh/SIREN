@@ -102,8 +102,10 @@ class SpectralConv2d(nn.Module):
 class FNO2D(nn.Module):
     """2D Fourier Neural Operator for shallow-water flood wave prediction.
 
-    Input: (B, 2, H, W) — channel 0 = DEM valley profile (normalised),
-                          channel 1 = V_breach (broadcast as a constant grid).
+    Input: (B, in_channels, H, W) — channel 0 = DEM valley profile (normalised),
+                                     channel 1 = V_breach (broadcast as a constant grid),
+                                     channels 2..in_channels = latent conditioning
+                                     from segmentation bottleneck (ADR-013 §9.7.3).
     Output: (B, 1 + n_points, H, W) — channel 0 = h_water (water depth grid),
                                        channels 1..n_points = T_arrival grids
                                        (one per named point).
@@ -116,6 +118,10 @@ class FNO2D(nn.Module):
         width: hidden channel width of the FNO layers.
         n_points: number of named points for T_arrival prediction.
         n_layers: number of FNO layers.
+        in_channels: number of input channels. 2 = scalar-only (DEM + V_breach,
+            the original ADR-012 contract). 2 + d_latent = latent-conditioned
+            (DEM + V_breach + projected z_lake, ADR-013 §9.7.3). Default 2 for
+            backward compatibility with existing checkpoints.
     """
 
     def __init__(
@@ -124,14 +130,16 @@ class FNO2D(nn.Module):
         width: int = 32,
         n_points: int = 3,
         n_layers: int = 4,
+        in_channels: int = 2,
     ) -> None:
         super().__init__()
         self.n_points = n_points
         self.modes = modes
         self.width = width
+        self.in_channels = in_channels
 
-        # Input: 2 channels (DEM + V_breach) → hidden width
-        self.input_proj = nn.Linear(2, width)
+        # Input: in_channels (DEM + V_breach + optional latent) → hidden width
+        self.input_proj = nn.Linear(in_channels, width)
 
         # FNO layers (spectral conv + skip connection)
         self.spectral_layers = nn.ModuleList([
@@ -152,7 +160,8 @@ class FNO2D(nn.Module):
         """Forward pass producing h_water grid + T_arrival grids.
 
         Args:
-            x: (B, 2, H, W) — channel 0 = DEM, channel 1 = V_breach (constant).
+            x: (B, in_channels, H, W) — channel 0 = DEM, channel 1 = V_breach
+                (constant), channels 2.. = latent conditioning (if in_channels > 2).
 
         Returns:
             Dict with:
@@ -160,10 +169,12 @@ class FNO2D(nn.Module):
                 't_arrival': (B, n_points, H, W) — predicted arrival time (minutes)
         """
         B, C, H, W = x.shape
-        assert C == 2, f"Input must have 2 channels (DEM + V_breach), got {C}"
+        assert C == self.in_channels, (
+            f"Input must have {self.in_channels} channels, got {C}"
+        )
 
         # Project input channels to hidden width (pointwise)
-        x = x.permute(0, 2, 3, 1)  # (B, H, W, 2)
+        x = x.permute(0, 2, 3, 1)  # (B, H, W, in_channels)
         x = self.input_proj(x)    # (B, H, W, width)
         x = x.permute(0, 3, 1, 2)  # (B, width, H, W)
 
