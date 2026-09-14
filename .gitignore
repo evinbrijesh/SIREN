@@ -39,7 +39,6 @@ models/checkpoints/water_resunet_kuro_siwo_full/*.pt
 
 # --- Redundant design archives (extracted dirs are committed) ---
 docs/*.zip
-docs/archive/
 .~lock.*
 
 # --- Env / secrets ---

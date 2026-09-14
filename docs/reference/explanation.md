@@ -8,7 +8,7 @@
 
 1. [What is SIREN?](#1-what-is-siren)
 2. [Why does it exist? (Problem & Motivation)](#2-why-does-it-exist)
-3. [Track 7 Alignment](#3-track-7-alignment)
+3. [Scope Alignment](#3-scope-alignment)
 4. [Architecture Overview](#4-architecture-overview)
 5. [Tech Stack](#5-tech-stack)
 6. [Repository Structure](#6-repository-structure)
@@ -19,14 +19,14 @@
 11. [Weather-Adaptive Router](#11-weather-adaptive-router)
 12. [Corridor & Exposure Mapping](#12-corridor--exposure-mapping)
 13. [Risk Fusion — How Scores Are Calculated](#13-risk-fusion--how-scores-are-calculated)
-14. [Disease Prevention Layer (Track 7.iii)](#14-disease-prevention-layer-track-7iii)
+14. [Disease Prevention Layer](#14-disease-prevention-layer)
 15. [Human-in-the-Loop Review](#15-human-in-the-loop-review)
 16. [Resilient Dispatch — The ≤250-Byte Payload](#16-resilient-dispatch--the-250-byte-payload)
 17. [Audit Log & Hash Chain](#17-audit-log--hash-chain)
 18. [ML Evidence Layer (Optional)](#18-ml-evidence-layer-optional)
 19. [Search & Rescue Priority Layer](#19-search--rescue-priority-layer)
 20. [Frontend — The Four Views](#20-frontend--the-four-views)
-21. [Demo Scenario — The 36-Hour Script](#21-demo-scenario--the-36-hour-script)
+21. [Demo Scenario](#21-demo-scenario)
 22. [API Endpoints — Complete Reference](#22-api-endpoints--complete-reference)
 23. [Data Contracts — Exact Schemas](#23-data-contracts--exact-schemas)
 24. [Architecture Decision Records (ADRs)](#24-architecture-decision-records-adrs)
@@ -81,9 +81,9 @@ High-altitude lake/slope changes first
 
 Two operational failure modes compound this:
 
-**Failure Mode 1 — Communication collapse (Track 7, Area ii):** Ground networks collapse when roads, bridges, and cell towers are washed out — often exactly when coordination matters most. SIREN's alert payload is designed for constrained links (compressed SMS, LoRa mesh, satellite messengers).
+**Failure Mode 1 — Communication collapse (Area ii):** Ground networks collapse when roads, bridges, and cell towers are washed out — often exactly when coordination matters most. SIREN's alert payload is designed for constrained links (compressed SMS, LoRa mesh, satellite messengers).
 
-**Failure Mode 2 — Disease prevention (Track 7, Area iii):** Waterborne disease is one of the largest secondary killers after flooding — contaminated wells, submerged sanitation, severed clinic access. SIREN intersects detected inundation with water points and health facilities to generate an immediate contamination-priority list.
+**Failure Mode 2 — Disease prevention (Area iii):** Waterborne disease is one of the largest secondary killers after flooding — contaminated wells, submerged sanitation, severed clinic access. SIREN intersects detected inundation with water points and health facilities to generate an immediate contamination-priority list.
 
 ### The hypothesis
 
@@ -91,11 +91,11 @@ If SIREN automatically compares new satellite observations against a historical 
 
 ---
 
-## 3. Track 7 Alignment
+## 3. Scope Alignment
 
-SIREN was built for **Track 7: Living with Uncertainties, Building with Resilience** at the `>.hack();'26` hackathon.
+SIREN was originally built for **Track 7: Living with Uncertainties, Building with Resilience** at the `>.hack();'26` hackathon. It is now an ongoing personal research project.
 
-| Track Area | SIREN's Response |
+| Focus Area | SIREN's Response |
 |---|---|
 | **Area ii: Communication Systems During Disasters** | ≤250-byte compressed payload for LoRa mesh / satellite messenger / low-bandwidth SMS. Geofenced dispatch to recipient groups. Channel simulator (SMS/LoRa/Satellite) in AuditView. |
 | **Area iii: Curbing Diseases That Arise During Disasters** | Disease Prevention Action Sheet: inundated water points × population density × temperature index. Boil-water advisories, chlorine dispatch quotas, per-zone water-purification recommendations. |
@@ -253,10 +253,9 @@ project/
 │   └── assets/               # Basin GeoJSON, OSM extracts, weather series (committed)
 ├── docs/
 │   ├── PRD.md                # Product Requirements Document (v4.3)
-│   ├── BUILD_ROADMAP.md      # 36-hour build plan with phase checkpoints
+│   ├── BUILD_ROADMAP.md      # Build history + active development roadmap
 │   ├── API_CONTRACT.md       # HTTP API surface
 │   ├── UI_DESIGN.md          # Coordinator console design spec
-│   ├── DEVIN_BRIEFS.md       # Devin task dispatch briefs (D1-D8, archived)
 │   ├── ADR-001..005          # Architecture decision records
 │   ├── KNOWN_LIMITATIONS.md  # One-page limitations reference
 │   └── explanation.md        # This document
@@ -539,7 +538,7 @@ Every elevated+ alert carries at least 3 deterministic reasons explaining why th
 
 ---
 
-## 14. Disease Prevention Layer (Track 7.iii)
+## 14. Disease Prevention Layer
 
 ### Disease Risk Index
 
@@ -893,7 +892,7 @@ Lineage & resilient alerting:
 
 ---
 
-## 21. Demo Scenario — The 36-Hour Script
+## 21. Demo Scenario
 
 The demo is framed as a **retrospective reconstruction**: "what would SIREN have caught, and how could it have prevented the disaster?"
 
@@ -920,9 +919,9 @@ The +8% expansion on 07-23 was the **early warning**. Had SIREN been monitoring 
 6. **The prevention story:** The console shows that the +8% expansion on 07-23 was the early warning — had SIREN been monitoring in real time, the watch would have escalated to a critical alert 20 days before the peak (08-12), buying lead time to evacuate.
 7. **Trigger & review:** System raises an **Elevated/Critical** review card, highlighting the combined D8 + OSM downstream corridor, 2 flagged villages (**Benkar**, **Jorsale**), 1 critical suspension bridge (**Hillary Bridge**), and 3 primary drinking wells along the Dudh Koshi corridor.
 8. **Coordinator action:** Presenter inspects the evidence panel and the Disease Prevention Action Sheet, then clicks **Confirm SOS** — **the coordinator's phone receives an SOS push notification automatically via ntfy.sh**.
-9. **Dispatch & response:** System shows the simulated geofenced compressed-payload dispatch (Track 7.ii) alongside the water/medical distribution manifest (Track 7.iii); the audit panel records reviewer, decision, and timestamp. The SHA-256 hash chain can be verified in-browser via the Verify Chain modal.
+9. **Dispatch & response:** System shows the simulated geofenced compressed-payload dispatch alongside the water/medical distribution manifest; the audit panel records reviewer, decision, and timestamp. The SHA-256 hash chain can be verified in-browser via the Verify Chain modal.
 
-### Closing line for judges
+### Closing line
 
 > "SIREN doesn't replace emergency authorities — it buys them the lead time to identify who to rescue, how to reach them when networks are down, and how to stop the outbreak that follows the flood. This demo shows the 20 days of warning we could have had."
 
@@ -1075,7 +1074,7 @@ Base URL: `http://localhost:8010` · Frontend proxy: `/api` → `http://localhos
 
 **Decision:** Use SQLite with JSON columns for persistence, and GeoJSON files on disk for geometry. All spatial joins run in-memory via geopandas.
 
-**Why:** Zero setup, no server process, offline-safe, trivially reproducible (single file). At hackathon scale, the basin extract is small enough that in-memory geopandas joins are effectively instant.
+**Why:** Zero setup, no server process, offline-safe, trivially reproducible (single file). At single-basin scale, the basin extract is small enough that in-memory geopandas joins are effectively instant.
 
 **Tradeoff:** No native spatial indexing. Not suitable for multi-basin national scale. Migration path to PostGIS is mechanical (schema is deliberately PostGIS-shaped).
 
@@ -1097,7 +1096,7 @@ Base URL: `http://localhost:8010` · Frontend proxy: `/api` → `http://localhos
 
 **Decision:** Zero network calls at runtime. All data loads from `data/`. Live API ingestion exists only as bonus scripts, never as a runtime dependency.
 
-**Why:** Reliability of the one-click demo chain is the #1 acceptance target. A live-API dependency converts a demo risk into a network risk. Prepared data is the standard, defensible choice for a 36-hour build.
+**Why:** Reliability of the one-click demo chain is the #1 acceptance target. A live-API dependency converts a demo risk into a network risk. Prepared data is the standard, defensible choice for the initial build.
 
 ### ADR-005: Combined D8 + OSM River Buffering Corridor
 
@@ -1179,13 +1178,13 @@ Base URL: `http://localhost:8010` · Frontend proxy: `/api` → `http://localhos
 - Tailwind operational console ✅.
 - Docker deployment ✅.
 
-### Phase 7 — Rehearsal & Hardening (Hours 32–36)
+### Phase 7 — Rehearsal & Hardening (completed)
 
-- Full offline rehearsal (airplane mode).
-- Backup video.
+- [x] Full offline rehearsal (airplane mode).
+- [x] Backup video.
 - Known-limitations doc.
 - Pitch pass.
-- Freeze: tag the demo commit.
+- [x] Freeze: tagged the demo commit.
 
 ---
 
@@ -1285,7 +1284,7 @@ The MVP is done when, **offline**, in one click-chain:
 
 ## 29. Future Roadmap (V1–V4)
 
-### V1 — Hackathon MVP (completed)
+### V1 — Initial Build (completed)
 
 Prepared SAR/optical image sequence, backscatter/NDWI change detection, rainfall context, terrain and exposure overlays, disease-risk index, explainable hazard score, human confirmation, simulated resilient dispatch, audit log. Stretch: SAR Priority Layer.
 

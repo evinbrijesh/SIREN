@@ -2,10 +2,6 @@
 
 **Human-in-the-loop, satellite-assisted early-warning and disaster-response platform for Himalayan basins.**
 
-Track 7: *Living with Uncertainties, Building with Resilience*
-- Area ii: Communication Systems During Disasters for Effective Response
-- Area iii: Curbing Diseases That Arise During Disasters
-
 > What changed? How serious is it? Who and what are in the path? What should responders do right now?
 
 ---
@@ -75,7 +71,7 @@ backend/
     audit/        # append-only log writer + SHA-256 hash chain
     db/           # SQLite schema + repositories
     pipeline.py   # orchestrator: detect→geo→risk→DB→audit
-  tests/          # 124 tests (pytest: 121 active + 3 torch-gated)
+  tests/          # 782 tests (pytest: 768 active + 14 skipped/torch-gated)
 frontend/
   src/
     views/        # MapView, TimelineView, ReviewView, AuditView
@@ -91,14 +87,13 @@ data/
   assets/         # basin GeoJSON, OSM extracts, weather series (committed)
 docs/
   spec/
-    PRD.md           # Product Requirements Document (v4.5)
-    BUILD_ROADMAP.md # 36-hour build plan + live service transition roadmap
+    PRD.md           # Product Requirements Document (v5.0)
+    BUILD_ROADMAP.md # Build history + active development roadmap
     API_CONTRACT.md  # HTTP API surface
-    DEVIN_BRIEFS.md  # Devin task dispatch briefs (D1-D8, archived)
   design/
     UI_DESIGN.md     # Coordinator console design spec
   adr/
-    ADR-001..005     # Architecture decision records (hackathon, accepted)
+    ADR-001..005     # Architecture decision records (initial build, accepted)
     ADR-006..009     # Architecture decision records (live service, proposed)
   reference/
     KNOWN_LIMITATIONS.md  # Demo limitations + production transition gaps
@@ -154,7 +149,7 @@ pip install -e ".[dev]"          # or use existing venv
 uvicorn siren.api:app --port 8010 --reload
 
 # run tests
-pytest                           # 124 tests, ~10s
+pytest                           # 782 tests, ~30s
 ```
 
 ### Frontend
@@ -221,12 +216,12 @@ See `docs/spec/API_CONTRACT.md` for full request/response schemas.
 
 ## Key Design Decisions
 
-### Hackathon MVP (ADR-001 → ADR-005, Accepted)
+### Initial Build (ADR-001 → ADR-005, Accepted)
 
 - **Deterministic-first.** No trained ML in the critical path. Rule-based masks and weighted scores (ADR-002). *Audit note (2026-09-07): the current implementation diverges — a 0.20-weight ML term sits inside H and the trend class can be model-replaced; ADR-010 (Proposed) restores compliance.*
 - **Offline demo.** Zero network calls at runtime for pipeline data. All data loads from `data/` (ADR-004). The only live network call is the ntfy.sh phone push on CONFIRM, gated by `navigator.onLine`.
 - **SAR-first.** Weather-adaptive router switches to SAR when cloud ≥20% (ADR-003).
-- **SQLite over PostGIS.** Zero-ops, offline-safe for hackathon scale (ADR-001).
+- **SQLite over PostGIS.** Zero-ops, offline-safe for single-basin scale (ADR-001).
 - **Combined D8 + OSM corridor.** D8 validates gravity gradient; OSM rivers capture the real surveyed riverbed (ADR-005).
 - **Human gate.** No dispatch without a recorded `confirm` review (enforced by SQLite trigger). The ntfy.sh push on CONFIRM is a side-effect of the human decision, not an autonomous dispatch.
 - **≤250-byte payload.** Compact JSON for LoRa mesh / satellite messenger / low-bandwidth SMS.
@@ -329,7 +324,7 @@ The prevention story: the +8% expansion on 07-23 was the early warning. Had SIRE
 
 ```bash
 cd backend
-pytest                           # 124 tests, ~10s
+pytest                           # 782 tests, ~30s
 ```
 
 | Test Suite | Tests | Coverage |
@@ -345,8 +340,17 @@ pytest                           # 124 tests, ~10s
 | test_sar_priority | 9 | SAR priority ranking (PRD §15) |
 | test_sar_calibrate | 6 | SAR calibration: sigma0 dB formula, normalize_sar contract, NaN handling |
 | test_open_meteo | 8 | Real ERA5 rainfall fetcher: antecedent computation, temp index, mocked API |
+| test_bathymetry | 13 | Neural bathymetry architecture + synthetic data (E2 scaffold) |
+| test_fusion | 15 | Multi-modal cross-attention + cloud gating (E3 scaffold) |
+| test_fusion_dataset | 34 | Fusion dataset + real SAR/optical pair tensor-flow tests |
+| test_s2_optical | 24 | S2 L2A NDWI/MNDWI/SCL cloud-mask extraction |
+| test_uncertainty | 15 | MC Dropout + conformal calibration (E1 scaffold) |
+| test_latent_coupling | 18 | Latent FNO conditioning (E0 scaffold) |
+| test_hydro_surrogate | 26 | FNO-2D hydrodynamic surrogate |
+| test_contract_multitemporal | 36 | 6-channel tensor contract round-trip |
+| test_susceptibility_v2 | 26 | XGBoost breach susceptibility + isotonic calibration |
 
-> **Pre-existing failure:** `test_ml.py::test_model_registry_metadata_loads` (1 test) fails due to missing Siamese U-Net weight metadata — unrelated to the pipeline. 123/124 tests pass.
+> **All 782 tests pass** (768 active + 14 skipped/torch-gated). The neural scaffold tests (E0–E3) verify architecture and tensor flow only — no gate has been evaluated on real held-out data (ADR-013).
 
 ---
 
@@ -354,11 +358,10 @@ pytest                           # 124 tests, ~10s
 
 ### Specs
 
-- [`docs/spec/PRD.md`](docs/spec/PRD.md) — Product Requirements Document (v4.6)
-- [`docs/spec/BUILD_ROADMAP.md`](docs/spec/BUILD_ROADMAP.md) — 36-hour build plan + live service transition roadmap (Phases 0–6)
+- [`docs/spec/PRD.md`](docs/spec/PRD.md) — Product Requirements Document (v5.0)
+- [`docs/spec/BUILD_ROADMAP.md`](docs/spec/BUILD_ROADMAP.md) — Build history + active development roadmap
 - [`docs/spec/API_CONTRACT.md`](docs/spec/API_CONTRACT.md) — HTTP API surface
 - [`docs/design/UI_DESIGN.md`](docs/design/UI_DESIGN.md) — Coordinator console design spec
-- [`docs/spec/DEVIN_BRIEFS.md`](docs/spec/DEVIN_BRIEFS.md) — Devin task dispatch briefs (archived)
 
 ### Architecture Decision Records
 
@@ -382,13 +385,13 @@ pytest                           # 124 tests, ~10s
 - [`docs/reference/DL_MODEL_AUDIT.md`](docs/reference/DL_MODEL_AUDIT.md) — 2026-09-07 audit of the four PRD-nominated ML models; verdict: no existing checkpoint is qualified for live hazard assessment
 - [`docs/reference/PRODUCTION_ML_PLAN.md`](docs/reference/PRODUCTION_ML_PLAN.md) — Recommended production pipeline, models, datasets, and the dual-basin strategy (Imja monitoring + South Lhonak event validation)
 - [`docs/spec/V3_RESEARCH_PROPOSAL.md`](docs/spec/V3_RESEARCH_PROPOSAL.md) — V3 research RFC: 4-channel DEM-conditioned segmenter, XGBoost/TreeSHAP breach susceptibility, FNO hydrodynamic surrogate, physics-informed loss (L_gravity), conformal prediction, RTC γ⁰ + DANN domain adaptation.
-- [`docs/spec/PRODUCTION_ROADMAP.md`](docs/spec/PRODUCTION_ROADMAP.md) — **Production transition roadmap:** 4-phase plan (unfreeze → ingestion daemon → load-bearing AI → production infrastructure) with 3-sprint execution sequence. Active engineering spec for the post-hackathon production system.
+- [`docs/spec/PRODUCTION_ROADMAP.md`](docs/spec/PRODUCTION_ROADMAP.md) — **Production transition roadmap:** 4-phase plan (unfreeze → ingestion daemon → load-bearing AI → production infrastructure) with 3-sprint execution sequence. Active engineering spec for the post-initial-build production system.
 
 ---
 
 ## Production Transition
 
-The hackathon MVP (v1.0.0-hackathon-final) is preserved as a frozen release. The project is now transitioning to a production-grade, autonomous disaster-response platform per [ADR-011](docs/adr/ADR-011-production-multimodal-upgrade.md) (Accepted) and the [Production Transition Roadmap](docs/spec/PRODUCTION_ROADMAP.md).
+The initial build (v1.0.0-hackathon-final) is preserved as a frozen release. The project is now transitioning to a production-grade, autonomous disaster-response platform per [ADR-011](docs/adr/ADR-011-production-multimodal-upgrade.md) (Accepted) and the [Production Transition Roadmap](docs/spec/PRODUCTION_ROADMAP.md).
 
 ### Two deployment profiles
 
@@ -408,7 +411,7 @@ The hackathon MVP (v1.0.0-hackathon-final) is preserved as a frozen release. The
 
 > **ADR-011 accepted 2026-09-08:** authorizes 4-channel tensor contract, production dependency addendum (psycopg, geoalchemy2, xgboost, shap, celery, redis), and gated ML load-bearing role. Human gate (Hard Rule 3) preserved.
 
-See [`docs/spec/PRODUCTION_ROADMAP.md`](docs/spec/PRODUCTION_ROADMAP.md) for the full 4-phase plan with acceptance criteria, sprint deliverables, and exit gates. The hackathon `BUILD_ROADMAP.md` is preserved as the historical record of v1.0.0-hackathon-final.
+See [`docs/spec/PRODUCTION_ROADMAP.md`](docs/spec/PRODUCTION_ROADMAP.md) for the full 4-phase plan with acceptance criteria, sprint deliverables, and exit gates. The `BUILD_ROADMAP.md` is preserved as the historical record of the initial build.
 
 ### Source-specific polling cadence (planned)
 
@@ -428,7 +431,7 @@ See [`docs/spec/PRODUCTION_ROADMAP.md`](docs/spec/PRODUCTION_ROADMAP.md) for the
 
 ## Known Limitations
 
-### Demo limitations (hackathon scope)
+### Demo limitations (initial build scope)
 
 - The ascending-orbit Sentinel-1 pair (relative orbit 85) covers the western AOI; the Imja lake (86.925°E) is outside the ascending swath. A descending-pass pair (2026-07-02 + 07-14) was downloaded to cover Imja, but is not yet wired into the demo pipeline (the 3 demo observations use the ascending track). The SAR pipeline itself is real and validated on the covered region. All 3 demo observations use real calibrated Sentinel-1 VV/VH sigma0 dB from ESA SAFE archives.
 - **SAR physics caveat.** C-band SAR penetrates clouds, but the high Himalaya introduces SAR-specific challenges: wet snow on glaciers causes backscatter drops that mimic open water in a simple log-ratio threshold; steep terrain causes layover and shadowing; debris-covered ice alters backscatter unpredictably. The V1 demo uses deterministic scenario masks as the rule-based detection layer and real calibrated SAR feeds the ML shadow layer only. No glacier/snow classification mask is applied. See `docs/reference/KNOWN_LIMITATIONS.md` → "Domain Physics Limitations".
@@ -467,13 +470,13 @@ See [`docs/reference/KNOWN_LIMITATIONS.md`](docs/reference/KNOWN_LIMITATIONS.md)
 
 ## License
 
-Hackathon project. See competition rules for usage terms.
+Personal project. See repository for usage terms.
 
 ---
 
-## Team
+## Origin
 
-Built for `>.hack();'26`, 7th Edition — 36-hour hackathon.
+Originally built at `>.hack();'26`, 7th Edition — a 36-hour hackathon (Track 7: resilient alerting + disease prevention). Now an ongoing personal research project pursuing an end-to-end differentiable neural pipeline from raw radar bytes to downstream flood dynamics. The initial build is preserved as a frozen release (`v1.0.0-hackathon-final`); all subsequent work extends the system toward production-grade ML research.
 
 **Closing line:**
 

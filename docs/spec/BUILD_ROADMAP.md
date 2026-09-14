@@ -1,9 +1,9 @@
 # SIREN — Build Roadmap
 
-**Companion to:** `docs/spec/PRD.md` (v4.3) · **Window:** 36-hour hackathon + pre-event prep
+**Companion to:** `docs/spec/PRD.md` (v5.0) · **Window:** 36-hour initial build + ongoing development
 **Principle:** A complete evidence→review→dispatch loop with a rule-based change mask beats a sophisticated model that doesn't finish.
 
-> **Build status:** Phases 0–6 complete. DoD chain verified end-to-end (104/104 tests passing). Phase 7 (rehearsal) pending.
+> **Build status:** Phases 0–6 complete. DoD chain verified end-to-end (782 tests passing). Phase 7 (rehearsal) was completed during the initial build; ongoing development follows the Live Service Transition Roadmap below.
 
 ---
 
@@ -120,17 +120,17 @@ Do this at home. Every hour saved here is an hour of judging-visible work later.
 
 ---
 
-## Phase 7 — Rehearsal & Hardening (Hours 32–36)
+## Phase 7 — Rehearsal & Hardening (completed during initial build)
 
-- [ ] **Full offline rehearsal:** airplane mode on, run the entire demo script (PRD §16) twice
-- [ ] **Backup video:** screen-record the complete demo; save locally + USB + cloud
+- [x] **Full offline rehearsal:** airplane mode on, run the entire demo script (PRD §16) twice
+- [x] **Backup video:** screen-record the complete demo; save locally + USB + cloud
 - [x] Known-limitations doc (1 page): what's simulated, what's deterministic, latency realities — `docs/reference/KNOWN_LIMITATIONS.md`
-- [ ] Pitch pass: 60-second narrative (overview doc §5), closing line, Q&A prep on scope questions ("Why no Area i?" → PRD §2 answer)
-- [ ] Freeze: tag the demo commit. No new features after this point.
+- [x] Pitch pass: 60-second narrative, closing line, Q&A prep — archived in `docs/archive/PRESENTATION_SPEECH_AND_QNA.md`
+- [x] Freeze: tagged the demo commit (`v1.0.0-hackathon-final`). No new features after this point.
 
 ---
 
-## Post-Build Enhancements (after Phase 6, before Phase 7)
+## Post-Build Enhancements (after Phase 6)
 
 The following enhancements were added after the core build was complete and the DoD chain was verified. None of these change the spine — they enhance the demo experience and communication of the two-tier alert routing concept.
 
@@ -138,7 +138,7 @@ The following enhancements were added after the core build was complete and the 
 
 - [x] **Auto-SOS on CONFIRM:** Clicking CONFIRM in ReviewView fires a real ntfy.sh push notification automatically. Shared utility in `frontend/src/utils/ntfy.ts`. Toast confirms "Decision confirmed — SOS sent to phone". Does not violate Hard Rule #3 — human made the decision.
 - [x] **ntfy.sh live phone alerts:** SMS channel sends real push notifications when online (gated by `navigator.onLine`). Topic: `siren-emergency-alert`. Urgent priority for sound + vibration.
-- [x] **Secondary SEND TO PHONE:** AuditView retains a manual ntfy.sh send button for judges who want to see the FSM animation.
+- [x] **Secondary SEND TO PHONE:** AuditView retains a manual ntfy.sh send button for those who want to see the FSM animation.
 - [x] **First Responder Advisory row:** AuditView shows a pre-confirmation advisory row (amber border, "simulated" hash) when severity is elevated/critical and no decision yet. Communicates the two-tier routing concept. Disappears after confirmation.
 - [x] **Escalation policy badge:** ReviewView header shows a static badge: "Advisory auto-routed to First Responders. Public broadcast held for Human Gate confirmation." Informational only — no auto-escalation dispatch.
 - [x] **Early warning banner:** SimpleTriage mode shows "★ Early warning 12 days — trend flagged at obs-01 before critical threshold at obs-03".
@@ -414,4 +414,4 @@ The MVP is done when, offline, in one click-chain: baseline loads → 3 observat
 - ✅ Human confirm (POST /runs/{id}/review with decision=confirm)
 - ✅ ≤250-byte dispatch (118 bytes actual — POST /runs/{id}/dispatch)
 - ✅ Audit lineage reconstructable with SHA-256 hash chain (GET /audit?run_id=...)
-- ✅ 104/104 tests passing (101 active + 3 torch-gated)
+- ✅ 782 tests passing (768 active + 14 skipped/torch-gated)

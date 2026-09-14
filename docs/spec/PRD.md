@@ -7,10 +7,10 @@
 | | |
 |---|---|
 | **Version** | 5.0 — End-to-end neural pipeline: latent-conditioned FNO coupling, neural bathymetry inversion, multi-modal sensor fusion, Bayesian uncertainty estimation. Supersedes v4.7 shadow-mode architecture. |
-| **Target track** | Track 7 — *Living with Uncertainties, Building with Resilience* |
+| **Target track** | Originally Track 7 — *Living with Uncertainties, Building with Resilience* (>.hack();'26); now an ongoing personal research project |
 | **Track areas** | Area ii: Communication Systems During Disasters for Effective Response · Area iii: Curbing Diseases That Arise During Disasters |
 | **Geography** | Existing Dudh Koshi / Imja demo; one research pilot basin and hazard type to be confirmed after forecasting-data feasibility review. South Lhonak is a candidate retrospective case, not proof of generalization. |
-| **Origin** | >.hack();'26 hackathon MVP; current work is a portfolio-quality ML research application |
+| **Origin** | >.hack();'26 hackathon MVP; now an ongoing portfolio-quality ML research application |
 | **Status** | Active development — transition from hybrid shadow architecture to end-to-end differentiable neural pipeline. Deterministic baseline retained as labeled fallback and regression target; ML components promoted from shadow to primary analytical path per ADR-013. |
 
 ### Document authority and implementation status
@@ -29,7 +29,7 @@ Historical test counts, demo outputs, and completed checkboxes in older document
 
 SIREN is a human-in-the-loop, satellite-assisted early-warning and disaster-response platform for vulnerable Himalayan basins. It fuses Synthetic Aperture Radar (SAR) and optical Earth-observation scenes with rainfall, terrain, river, population, and infrastructure data to model hazard progression and downstream exposure. The system surfaces evidence to an authorized emergency coordinator through an explainable review console and — only after human confirmation — dispatches a geofenced, bandwidth-light alert alongside a disease-prevention action sheet for affected water and health infrastructure.
 
-The core problem is not that satellite data is unavailable — it is that **observations remain disconnected from operational response** under exactly the conditions Track 7 names: limited time, limited infrastructure, and severed communication. A change in a glacial lake, river corridor, or unstable slope has no operational value until a system converts it into an answer to four questions:
+The core problem is not that satellite data is unavailable — it is that **observations remain disconnected from operational response** under exactly the conditions that motivated this project: limited time, limited infrastructure, and severed communication. A change in a glacial lake, river corridor, or unstable slope has no operational value until a system converts it into an answer to four questions:
 
 > **What is changing? Might flooding occur within a defined future window? Which regions and assets could be affected? Which candidate escape routes remain usable under the available evidence?**
 
@@ -57,11 +57,11 @@ SIREN does not predict the exact time of a glacial-lake outburst or issue autono
 
 ---
 
-## 2. Problem Statement & Track Alignment
+## 2. Problem Statement & Scope Alignment
 
 Mountain communities in the Himalayas face cascading hazards — extreme rainfall, flash floods, landslides, glacial-lake outburst floods (GLOFs), debris flows, road and bridge failures, and communication blackouts. The same event cascades through a chain of systems: a high-altitude lake or slope changes first, a river corridor becomes dangerous next, and downstream settlements, roads, bridges, hospitals, shelters, and water supplies are affected afterward.
 
-Two operational failure modes compound this, and they map directly onto Track 7's two named areas:
+Two operational failure modes compound this, and they map directly onto the project's two named focus areas:
 
 **Area ii — Communication systems during disasters.** Ground networks collapse when roads, bridges, and cell towers are washed out by flash floods or GLOFs — often exactly when coordination matters most. SIREN's alert payload is designed for constrained links (compressed SMS, LoRa mesh, satellite messengers) so a verified warning can still travel when conventional infrastructure can't.
 
@@ -85,7 +85,7 @@ If SIREN automatically compares new SAR/optical observations against a historica
 
 > **SIREN turns changing conditions observed from space into understandable, location-specific action on the ground — even when the ground loses power, signal, and visibility.**
 
-The platform is a decision-support layer connecting Earth observation, environmental intelligence, emergency operations, and community protection. Its architecture generalizes beyond one disaster type: flood expansion, glacial-lake monitoring, landslide indicators, river obstruction, infrastructure exposure, post-event damage assessment, and — per Track 7 — the disease and communication response layers that follow a hazard event.
+The platform is a decision-support layer connecting Earth observation, environmental intelligence, emergency operations, and community protection. Its architecture generalizes beyond one disaster type: flood expansion, glacial-lake monitoring, landslide indicators, river obstruction, infrastructure exposure, post-event damage assessment, and — per the project scope — the disease and communication response layers that follow a hazard event.
 
 ---
 
@@ -100,7 +100,7 @@ The platform is a decision-support layer connecting Earth observation, environme
 | Field responder / community | Receive a clear, verified warning despite network loss | Compressed, geofenced alert deliverable over constrained links |
 | Remote-sensing analyst | Inspect evidence and model confidence | Before/after rasters, change masks, metadata, provenance |
 
-The primary MVP user is an **authorized emergency coordinator**. The public alert recipient experience is simulated for the hackathon and, in a real deployment, must be routed through an approved alerting authority.
+The primary MVP user is an **authorized emergency coordinator**. The public alert recipient experience is simulated for the demo and, in a real deployment, must be routed through an approved alerting authority.
 
 ---
 
@@ -166,11 +166,11 @@ The existing ingestion → detection → exposure → review → dispatch struct
 
 **7.4 GIS corridor and exposure mapping.** Compute downstream flowlines from the change polygon via terrain slope; query OSM/Overpass layers for critical facilities (settlements, roads, bridges, hospitals, shelters, water points, food facilities) inside or near the corridor.
 
-**7.5 Disease-prevention action layer (Track 7.iii).** Detect submerged or encircled water points, storage tanks, and clinics; auto-generate a Disease Prevention Action Sheet (e.g., water purification dispatch, boil-water advisory) targeted to the affected geofenced zone.
+**7.5 Disease-prevention action layer.** Detect submerged or encircled water points, storage tanks, and clinics; auto-generate a Disease Prevention Action Sheet (e.g., water purification dispatch, boil-water advisory) targeted to the affected geofenced zone.
 
 **7.6 Human review.** Create a review card for elevated/critical results showing the image timeline, change overlay, hazard and confidence scores, affected assets, disease flags, recommended actions, and a decision control.
 
-**7.7 Resilient alerting (Track 7.ii).** Support simulated geofenced dispatch over SMS/push and a compressed (<250 byte) payload format suitable for LoRa mesh or satellite messengers; log recipient groups, message content, status, timestamp, and alert zone. Real public alerting requires authenticated authority approval and an approved channel integration.
+**7.7 Resilient alerting.** Support simulated geofenced dispatch over SMS/push and a compressed (<250 byte) payload format suitable for LoRa mesh or satellite messengers; log recipient groups, message content, status, timestamp, and alert zone. Real public alerting requires authenticated authority approval and an approved channel integration.
 
 **7.8 Auditability.** Preserve every run, model version, input snapshot, risk result, reviewer decision, and alert action so a later user can reconstruct why an alert was created and how it was handled.
 
@@ -201,7 +201,7 @@ Reuse the existing local-first stack for a reproducible single-basin ML research
 | Deep learning | PyTorch U-Net/ResUNet; paired-image architecture after dataset qualification | Train and evaluate a focused water/flood model; never assume existing checkpoints are qualified |
 | Routing | Road/path graph search with geospatial constraints | Candidate routes based on closures, access, and verified destinations; library choice subject to approval |
 
-**Key tradeoff:** SQLite over PostGIS sacrifices spatial indexing for zero setup time. All spatial joins run in-memory via geopandas on a small basin extract (<100 MB), so this is safe at hackathon scale.
+**Key tradeoff:** SQLite over PostGIS sacrifices spatial indexing for zero setup time. All spatial joins run in-memory via geopandas on a small basin extract (<100 MB), so this is safe at single-basin scale.
 
 ---
 
@@ -302,7 +302,7 @@ H = 0.30 × satellite-change trend (S_trend)
 E = H × Population Vulnerability × Critical Infrastructure Weight
 ```
 
-**Waterborne disease risk index (Track 7.iii):**
+**Waterborne disease risk index:**
 
 ```text
 D_risk = Inundated Water Points × Population Density × Temperature Index
@@ -462,7 +462,7 @@ Steps 9 and forecast-dependent parts of steps 10–12 are gated milestones, not 
 }
 ```
 
-### 10.4 Resilient compressed payload (Track 7.ii)
+### 10.4 Resilient compressed payload
 
 Confirmed alerts serialize to <250 bytes for LoRa mesh / satellite messenger / low-bandwidth SMS:
 
@@ -673,7 +673,7 @@ Existing sidecars and other documents may still contain outdated pass flags unti
 
 **Deferred extensions:** broader regional transfer, additional hazard types, hydrodynamic surrogates, multilingual field tools, logistics, and multi-basin infrastructure. Personnel identification/reunification remains outside the current privacy and product scope. Existing research proposals are not evidence that their checked-off models are validated.
 
-**Cleanup policy for this transition:** identify abandoned experimental scripts and reproducible duplicate outputs; check imports, tests, UI references, checkpoints, and documentation before proposing removals. Retain datasets, split manifests, source provenance, audit records, rollback backups, and the functioning baseline. Invalidated experiments must not remain advertised as qualified, but deleting their evidence is not a substitute for correcting runtime selection and registry status. Remove existing files only after the user confirms the exact list; do not bulk-delete `ml/`, deferred modules, or historical ADRs. Historical hackathon implementation details remain in `docs/spec/BUILD_ROADMAP.md`; the current execution order is §15 here.
+**Cleanup policy for this transition:** identify abandoned experimental scripts and reproducible duplicate outputs; check imports, tests, UI references, checkpoints, and documentation before proposing removals. Retain datasets, split manifests, source provenance, audit records, rollback backups, and the functioning baseline. Invalidated experiments must not remain advertised as qualified, but deleting their evidence is not a substitute for correcting runtime selection and registry status. Remove existing files only after the user confirms the exact list; do not bulk-delete `ml/`, deferred modules, or historical ADRs. Historical initial-build implementation details remain in `docs/spec/BUILD_ROADMAP.md`; the current execution order is §15 here.
 
 ---
 

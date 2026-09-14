@@ -1,8 +1,8 @@
 # CLAUDE.md — SIREN
 
-Companion to `AGENTS.md` (agent routing + hard rules) and `docs/spec/PRD.md` (v5.0 spec). Read all three before writing code.
+Companion to `AGENTS.md` (hard rules + data contracts) and `docs/spec/PRD.md` (v5.0 spec). Read all three before writing code.
 
-**SIREN** — Satellite-Informed Risk & Emergency Network. Satellite-assisted early warning and disaster-response platform for Himalayan basins. Track 7 (resilient alerting + disease prevention). Transitioning from hybrid shadow to end-to-end neural pipeline (ADR-013, PRD v5.0).
+**SIREN** — Satellite-Informed Risk & Emergency Network. Satellite-assisted early warning and disaster-response platform for Himalayan glacial lake outburst flood (GLOF) events. Transitioning from hybrid shadow to end-to-end neural pipeline (ADR-013, PRD v5.0).
 
 ---
 

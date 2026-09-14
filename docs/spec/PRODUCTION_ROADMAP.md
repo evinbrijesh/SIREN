@@ -1,15 +1,15 @@
 # SIREN — Production Transition Roadmap
 
-**Status:** Active · **Date:** 2026-09-08 · **Supersedes:** Live Service Transition Roadmap in `BUILD_ROADMAP.md` (phases 0–6 there are preserved as hackathon history)
+**Status:** Active · **Date:** 2026-09-08 · **Supersedes:** Live Service Transition Roadmap in `BUILD_ROADMAP.md` (phases 0–6 there are preserved as initial build history)
 **Companions:** [ADR-011](../adr/ADR-011-production-multimodal-upgrade.md) (Accepted), [V3_RESEARCH_PROPOSAL.md](V3_RESEARCH_PROPOSAL.md), [KNOWN_LIMITATIONS.md](../reference/KNOWN_LIMITATIONS.md)
 
-> **The rules have changed.** Hackathon code survives a 3-minute pitch. Production code runs unattended at 3 AM during a monsoon cloudburst without hallucinating an evacuation or dropping an alert. This document is the engineering spec for that transition.
+> **The rules have changed.** Demo code survives a 3-minute pitch. Production code runs unattended at 3 AM during a monsoon cloudburst without hallucinating an evacuation or dropping an alert. This document is the engineering spec for that transition.
 
 ---
 
 ## The Four Pillars
 
-| Pillar | Hackathon State | Production Target |
+| Pillar | Initial Build State | Production Target |
 |---|---|---|
 | Data ingestion | Manual `curl -X POST /runs/process-all` | Autonomous STAC polling daemon (Celery/Temporal) |
 | Vision & hydrology | 2-channel SAR + D8 + 125 m planar buffer | 4-channel terrain-aware WaterResUNet + HAND flood zoning |
@@ -20,7 +20,7 @@
 
 ## Phase 1 — Unfreezing ADR-010 & Retiring Mock Artifacts
 
-**Goal:** Clear the technical debt from hackathon-era artificial constraints so the codebase can accept production changes without governance conflicts.
+**Goal:** Clear the technical debt from initial-build-era artificial constraints so the codebase can accept production changes without governance conflicts.
 
 ### 1.1 Unfreeze the tensor ingestion contract
 
@@ -42,7 +42,7 @@ The pipeline must treat every observation as a dynamic record: `{acquisition_tim
 
 ### 1.3 Adopt scientific dependencies
 
-Hard Rule 8's whitelist was a hackathon constraint to prevent last-minute breaks. ADR-011 amends it for production:
+Hard Rule 8's whitelist was an initial-build constraint to prevent last-minute breaks. ADR-011 amends it for production:
 
 | Package | Purpose | Phase |
 |---|---|---|
@@ -178,7 +178,7 @@ Per V3 §4: a 2D Fourier Neural Operator trained on synthetic HEC-RAS shallow-wa
 
 ### 4.1 Database: PostgreSQL + PostGIS
 
-| Hackathon | Production |
+| Initial Build | Production |
 |---|---|
 | Local SQLite with file locks | PostgreSQL + PostGIS for high-throughput spatial indexing |
 | In-memory geopandas joins | `ST_DWithin`, `ST_Intersects` for indexed spatial queries |
@@ -188,7 +188,7 @@ Migrate `db/schema.sql` to SQLAlchemy + Alembic migrations. Spatial columns use 
 
 ### 4.2 Storage: S3-compatible object storage
 
-| Hackathon | Production |
+| Initial Build | Production |
 |---|---|
 | `data/raw/` and `data/processed/` local files | S3-compatible (MinIO / AWS S3) with tiered lifecycle |
 
@@ -198,7 +198,7 @@ Migrate `db/schema.sql` to SQLAlchemy + Alembic migrations. Spatial columns use 
 
 ### 4.3 Orchestration: asynchronous job queue
 
-| Hackathon | Production |
+| Initial Build | Production |
 |---|---|
 | Synchronous FastAPI request handlers | Celery / ARQ with retries, exponential backoff, dead-letter queues |
 
@@ -206,7 +206,7 @@ Failed scenes retry 3× with exponential backoff (1 min, 5 min, 30 min). After 3
 
 ### 4.4 Dispatch: dual-path hardware engine
 
-| Hackathon | Production |
+| Initial Build | Production |
 |---|---|
 | ntfy.sh browser-side push | Dual-path: AWS SNS / Twilio for terrestrial SMS + serial bridge to RockBLOCK 9603 Iridium SBD modem or SX1262 LoRa gateway |
 
@@ -214,7 +214,7 @@ The ≤250-byte payload codec is preserved. The dispatch engine sends via both p
 
 ### 4.5 Audit: cryptographic timestamp authority
 
-| Hackathon | Production |
+| Initial Build | Production |
 |---|---|
 | SQLite triggers with SHA-256 string concat | Cryptographic audit service with RFC 3161 timestamp authority |
 
@@ -292,7 +292,7 @@ Do not attempt to build all four phases at once. Start with the data foundation.
 
 | Document | Status | Role |
 |---|---|---|
-| `BUILD_ROADMAP.md` | **Preserved as history** | Hackathon phases 0–6 + Live Service Transition (phases 0–6) — frozen record of v1.0.0-hackathon-final |
+| `BUILD_ROADMAP.md` | **Preserved as history** | Initial build phases 0–6 + Live Service Transition (phases 0–6) — frozen record of v1.0.0-hackathon-final |
 | `V3_RESEARCH_PROPOSAL.md` | **Active research RFC** | Technical patterns (L_gravity, DANN, conformal, FNO) — referenced by this roadmap |
 | `ADR-010` | **Superseded (partial)** | 2-channel frozen contract clause superseded by ADR-011; ML evidence isolation principles retained |
 | `ADR-011` | **Accepted** | Authorizes 4-channel tensor, production dependencies, and the transition described here |
@@ -300,9 +300,9 @@ Do not attempt to build all four phases at once. Start with the data foundation.
 
 ---
 
-## Guardrails Preserved from Hackathon
+## Guardrails Preserved from Initial Build
 
-These principles survive the transition — they are not hackathon constraints, they are engineering discipline:
+These principles survive the transition — they are not initial-build constraints, they are engineering discipline:
 
 1. **Human gate.** No dispatch without a recorded `confirm` review. HTTP 409 safeguard remains active. (Hard Rule 3)
 2. **Explainability.** Every score carries a `reasons` array (≥3 on elevated+). TreeSHAP attributions feed this. (Hard Rule 5)

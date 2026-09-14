@@ -3,13 +3,13 @@
 **Status:** Proposal (not accepted) · **Date:** 2026-09-08 · **Supersedes:** selected clauses of [ADR-010](../adr/ADR-010-ml-evidence-isolation-and-retraining-path.md) (only on acceptance — see §6)
 **Companions:** [ADR-002](../adr/ADR-002-deterministic-first-ml.md), [ADR-010](../adr/ADR-010-ml-evidence-isolation-and-retraining-path.md), [`PRODUCTION_ML_PLAN.md`](../reference/PRODUCTION_ML_PLAN.md), [`DL_MODEL_AUDIT.md`](../reference/DL_MODEL_AUDIT.md)
 
-> **This document is a research RFC, not a build order.** Nothing here authorizes changes to the frozen hackathon MVP. The active pipeline stays 2-channel, deterministic-first, and shadow-gated per ADR-010. Hard Rule 8 (dependency whitelist) is unchanged until §5 is accepted. All work below is post-hackathon.
+> **This document is a research RFC, not a build order.** Nothing here authorizes changes to the frozen initial build. The active pipeline stays 2-channel, deterministic-first, and shadow-gated per ADR-010. Hard Rule 8 (dependency whitelist) is unchanged until §5 is accepted. All work below is post-initial-build.
 
 ---
 
 ## 1. Motivation
 
-The hackathon MVP (ADR-010 Stage 1) ships a 2-channel WaterUNet shadow segmenter with event-holdout IoU **0.24** — below the 0.65 load-bearing gate. Three failure modes remain that the deterministic rules cannot resolve by threshold-tuning:
+The initial build (ADR-010 Stage 1) ships a 2-channel WaterUNet shadow segmenter with event-holdout IoU **0.24** — below the 0.65 load-bearing gate. Three failure modes remain that the deterministic rules cannot resolve by threshold-tuning:
 
 1. **Mountain radar-shadow false positives.** Steep Himalayan topography produces dark backscatter in SAR layover/shadow that is indistinguishable from open water by VV/VH alone. A slope/elevation prior is the known fix.
 2. **Static breach heuristics.** The five-factor hazard score uses fixed linear weights. Calibrated breach probability from historical inventories would replace guesswork with a defensible P_breach.
@@ -401,4 +401,4 @@ The deterministic five-factor path remains the fallback at every stage when ML i
 
 - **Positive:** addresses the three failure modes the deterministic rules cannot; every upgrade is gated on beating the rules-only baseline on held-out data; the frozen MVP is untouched.
 - **Negative:** three new optional dependencies; retraining cost; HEC-RAS data generation is non-trivial; a future load-bearing ML role requires a new ADR beyond this RFC.
-- **Frozen-pipeline note:** no clause here authorizes changes to the active hackathon build. All V3 work is post-demo.
+- **Frozen-pipeline note:** no clause here authorizes changes to the active build. All V3 work is post-initial-build.

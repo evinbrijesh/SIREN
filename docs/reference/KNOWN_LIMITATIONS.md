@@ -1,6 +1,6 @@
 # SIREN — Known Limitations
 
-**Purpose:** One-page reference for judges on what is simulated, what is deterministic, and where the demo diverges from a production system. Read alongside `docs/spec/PRD.md` §14 (Explicit Scope Boundaries) and §18 (Future Roadmap).
+**Purpose:** One-page reference documenting what is simulated, what is deterministic, and where the demo diverges from a production system. Read alongside `docs/spec/PRD.md` §14 (Explicit Scope Boundaries) and §18 (Future Roadmap).
 
 ---
 
@@ -53,7 +53,7 @@
 
 ## Domain Physics Limitations (Expert Review 2026-09-08)
 
-The following limitations were identified during a domain review by a hydrological engineer and remote-sensing scientist. They do not affect the hackathon demo's functional chain but represent real operational vulnerabilities if SIREN were deployed in production. Each includes the honest framing a judge or domain expert should hear.
+The following limitations were identified during a domain review by a hydrological engineer and remote-sensing scientist. They do not affect the demo's functional chain but represent real operational vulnerabilities if SIREN were deployed in production. Each includes the honest framing a domain expert should hear.
 
 ### 1. SAR Physics: Wet Snow, Layover, and Debris-Covered Ice
 
@@ -102,13 +102,13 @@ The 5-factor hazard score `H = 0.30·S_trend + 0.25·A_expansion + 0.20·R_rain 
 
 ---
 
-**Bottom line for judges:** The detection, corridor, exposure, scoring, and audit chain is real code on real data. The SMS channel is live via ntfy.sh (when online); LoRa and Satellite are simulated. The First Responder Advisory and escalation policy badge communicate the two-tier routing concept without violating the human gate. SIREN is a decision-support and resilience layer, not a replacement for emergency infrastructure. The system deploys via Docker Compose (`./start.sh`) for a one-command demo.
+**Bottom line:** The detection, corridor, exposure, scoring, and audit chain is real code on real data. The SMS channel is live via ntfy.sh (when online); LoRa and Satellite are simulated. The First Responder Advisory and escalation policy badge communicate the two-tier routing concept without violating the human gate. SIREN is a decision-support and resilience layer, not a replacement for emergency infrastructure. The system deploys via Docker Compose (`./start.sh`) for a one-command demo.
 
 ---
 
 ## Production Transition Gaps
 
-The following gaps were identified during the live-service architecture audit (2026-09-07). They do not affect the hackathon demo but must be resolved before the service runs unattended. Each item maps to a phase in the Live Service Transition Roadmap (`docs/spec/BUILD_ROADMAP.md`).
+The following gaps were identified during the live-service architecture audit (2026-09-07). They do not affect the demo but must be resolved before the service runs unattended. Each item maps to a phase in the Live Service Transition Roadmap (`docs/spec/BUILD_ROADMAP.md`).
 
 ### Pipeline observation acceptance (Phase 4 blocker) — RESOLVED 2026-09-07
 `run_pipeline()` now accepts both demo observations (`obs-001/002/003`, using hardcoded config and scenario masks) and live observations registered in the database via `repo.register_observation()`. Live observations must have a `raster_uri` pointing to a pre-computed change mask. The frozen deterministic pipeline semantics are unchanged. The Live Phase 4 blocker is resolved.

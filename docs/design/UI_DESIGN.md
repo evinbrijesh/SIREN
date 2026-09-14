@@ -1,7 +1,7 @@
 # SIREN — UI Design Layout
 
-**Companion to:** `docs/spec/PRD.md` §12, `docs/spec/API_CONTRACT.md`, `docs/spec/DEVIN_BRIEFS.md` (D7).
-**Purpose:** Defines the visual layout, component hierarchy, and design system for the coordinator console. The frontend scaffold (D7) builds against this.
+**Companion to:** `docs/spec/PRD.md` §12, `docs/spec/API_CONTRACT.md`.
+**Purpose:** Defines the visual layout, component hierarchy, and design system for the coordinator console.
 
 ---
 
@@ -129,7 +129,7 @@
 - **Evidence panel (left, ~40%):** before/after rasters (object-cover, full-bleed) + change overlay + swipe.
 - **Risk gauge (center):** H / E / D_risk / confidence as gauge bars. Each score shows its value + a mini reason.
 - **Reasons panel:** strictly ≥3 deterministic reasons (PRD §9.5). Never a bare number. Text uses `text-text-primary` for projector legibility.
-- **Right dock (320px):** Disease Prevention Action Sheet (Track 7.iii) + ranked exposed-infrastructure table.
+- **Right dock (320px):** Disease Prevention Action Sheet + ranked exposed-infrastructure table.
 - **Decision bar (sticky bottom):** Confirm SOS (green, primary) / Reject (red) / Postpone (amber). Requires a confirmation state before Confirm fires. Reviewer identity shown.
 - **Auto-SOS on CONFIRM:** Clicking CONFIRM fires a real ntfy.sh push notification to the coordinator's phone automatically (when online). Toast confirms "Decision confirmed — SOS sent to phone".
 
@@ -141,7 +141,7 @@
 ┌────────────────────────────────────────────────────────────────────────┐
 │ HEADER: [Audit] [AIR-GAP VERIFIED]  3 entries  [Export ▾]              │
 ├────────────────────────────────────────────────────────────────────────┤
-│  PAYLOAD BOX (Track 7.ii)                                              │
+│  PAYLOAD BOX                                                          │
 │  ┌──────────────────────────────────────────────────────────────────┐  │
 │  │ {"aid":"siren-04","sec":"B","haz":"GLOF_FL",...}                 │  │
 │  │  [118 / 250 bytes]  ✓ LoRa-compatible                            │  │
@@ -225,7 +225,7 @@ App
     │   ├── EvidencePanel (before/after + overlay)
     │   ├── RiskGauge (H/E/D/confidence)
     │   ├── ReasonsPanel (≥3)
-    │   ├── DiseaseActionSheet (Track 7.iii)
+    │   ├── DiseaseActionSheet
     │   ├── ExposedAssetsTable
     │   └── DecisionBar (Confirm/Reject/Postpone)
     └── AuditView
