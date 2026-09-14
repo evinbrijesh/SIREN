@@ -361,3 +361,76 @@ def denormalize_tensor_multitemporal(arr: np.ndarray) -> np.ndarray:
             arr[b, 4] = denormalize_hand(arr[b, 4])
             arr[b, 5] = denormalize_slope(arr[b, 5])
     return arr
+
+
+# ---------------------------------------------------------------------------
+# 6-channel SAR multi-temporal contract (Kuro Siwo / ADR-011.1 gate-passed)
+# ---------------------------------------------------------------------------
+# This is a DIFFERENT 6-channel contract from the V3 §2.8 terrain-aware one
+# above. It carries both pre- and post-event SAR channels plus their temporal
+# differences, and no terrain channels:
+#
+#     (VV_post, VH_post, VV_pre, VH_pre, dVV, dVH)
+#
+# The gate-passed Kuro Siwo checkpoint
+# (``models/checkpoints/water_resunet_kuro_siwo_full/water_resunet_6ch_kuro_siwo_v1.pt``)
+# was trained against exactly this order (ADR-011.1). Do not reorder.
+
+KURO_SIWO_CHANNEL_NAMES: tuple[str, ...] = (
+    "VV_post", "VH_post", "VV_pre", "VH_pre", "dVV", "dVH",
+)
+
+KURO_SIWO_CHANNELS: int = 6
+
+
+def build_kuro_siwo_tensor(
+    pre_db: np.ndarray,
+    post_db: np.ndarray,
+) -> np.ndarray:
+    """Build the 6-channel Kuro Siwo tensor from pre/post VV/VH sigma0 dB.
+
+    Channel order and normalisation match the training contract exactly
+    (``ml/kuro_siwo_dataset.py::_build_tensor``, minus the linear→dB step
+    because the pipeline already carries calibrated dB):
+
+        ch 0  VV_post  = (clamp(VV_post, -30, 0) + 30) / 30
+        ch 1  VH_post  = (clamp(VH_post, -30, 0) + 30) / 30
+        ch 2  VV_pre   = (clamp(VV_pre,  -30, 0) + 30) / 30
+        ch 3  VH_pre   = (clamp(VH_pre,  -30, 0) + 30) / 30
+        ch 4  ΔVV      = (clamp(VV_post - VV_pre, -15, 5) + 15) / 20
+        ch 5  ΔVH      = (clamp(VH_post - VH_pre, -15, 5) + 15) / 20
+
+    Args:
+        pre_db:  (2, H, W) array — (VV, VH) sigma0 in dB for the pre-event date.
+        post_db: (2, H, W) array — (VV, VH) sigma0 in dB for the post-event date.
+
+    Returns:
+        float32 array of shape (6, H, W) with all values in [0, 1].
+
+    Raises:
+        ValueError: if either input does not have exactly 2 channels or the
+            spatial shapes do not match.
+    """
+    pre = np.asarray(pre_db, dtype=np.float32)
+    post = np.asarray(post_db, dtype=np.float32)
+    if pre.shape[0] != 2 or post.shape[0] != 2:
+        raise ValueError(
+            "build_kuro_siwo_tensor expects 2-channel (VV, VH) inputs, got "
+            f"pre={pre.shape[0]} post={post.shape[0]}"
+        )
+    if pre.shape[1:] != post.shape[1:]:
+        raise ValueError(
+            f"spatial shape mismatch: pre={pre.shape[1:]} post={post.shape[1:]}"
+        )
+
+    # SAR channels: shared [-30, 0] dB contract (NaN-safe via normalize_sar)
+    sar_norm = normalize_sar(np.stack([post, pre], axis=0))  # (2, 2, H, W)
+    post_norm, pre_norm = sar_norm[0], sar_norm[1]
+
+    # Temporal differences in dB, then the [-15, 5] Δσ⁰ contract
+    delta = np.stack([post[0] - pre[0], post[1] - pre[1]], axis=0)
+    delta_norm = normalize_delta_sar(delta)
+
+    return np.concatenate([post_norm, pre_norm, delta_norm], axis=0).astype(
+        np.float32
+    )

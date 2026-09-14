@@ -66,7 +66,7 @@ backend/
     detect/       # NDWI, SAR backscatter, weather-adaptive router, scenario masks
     geo/          # D8 corridor, tolerance buffers, exposure intersections
     risk/         # hazard H, exposure E, disease D_risk, SAR priority scoring + reasons
-    ml/           # WaterUNet shadow evidence layer (trained on Sen1Floods11; shadow-only per ADR-010)
+    ml/           # Shadow evidence layer: 6ch Kuro Siwo WaterResUNet (gate-passed, ADR-011.1) + E0-E3 scaffolds
     alerting/     # ≤250-byte payload codec, validator
     audit/        # append-only log writer + SHA-256 hash chain
     db/           # SQLite schema + repositories
@@ -245,16 +245,22 @@ See `docs/spec/API_CONTRACT.md` for full request/response schemas.
 
 SIREN's load-bearing path is entirely deterministic: SAR log-ratio thresholding, hydrological corridor routing, and a five-factor risk score (weights 0.30/0.25/0.20/0.15/0.10). No trained model influences hazard score, exposure, disease risk, severity, corridor routing, or dispatch eligibility.
 
-WaterUNet (trained on Sen1Floods11) runs as a **shadow evidence layer only** — its output is displayed alongside the deterministic mask for comparison but never enters the load-bearing path. The ML weight in the risk formula is `W_ML = 0.00`.
+The runtime shadow segmenter is the **6-channel Kuro Siwo WaterResUNet** (ADR-011.1 gate-passed: pooled IoU 0.62, Precision 0.87). `ChangeDetectionEngine` auto-detects the checkpoint architecture from the state_dict, builds the multi-temporal tensor, and runs inference at the calibrated τ=0.30 operating point. Its output is displayed alongside the deterministic mask for comparison but never enters the load-bearing path. The ML weight in the risk formula is `W_ML = 0.00`.
 
-### WaterUNet runtime tensor contract
+### Shadow segmenter runtime tensor contract (6-channel Kuro Siwo)
 
-The model expects calibrated Sentinel-1 VV/VH sigma0 in decibels, normalized to [0, 1] via `ml/contract.py::normalize_sar()`:
+The checkpoint expects the `(VV_post, VH_post, VV_pre, VH_pre, dVV, dVH)` contract, built from the calibrated pre/post SAR pair by `ml/contract.py::build_kuro_siwo_tensor()`:
 
-| Channel | Polarization | Value range | Normalization |
+| Channel | Content | Value range | Normalization |
 |---|---|---|---|
-| 0 | VV | [-30, 0] dB (clamped) | Linear map to [0, 1] |
-| 1 | VH | [-30, 0] dB (clamped) | Linear map to [0, 1] |
+| 0 | VV post-event | [-30, 0] dB (clamped) | Linear map to [0, 1] |
+| 1 | VH post-event | [-30, 0] dB (clamped) | Linear map to [0, 1] |
+| 2 | VV pre-event | [-30, 0] dB (clamped) | Linear map to [0, 1] |
+| 3 | VH pre-event | [-30, 0] dB (clamped) | Linear map to [0, 1] |
+| 4 | ΔVV = VV_post − VV_pre | [-15, 5] dB (clamped) | Linear map to [0, 1] |
+| 5 | ΔVH = VH_post − VH_pre | [-15, 5] dB (clamped) | Linear map to [0, 1] |
+
+The legacy 2-channel `WaterUNet` contract (VV, VH via `normalize_sar()`) is retained as a fallback for checkpoints that use it.
 
 The pipeline extracts real calibrated dB from Sentinel-1 SAFE archives via `preprocess/sar_calibrate.py`:
 1. Read VV/VH measurement TIFFs from the SAFE ZIP
@@ -264,6 +270,8 @@ The pipeline extracts real calibrated dB from Sentinel-1 SAFE archives via `prep
 5. Cache as 2-band float32 GeoTIFF in `data/processed/`
 
 Verified on real Dudh Koshi scenes: VV mean -12.3 dB, VH mean -18.6 dB (physically realistic for C-band GRD).
+
+> **Domain shift (documented):** the model reproduces its gate metrics exactly on the Kuro Siwo test set (3,081 chips) but is out-of-distribution on the full Imja scene — it over-predicts water by orders of magnitude there. This is why it is shadow-only and why the deterministic mask remains authoritative.
 
 ### Dual-split evaluation (Sen1Floods11)
 

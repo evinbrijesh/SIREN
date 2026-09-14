@@ -245,12 +245,15 @@ def _try_ml_evidence_layer(
         # ML engine is ready — run inference in SHADOW MODE.
         # The ML mask is supplementary evidence, NOT the load-bearing mask.
         #
-        # TENSOR CONTRACT (2026-09-12 fix): WaterUNet expects calibrated
-        # Sentinel-1 VV/VH sigma0 in dB, normalized to [0, 1] via
-        # normalize_sar() (ml/contract.py). We now extract and calibrate
-        # real VV/VH dB from the SAFE archives using preprocess/sar_calibrate.py.
-        # The calibrated rasters are cached to data/processed/ as GeoTIFFs.
-        # Safety is preserved because WaterUNet is shadow-only and cannot
+        # TENSOR CONTRACT (2026-09-14): ChangeDetectionEngine auto-detects the
+        # checkpoint architecture and input contract from the state_dict.
+        # The preferred checkpoint is the gate-passed 6-channel Kuro Siwo
+        # WaterResUNet (ADR-011.1), whose contract is
+        # (VV_post, VH_post, VV_pre, VH_pre, dVV, dVH) — see
+        # ml/contract.py::build_kuro_siwo_tensor. The engine builds that
+        # multi-temporal tensor internally from the pre/post calibrated
+        # VV/VH dB pair. The legacy 2-channel path is retained as a fallback.
+        # Safety is preserved because the model is shadow-only and cannot
         # affect hazard scoring, corridor routing, exposure, or dispatch.
         from siren.preprocess.sar_calibrate import (
             extract_and_cache_vv_vh_db,
@@ -372,6 +375,17 @@ def _try_ml_evidence_layer(
                 result["agreement"].sum() / max(rule_mask.sum(), 1) * 100
             ),
             "classification_breakdown": classification_breakdown,
+            # Model provenance (ADR-013: every neural component records its
+            # method and checkpoint so the audit trail shows what produced
+            # this evidence).
+            "model_architecture": engine.architecture,
+            "model_checkpoint": (
+                engine.weights_path.name if engine.weights_path else None
+            ),
+            "model_in_channels": engine.in_channels,
+            "model_contract": (
+                "kuro_siwo_6ch" if engine.is_multitemporal else "single_date"
+            ),
         }
     except ImportError:
         # torch not installed — silent fallback to deterministic

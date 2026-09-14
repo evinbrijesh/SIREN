@@ -1,4 +1,4 @@
-"""Water Segmentation Inference Engine — wraps WaterUNet for pipeline use.
+"""Water Segmentation Inference Engine — wraps WaterUNet / WaterResUNet.
 
 Loads trained weights if available; falls back to the deterministic mask
 when torch is missing or no weights are found (ADR-002, Hard Rule 1).
@@ -13,10 +13,23 @@ per-date water masks. This keeps the ML model's job narrow (per-date
 water segmentation, which is what Sen1Floods11 actually labels) and
 keeps the change decision deterministic (Hard Rule 1).
 
+Checkpoint resolution (2026-09-14): the engine auto-detects the checkpoint
+architecture and input contract from the state_dict, so it can serve both
+
+  * ``WaterUNet``      — 2-channel single-date (VV, VH)          [ADR-010]
+  * ``WaterResUNet``   — 4-channel terrain-aware (V3 §2.1)
+  * ``WaterResUNet``   — 6-channel multi-temporal Kuro Siwo      [ADR-011.1]
+
+The 6-channel Kuro Siwo variant is the gate-passed model
+(IoU 0.62 > 0.60, Precision 0.87 >= 0.84 at tau=0.30). Its contract is
+``(VV_post, VH_post, VV_pre, VH_pre, dVV, dVH)`` — see
+``ml/contract.py::build_kuro_siwo_tensor``. For that variant the engine
+builds the multi-temporal tensor from the pre/post date pair.
+
 Usage in the pipeline:
     from siren.ml.engine import ChangeDetectionEngine
 
-    engine = ChangeDetectionEngine(weights_path=weights_path)
+    engine = ChangeDetectionEngine()
     if engine.is_ready:
         # Single-date water mask (the ML model's actual job):
         water_mask = engine.predict_water_mask(sar_raster_db)
@@ -37,21 +50,88 @@ from pathlib import Path
 
 import numpy as np
 
-from siren.ml.contract import normalize_sar
+from siren.ml.contract import (
+    KURO_SIWO_CHANNELS,
+    build_kuro_siwo_tensor,
+    normalize_sar,
+)
 
 logger = logging.getLogger(__name__)
 
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+
 # Default weights path — trained weights saved here by train.py
-DEFAULT_WEIGHTS_PATH = Path(__file__).resolve().parents[3] / "data" / "processed" / "water_unet_weights.pt"
+DEFAULT_WEIGHTS_PATH = _REPO_ROOT / "data" / "processed" / "water_unet_weights.pt"
+
+# Gate-passed 6-channel multi-temporal checkpoint (ADR-011.1).
+# This is the only trained, gate-passed neural checkpoint in the repo.
+KURO_SIWO_WEIGHTS_PATH = (
+    _REPO_ROOT
+    / "models"
+    / "checkpoints"
+    / "water_resunet_kuro_siwo_full"
+    / "water_resunet_6ch_kuro_siwo_v1.pt"
+)
+
+# Calibrated operating threshold for the Kuro Siwo checkpoint (ADR-011.1).
+# The threshold sweep picked tau=0.30 (IoU 0.6197, P 0.8457, R 0.6987);
+# the default 0.50 gives IoU 0.6147 / P 0.8710 / R 0.6762. Both clear the
+# ADR-011.1 gate; 0.30 is the documented operating point.
+KURO_SIWO_CALIBRATED_THRESHOLD: float = 0.30
+
+
+def _detect_architecture(state_dict: dict) -> tuple[str, int, int]:
+    """Detect (architecture, in_channels, base_channels) from a state_dict.
+
+    Distinguishes the two model families by their first encoder block:
+
+      * ``WaterResUNet`` uses ``ResidualBlock`` -> keys ``enc1.conv1.weight``
+        and ``enc1.bn1.*``
+      * ``WaterUNet`` uses ``DoubleConv`` (nn.Sequential) -> keys
+        ``enc1.conv.0.weight`` and ``enc1.conv.1.*``
+
+    Returns:
+        (architecture_name, in_channels, base_channels)
+
+    Raises:
+        ValueError: if no recognised encoder weight is found.
+    """
+    key_res = "enc1.conv1.weight"          # ResidualBlock (WaterResUNet)
+    key_unet = "enc1.conv.0.weight"        # DoubleConv (WaterUNet)
+
+    if key_res in state_dict:
+        weight = state_dict[key_res]
+        return "WaterResUNet", int(weight.shape[1]), int(weight.shape[0])
+    if key_unet in state_dict:
+        weight = state_dict[key_unet]
+        return "WaterUNet", int(weight.shape[1]), int(weight.shape[0])
+
+    raise ValueError(
+        "unrecognised checkpoint: neither 'enc1.conv1.weight' (WaterResUNet) "
+        "nor 'enc1.conv.0.weight' (WaterUNet) found in state_dict"
+    )
 
 
 class ChangeDetectionEngine:
-    """Inference engine for single-date SAR water segmentation (WaterUNet).
+    """Inference engine for SAR water segmentation.
 
     Despite the class name (kept for pipeline interface compatibility), this
-    engine now wraps WaterUNet, a single-date water segmenter. The
-    ``predict_change_mask`` method segments both dates independently and
-    differences the results — it is NOT a learned change detector.
+    engine wraps a single-date water segmenter (WaterUNet) or the 6-channel
+    multi-temporal WaterResUNet. The ``predict_change_mask`` method segments
+    both dates and differences the results — it is NOT a learned change
+    detector (Hard Rule 1: the change decision stays deterministic).
+
+    Checkpoint resolution order (first existing wins):
+      1. explicit ``weights_path`` argument
+      2. ``models/checkpoints/water_resunet_kuro_siwo_full/
+         water_resunet_6ch_kuro_siwo_v1.pt``       (ADR-011.1, gate-passed)
+      3. ``data/processed/water_unet_weights.pt``   (ADR-010 Stage 1)
+
+    The gate-passed Kuro Siwo 6-channel checkpoint is preferred: it clears
+    the ADR-011.1 calibrated gate (IoU 0.62 > 0.60, Precision 0.87 >= 0.84
+    at tau=0.30), whereas the 2-channel Sen1Floods11 model has an
+    event-holdout IoU of 0.24 (below the load-bearing gate). Both remain
+    shadow-only evidence (ADR-010) — neither enters the hazard score.
 
     Gracefully degrades:
       - If torch is not installed -> is_ready = False, falls back to deterministic
@@ -63,14 +143,20 @@ class ChangeDetectionEngine:
         self,
         weights_path: Path | str | None = None,
         device: str = "cpu",
-        in_channels: int = 2,
+        in_channels: int | None = None,
     ) -> None:
         self.device = device
-        self.in_channels = in_channels
-        self.weights_path = Path(weights_path) if weights_path else DEFAULT_WEIGHTS_PATH
+        self.weights_path: Path | None = (
+            Path(weights_path) if weights_path else None
+        )
         self.is_ready = False
         self.model = None
         self.checkpoint_metadata: dict | None = None
+        self.architecture: str | None = None
+        # in_channels/base_channels are detected from the checkpoint; the
+        # explicit argument only acts as a fallback for scaffold mode.
+        self.in_channels = in_channels
+        self.base_channels = 32
 
         try:
             import torch  # noqa: F401
@@ -82,55 +168,202 @@ class ChangeDetectionEngine:
 
         self._load_model()
 
-    def _load_model(self) -> None:
-        """Load WaterUNet with trained weights if available."""
-        import torch
-        from siren.ml.model import WaterUNet
+    # ------------------------------------------------------------------ #
+    # Loading
+    # ------------------------------------------------------------------ #
+    def _candidate_paths(self) -> list[Path]:
+        """Ordered checkpoint candidates (first existing wins).
 
-        if self.weights_path.exists():
-            try:
-                checkpoint = torch.load(
-                    str(self.weights_path), map_location=self.device, weights_only=True
-                )
-                # Auto-detect in_channels from checkpoint metadata
-                if isinstance(checkpoint, dict) and "in_channels" in checkpoint:
-                    self.in_channels = checkpoint["in_channels"]
-                state_dict = (
-                    checkpoint["state_dict"]
-                    if isinstance(checkpoint, dict) and "state_dict" in checkpoint
-                    else checkpoint
-                )
-                self.model = WaterUNet(in_channels=self.in_channels).to(self.device)
-                self.model.load_state_dict(state_dict)
-                self.model.eval()
-                self.is_ready = True
-                if isinstance(checkpoint, dict):
-                    self.checkpoint_metadata = {
-                        k: v for k, v in checkpoint.items() if k != "state_dict"
-                    }
-                logger.info(
-                    f"ML engine loaded WaterUNet weights from {self.weights_path} "
-                    f"(in_channels={self.in_channels})"
-                )
-            except Exception as exc:
-                logger.warning(f"Failed to load ML weights: {exc} — using deterministic fallback")
-                self.model = WaterUNet(in_channels=self.in_channels).to(self.device)
-                self.model.eval()
-                self.is_ready = False
-        else:
-            self.model = WaterUNet(in_channels=self.in_channels).to(self.device)
+        The gate-passed Kuro Siwo 6-channel checkpoint comes first so the
+        qualified model is used at runtime; the ADR-010 Stage 1 2-channel
+        checkpoint is the fallback.
+        """
+        if self.weights_path is not None:
+            return [self.weights_path]
+        return [KURO_SIWO_WEIGHTS_PATH, DEFAULT_WEIGHTS_PATH]
+
+    def _resolve_weights_path(self) -> Path | None:
+        for candidate in self._candidate_paths():
+            if candidate.exists():
+                return candidate
+        return None
+
+    def _load_model(self) -> None:
+        """Load the first available checkpoint, auto-detecting architecture."""
+        import torch
+        from siren.ml.model import WaterResUNet, WaterUNet
+
+        resolved = self._resolve_weights_path()
+
+        if resolved is None:
+            # Scaffold mode: no weights anywhere. Build a 2-channel WaterUNet
+            # so the object is usable, but report is_ready=False.
+            self.weights_path = DEFAULT_WEIGHTS_PATH
+            fallback_channels = self.in_channels or 2
+            self.model = WaterUNet(in_channels=fallback_channels).to(self.device)
             self.model.eval()
+            self.architecture = "WaterUNet"
+            self.in_channels = fallback_channels
             logger.info(
-                f"No trained weights at {self.weights_path} — "
-                "ML engine in scaffold mode (deterministic fallback active). "
-                "Run `python -m siren.ml.train` to produce weights."
+                f"No trained weights found (looked in {self._candidate_paths()}) — "
+                "ML engine in scaffold mode (deterministic fallback active)."
             )
+            return
+
+        self.weights_path = resolved
+        try:
+            checkpoint = torch.load(
+                str(resolved), map_location=self.device, weights_only=True
+            )
+            state_dict = (
+                checkpoint["state_dict"]
+                if isinstance(checkpoint, dict) and "state_dict" in checkpoint
+                else checkpoint
+            )
+
+            architecture, detected_in, detected_base = _detect_architecture(state_dict)
+            self.architecture = architecture
+            self.in_channels = detected_in
+            self.base_channels = detected_base
+
+            if architecture == "WaterResUNet":
+                self.model = WaterResUNet(
+                    in_channels=detected_in, base_channels=detected_base
+                ).to(self.device)
+            else:
+                self.model = WaterUNet(
+                    in_channels=detected_in, base_channels=detected_base
+                ).to(self.device)
+
+            self.model.load_state_dict(state_dict)
+            self.model.eval()
+            self.is_ready = True
+
+            if isinstance(checkpoint, dict) and "state_dict" not in checkpoint:
+                self.checkpoint_metadata = None
+            elif isinstance(checkpoint, dict):
+                self.checkpoint_metadata = {
+                    k: v for k, v in checkpoint.items() if k != "state_dict"
+                }
+
+            # Sidecar metadata (the Kuro Siwo checkpoint ships a .meta.json)
+            meta_path = resolved.with_suffix(".meta.json")
+            if meta_path.exists():
+                try:
+                    import json
+
+                    self.checkpoint_metadata = {
+                        **(self.checkpoint_metadata or {}),
+                        **json.loads(meta_path.read_text()),
+                    }
+                except Exception as exc:  # noqa: BLE001 — metadata is advisory
+                    logger.warning(f"Could not read checkpoint sidecar: {exc}")
+
+            logger.info(
+                f"ML engine loaded {architecture} weights from {resolved} "
+                f"(in_channels={detected_in}, base_channels={detected_base})"
+            )
+        except Exception as exc:
+            logger.warning(
+                f"Failed to load ML weights from {resolved}: {exc} — "
+                "using deterministic fallback"
+            )
+            self.model = WaterUNet(in_channels=self.in_channels or 2).to(self.device)
+            self.model.eval()
+            self.architecture = "WaterUNet"
+            self.in_channels = self.in_channels or 2
             self.is_ready = False
+
+    @property
+    def is_multitemporal(self) -> bool:
+        """True when the loaded checkpoint uses the 6-channel Kuro Siwo contract."""
+        return self.in_channels == KURO_SIWO_CHANNELS
+
+    @property
+    def default_threshold(self) -> float:
+        """Operating threshold for the loaded checkpoint.
+
+        The Kuro Siwo 6-channel model is calibrated at tau=0.30 (ADR-011.1);
+        all other checkpoints use the conventional 0.50.
+        """
+        if self.is_multitemporal:
+            return KURO_SIWO_CALIBRATED_THRESHOLD
+        return 0.5
+
+    # ------------------------------------------------------------------ #
+    # Inference helpers
+    # ------------------------------------------------------------------ #
+    def _pad_to_multiple(self, arr: np.ndarray, multiple: int = 16) -> tuple[np.ndarray, int, int]:
+        """Reflect-pad (C, H, W) to a multiple of ``multiple``. Returns (arr, pad_h, pad_w)."""
+        h, w = arr.shape[1], arr.shape[2]
+        pad_h = (multiple - h % multiple) % multiple
+        pad_w = (multiple - w % multiple) % multiple
+        if pad_h or pad_w:
+            arr = np.pad(arr, ((0, 0), (0, pad_h), (0, pad_w)), mode="reflect")
+        return arr, pad_h, pad_w
+
+    def _forward_logits(self, tensor_chw: np.ndarray) -> np.ndarray:
+        """Run the model on a (C, H, W) tensor, returning (H, W) probabilities."""
+        import torch
+
+        tensor, pad_h, pad_w = self._pad_to_multiple(tensor_chw.astype(np.float32))
+        with torch.no_grad():
+            x = torch.from_numpy(tensor).float().unsqueeze(0).to(self.device)
+            logits = self.model(x)
+            probs = torch.sigmoid(logits).squeeze().cpu().numpy()
+        if pad_h or pad_w:
+            probs = probs[: tensor.shape[1] - pad_h, : tensor.shape[2] - pad_w]
+        return probs.astype(np.float32)
+
+    def _build_input(self, pre_db: np.ndarray, post_db: np.ndarray) -> np.ndarray:
+        """Build the model input tensor for the loaded contract.
+
+        Multi-temporal (6-ch): full (VV_post, VH_post, VV_pre, VH_pre, dVV, dVH)
+        contract via ``build_kuro_siwo_tensor``.
+
+        Legacy (2-ch/4-ch): single-date channels from the post image, passed
+        through the frozen ``normalize_sar`` contract (idempotent).
+        """
+        if self.is_multitemporal:
+            return build_kuro_siwo_tensor(pre_db, post_db)
+
+        post = np.asarray(post_db, dtype=np.float32)
+        if post.shape[0] != self.in_channels:
+            post = self._adjust_channels(post, self.in_channels)
+        return normalize_sar(post)
+
+    # ------------------------------------------------------------------ #
+    # Public inference API
+    # ------------------------------------------------------------------ #
+    def predict_water_probability(
+        self,
+        sar_raster: np.ndarray,
+    ) -> np.ndarray:
+        """Segment water and return the raw probability map (H, W) in [0, 1].
+
+        For the multi-temporal contract there is no pre-event image available
+        in this call, so the tensor is built with pre == post (Δσ⁰ = 0) — the
+        model then behaves as a single-date segmenter. Use
+        ``predict_change_probability`` when both dates are available.
+        """
+        if not self.is_ready or self.model is None:
+            raise RuntimeError(
+                "ML engine not ready — no trained weights loaded."
+            )
+
+        sar = np.asarray(sar_raster, dtype=np.float32)
+        if sar.ndim != 3 or sar.shape[0] < 2:
+            raise ValueError(
+                f"expected (2, H, W) VV/VH dB input, got shape {sar.shape}"
+            )
+        pair = sar[:2]
+        tensor = self._build_input(pair, pair)
+        return self._forward_logits(tensor)
 
     def predict_water_mask(
         self,
         sar_raster: np.ndarray,
-        threshold: float = 0.5,
+        threshold: float | None = None,
     ) -> np.ndarray:
         """Segment surface water from a single-date SAR raster.
 
@@ -140,6 +373,8 @@ class ChangeDetectionEngine:
                         Values may be raw dB or already normalized — the
                         contract normalization is applied idempotently.
             threshold: water probability threshold for binary mask.
+                       Defaults to ``self.default_threshold`` (0.30 for the
+                       calibrated Kuro Siwo checkpoint, 0.50 otherwise).
 
         Returns:
             Binary water mask (H, W) as uint8 (1 = water, 0 = land).
@@ -149,105 +384,8 @@ class ChangeDetectionEngine:
                 "ML engine not ready — no trained weights loaded. "
                 "Use the deterministic mask instead."
             )
-
-        import torch
-
-        # Apply the frozen input contract (idempotent on already-normalized input).
-        sar_norm = normalize_sar(sar_raster)
-
-        # Ensure channel count matches model expectations
-        if sar_norm.shape[0] != self.in_channels:
-            sar_norm = self._adjust_channels(sar_norm, self.in_channels)
-
-        # Pad to nearest multiple of 16 (WaterUNet has 4 downsampling stages)
-        h, w = sar_norm.shape[1], sar_norm.shape[2]
-        pad_h = (16 - h % 16) % 16
-        pad_w = (16 - w % 16) % 16
-        if pad_h or pad_w:
-            sar_norm = np.pad(sar_norm, ((0, 0), (0, pad_h), (0, pad_w)), mode="reflect")
-
-        with torch.no_grad():
-            x = torch.from_numpy(sar_norm).float().unsqueeze(0).to(self.device)
-            logits = self.model(x)
-            probs = torch.sigmoid(logits).squeeze().cpu().numpy()
-
-        # Crop back to original dimensions
-        if pad_h or pad_w:
-            probs = probs[:h, :w]
-
-        return (probs >= threshold).astype(np.uint8)
-
-    def predict_water_probability(
-        self,
-        sar_raster: np.ndarray,
-    ) -> np.ndarray:
-        """Segment water and return the raw probability map (H, W) in [0, 1].
-
-        Useful for heatmap visualization and consensus masking.
-        """
-        if not self.is_ready or self.model is None:
-            raise RuntimeError(
-                "ML engine not ready — no trained weights loaded."
-            )
-
-        import torch
-
-        sar_norm = normalize_sar(sar_raster)
-        if sar_norm.shape[0] != self.in_channels:
-            sar_norm = self._adjust_channels(sar_norm, self.in_channels)
-
-        h, w = sar_norm.shape[1], sar_norm.shape[2]
-        pad_h = (16 - h % 16) % 16
-        pad_w = (16 - w % 16) % 16
-        if pad_h or pad_w:
-            sar_norm = np.pad(sar_norm, ((0, 0), (0, pad_h), (0, pad_w)), mode="reflect")
-
-        with torch.no_grad():
-            x = torch.from_numpy(sar_norm).float().unsqueeze(0).to(self.device)
-            logits = self.model(x)
-            probs = torch.sigmoid(logits).squeeze().cpu().numpy()
-
-        if pad_h or pad_w:
-            probs = probs[:h, :w]
-
-        return probs
-
-    def predict_change_mask(
-        self,
-        t0_raster: np.ndarray,
-        t1_raster: np.ndarray,
-        threshold: float = 0.5,
-    ) -> np.ndarray:
-        """Bi-temporal change mask via deterministic differencing of two
-        independently-segmented per-date water masks.
-
-        This is NOT a learned change detector. The ML model segments water
-        on each date independently; the change decision is the deterministic
-        set difference (water at t1 but not at t0). This preserves Hard Rule 1:
-        the change decision remains deterministic even when the ML water
-        segmenter is available.
-
-        Args:
-            t0_raster: Baseline SAR image (C, H, W) in dB or normalized.
-            t1_raster: Current SAR image (C, H, W) in dB or normalized.
-            threshold: Water probability threshold per date.
-
-        Returns:
-            Binary change mask (H, W) as uint8 (1 = new water at t1).
-        """
-        if not self.is_ready or self.model is None:
-            raise RuntimeError(
-                "ML engine not ready — no trained weights loaded. "
-                "Use the deterministic mask instead."
-            )
-
-        water_t0 = self.predict_water_mask(t0_raster, threshold=threshold)
-        water_t1 = self.predict_water_mask(t1_raster, threshold=threshold)
-
-        # Deterministic change: water at t1 that was not water at t0.
-        # (Expansion only — contraction is not a flood hazard signal.)
-        change = (water_t1 == 1) & (water_t0 == 0)
-        return change.astype(np.uint8)
+        tau = self.default_threshold if threshold is None else threshold
+        return (self.predict_water_probability(sar_raster) >= tau).astype(np.uint8)
 
     def predict_change_probability(
         self,
@@ -266,12 +404,74 @@ class ChangeDetectionEngine:
                 "ML engine not ready — no trained weights loaded."
             )
 
-        p_t0 = self.predict_water_probability(t0_raster)
-        p_t1 = self.predict_water_probability(t1_raster)
+        t0 = np.asarray(t0_raster, dtype=np.float32)[:2]
+        t1 = np.asarray(t1_raster, dtype=np.float32)[:2]
+        if t0.shape != t1.shape:
+            raise ValueError(
+                f"pre/post spatial mismatch: {t0.shape} vs {t1.shape}"
+            )
+
+        # Water probability at each date under the loaded contract.
+        # Multi-temporal: post=t1 with the real pre-event context (in-distribution),
+        # and post=t0 with itself (Δ=0) for the baseline date.
+        p_t1 = self._forward_logits(self._build_input(t0, t1))
+        p_t0 = self._forward_logits(self._build_input(t0, t0))
 
         # Positive change only (expansion), clipped to [0, 1]
         delta = p_t1 - p_t0
         return np.clip(delta, 0.0, 1.0).astype(np.float32)
+
+    def predict_change_mask(
+        self,
+        t0_raster: np.ndarray,
+        t1_raster: np.ndarray,
+        threshold: float | None = None,
+    ) -> np.ndarray:
+        """Bi-temporal change mask via deterministic differencing of two
+        independently-segmented per-date water masks.
+
+        This is NOT a learned change detector. The ML model segments water
+        on each date; the change decision is the deterministic set difference
+        (water at t1 but not at t0). This preserves Hard Rule 1: the change
+        decision remains deterministic even when the ML water segmenter is
+        available.
+
+        Args:
+            t0_raster: Baseline SAR image (2, H, W) in dB (VV, VH).
+            t1_raster: Current SAR image (2, H, W) in dB (VV, VH).
+            threshold: Water probability threshold per date. Defaults to
+                       ``self.default_threshold`` (0.30 for the calibrated
+                       Kuro Siwo checkpoint, 0.50 otherwise).
+
+        Returns:
+            Binary change mask (H, W) as uint8 (1 = new water at t1).
+        """
+        if not self.is_ready or self.model is None:
+            raise RuntimeError(
+                "ML engine not ready — no trained weights loaded. "
+                "Use the deterministic mask instead."
+            )
+
+        tau = self.default_threshold if threshold is None else threshold
+        t0 = np.asarray(t0_raster, dtype=np.float32)[:2]
+        t1 = np.asarray(t1_raster, dtype=np.float32)[:2]
+        if t0.shape != t1.shape:
+            raise ValueError(
+                f"pre/post spatial mismatch: {t0.shape} vs {t1.shape}"
+            )
+
+        # Per-date water masks. For the multi-temporal contract the t1
+        # prediction uses the real pre-event context (the model's trained
+        # task); t0 uses itself with Δσ⁰ = 0.
+        p_t1 = self._forward_logits(self._build_input(t0, t1))
+        p_t0 = self._forward_logits(self._build_input(t0, t0))
+        water_t0 = p_t0 >= tau
+        water_t1 = p_t1 >= tau
+
+        # Deterministic change: water at t1 that was not water at t0.
+        # (Expansion only — contraction is not a flood hazard signal.)
+        change = water_t1 & ~water_t0
+        return change.astype(np.uint8)
 
     @staticmethod
     def _adjust_channels(arr: np.ndarray, target: int) -> np.ndarray:

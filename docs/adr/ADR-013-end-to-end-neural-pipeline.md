@@ -24,12 +24,15 @@
 
 **What IS done and verified:**
 
-- 782 tests pass (677 pre-existing + 47 neural scaffold + 23 S2 optical + 34 fusion dataset + 1 other).
+- 799 tests pass (677 pre-existing + 47 neural scaffold + 23 S2 optical + 34 fusion dataset + 17 engine wiring + 1 other).
 - The deterministic baseline and shadow pipeline are intact — no regression.
 - The Imja integration test passes (exit 0): real SAR → v1 model → Huggel fallback → V_breach = 10.87M m³.
 - The FNO input contract change is backward-compatible (`in_channels=2` default loads the frozen checkpoint).
 - The WaterResUNet dropout change is backward-compatible (`dropout=0.0` default).
 - The E3 fusion pipeline is verified end-to-end on real data: S1 07-02/07-14 + S2 07-05 → `build_fusion_chip` → `MultiModalFusionNet` forward pass (tensor-flow test, random weights — no trained checkpoint yet).
+- **The gate-passed Kuro Siwo 6-channel checkpoint is wired into the runtime ML evidence layer** (2026-09-14). `ChangeDetectionEngine` auto-detects the checkpoint architecture from the state_dict (ResidualBlock vs DoubleConv), loads the 6-channel `WaterResUNet`, and builds the `(VV_post, VH_post, VV_pre, VH_pre, dVV, dVH)` tensor via `contract.build_kuro_siwo_tensor` — verified byte-identical to the training-side `kuro_siwo_dataset._build_tensor`. The engine defaults to the calibrated τ=0.30 operating point. Pipeline provenance now records `model_architecture`, `model_checkpoint`, `model_in_channels`, and `model_contract` on every ML evidence object.
+- **Gate reproduction verified:** the wired engine reproduces the checkpoint's reported test metrics exactly over the full 3,081-chip Kuro Siwo test set — pooled IoU 0.6147, Precision 0.8710, Recall 0.6762 at τ=0.5 (matches `test_metrics` to 4 decimal places).
+- **Domain-shift finding (documented, not a blocker):** on the full Imja scene the same model produces implausible masks (hundreds of thousands of "water" pixels vs ~2,500 rule-based; `ml_rule_agreement_pct` 0.1–13.5%). The model is out-of-distribution on high-Himalaya terrain. This is why it remains shadow-only (ADR-010) and never enters the hazard score. Per-chip IoU is also much lower than the pooled figure (mean 0.29, median 0.06), so aggregate metrics flatter the model.
 
 ---
 
