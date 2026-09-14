@@ -13,22 +13,23 @@
 | E0 Latent conditioning | `ml/latent_coupling.py`, `FNO2D(in_channels=2+d_latent)` | 18 (shapes, gradient flow, backward compat) | None | No — requires 500+ shallow-water sims | No |
 | E1 MC Dropout uncertainty | `ml/uncertainty.py`, `WaterResUNet(dropout>0)` | 15 (shapes, variance, conformal) | None (uses existing SAR checkpoint with dropout added) | No — requires held-out calibration set | No |
 | E2 Neural bathymetry | `ml/bathymetry.py`, `train_bathymetry.py` | 13 (architecture, synthetic data) | None — trained on **synthetic parabolic basins only**, not real bathymetry | No — requires Millan/Farinotti + ICIMOD field bathymetry | No |
-| E3 Multi-modal fusion | `ml/fusion.py` | 15 (cross-attention, cloud gating, shapes) | None | No — requires paired S2 L2A within ±3 days of SAR (current S2 is 8 months off) | No |
+| E3 Multi-modal fusion | `ml/fusion.py`, `ml/fusion_dataset.py`, `ml/train_fusion.py`, `preprocess/s2_optical.py` | 49 (15 cross-attention + 34 dataset/real-pair) | None | No — requires multi-event paired S2+SAR training set (1 real pair available, gate needs held-out set) | No |
 
 **Missing prerequisites blocking gate evaluation:**
 
 1. **Bathymetry ground truth:** No Millan et al. (2022) consensus ice-thickness grids, no GlaThiDa radar soundings, no ICIMOD field bathymetry for Imja/Tsho Rolpa/Thorthormi. The `BathymetryUNet` was trained on synthetic parabolic basins — this proves the architecture can learn a shape, not that it predicts real glacial lake beds.
-2. **Paired Sentinel-2 optical:** The only local S2 scene is `2025-11-22` (tile T45RVL). The SAR pair is `2026-07-02`/`07-14`. The 8-month seasonal gap makes fusion training meaningless. No SCL cloud-mask extractor exists.
+2. **Paired Sentinel-2 optical (partially resolved):** SCL cloud-mask extractor now exists (`preprocess/s2_optical.py`, ADR-013 §9.7.2). Two S2 L2A scenes downloaded: `2026-07-05` (monsoon, 56.4% cloud) and `2026-05-26` (pre-monsoon, 15.1% cloud). The 07-05 S2 is within ±3 days of the 07-02 S1 SAR pass — one valid real pair exists. However, the gate requires a multi-event held-out evaluation set; one pair is insufficient for training or gate evaluation. The fusion dataset (`ml/fusion_dataset.py`) and training/inference script (`ml/train_fusion.py`) are built and pass real-data tensor-flow tests on the Imja pair.
 3. **Shallow-water simulation set:** The existing FNO was trained on a synthetic analytical solver (~hundreds of runs). The latent-conditioned variant requires 500+ HEC-RAS/Basilisk/GeoClaw runs across varied mountain DEMs.
 4. **GPU compute:** The development machine has 8 GB VRAM (RTX 5050 Laptop). Training the fusion net at production width (224×224, base_channels=32, batch≥4) requires 16–24 GB. Training is planned on a separate 20 GB RTX 4000 Ada workstation.
 
 **What IS done and verified:**
 
-- 724 tests pass (677 pre-existing + 47 new neural scaffold tests).
+- 782 tests pass (677 pre-existing + 47 neural scaffold + 23 S2 optical + 34 fusion dataset + 1 other).
 - The deterministic baseline and shadow pipeline are intact — no regression.
 - The Imja integration test passes (exit 0): real SAR → v1 model → Huggel fallback → V_breach = 10.87M m³.
 - The FNO input contract change is backward-compatible (`in_channels=2` default loads the frozen checkpoint).
 - The WaterResUNet dropout change is backward-compatible (`dropout=0.0` default).
+- The E3 fusion pipeline is verified end-to-end on real data: S1 07-02/07-14 + S2 07-05 → `build_fusion_chip` → `MultiModalFusionNet` forward pass (tensor-flow test, random weights — no trained checkpoint yet).
 
 ---
 

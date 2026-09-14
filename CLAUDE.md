@@ -92,7 +92,8 @@ docs/
 | H / E / D_risk scores | `risk/` |
 | Breach volume (neural/Huggel/hypsometric cascade) | `risk/breach_volume.py` |
 | SAR priority ranking | `risk/sar_priority.py` |
-| Water segmentation (SAR 6ch + multi-modal fusion) | `ml/model.py`, `ml/fusion.py` |
+| Water segmentation (SAR 6ch + multi-modal fusion) | `ml/model.py`, `ml/fusion.py`, `ml/fusion_dataset.py`, `ml/train_fusion.py` |
+| S2 optical feature extraction (NDWI/MNDWI/cloud) | `preprocess/s2_optical.py` |
 | Neural bathymetry inversion | `ml/bathymetry.py` |
 | Bayesian uncertainty (MC Dropout + conformal) | `ml/uncertainty.py` |
 | Latent coupling (segmentation → FNO) | `ml/latent_coupling.py` |
