@@ -336,7 +336,10 @@ def _compute_shadow_hydro(
         dem_norm = (dem - dem_min) / (dem_max - dem_min) if dem_max > dem_min else np.zeros_like(dem)
 
         # Breach volume resolution (ADR-012 frozen 2-channel contract).
-        # Priority: explicit override → hypsometric estimation → raise.
+        # Priority: explicit override → hypsometric estimation → Huggel fallback.
+        # method="auto" attempts hypsometric integration first; if the DEM is a
+        # surface model (DSM, e.g. SRTM over water), falls back to Huggel et al.
+        # (2002) empirical area-volume scaling with full provenance recording.
         # No silent fallback to a hardcoded default (CLAUDE.md).
         v_breach_override = obs_config.get("v_breach_m3")
         breach_volume_info: dict[str, Any] | None = None
@@ -365,6 +368,7 @@ def _compute_shadow_hydro(
                 post_water_mask=np.asarray(post_mask),
                 dem=dem.astype(np.float64),
                 pixel_area_m2=float(pixel_area),
+                method="auto",
             )
             v_breach = bv_result.v_breach_m3
             breach_volume_info = bv_result.to_dict()

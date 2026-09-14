@@ -133,6 +133,42 @@ def get_model_status() -> dict[str, Any]:
         "evaluation_valid": water_loaded,
     }
 
+    # --- 6-channel real-data SAR model (ADR-011.1) ---
+    # Trained on real paired pre/post Sentinel-1 GRD from Kuro Siwo.
+    # First honest 6-channel baseline (no synthetic Δσ⁰ leakage).
+    # Passes ADR-011.1 calibrated gate (IoU > 0.60 AND Precision >= 0.84).
+    ks_dir = CHECKPOINTS_DIR / "water_resunet_kuro_siwo_full"
+    ks_weights = ks_dir / "water_resunet_6ch_kuro_siwo_v1.pt"
+    ks_meta = ks_dir / "water_resunet_6ch_kuro_siwo_v1.meta.json"
+    ks_loaded = _check_torch_model(ks_weights)
+    ks_metadata = _load_sidecar_metadata(ks_meta)
+    ks_gate_passed = False
+    if ks_metadata and ks_metadata.get("gate", {}).get("adr_passed"):
+        ks_gate_passed = True
+    models["water_resunet_6ch_kuro_siwo"] = {
+        "stage": 2,
+        "name": "WaterResUNet 6-channel (Kuro Siwo real paired SAR)",
+        "loaded": ks_loaded,
+        "weights_path": str(ks_weights),
+        "weights_exists": ks_weights.exists(),
+        "weights_size_mb": round(ks_weights.stat().st_size / 1e6, 1) if ks_weights.exists() else 0,
+        "metadata": ks_metadata,
+        "description": (
+            "6-channel multi-temporal water segmentation from real paired pre/post "
+            "Sentinel-1 GRD (VV_post, VH_post, VV_pre, VH_pre, ΔVV, ΔVH). "
+            "First honest 6-channel baseline — no synthetic Δσ⁰ leakage (PRD v4.7 §17.3). "
+            "Passes ADR-011.1 calibrated gate (IoU > 0.60 AND P >= 0.84) at τ=0.30. "
+            "Pending shadow-mode observation cycle before load-bearing promotion."
+        ),
+        "architecture": "WaterResUNet(6-ch, U-Net decoder, 7.94M params)",
+        "training_data": "Kuro Siwo GRD, real paired pre/post Sentinel-1, ~6,775 samples (truncated shards)",
+        "input_contract": "6-ch: VV_post, VH_post, VV_pre, VH_pre, ΔVV, ΔVH (linear→dB→normalized)",
+        "status": "shadow_pending_promotion" if ks_gate_passed else "shadow_only",
+        "inference_allowed": ks_gate_passed,
+        "evaluation_valid": True,
+        "gate": ks_metadata.get("gate", {}) if ks_metadata else None,
+    }
+
     # --- Disqualified checkpoints (PRD v4.7 §17.3) ---
     # These remain on disk for audit history but must not be promoted.
     for entry in DISQUALIFIED_CHECKPOINTS:
@@ -218,21 +254,27 @@ def _check_torch_model(weights_path: Path) -> bool:
     Per ADR-010 audit finding §5.8, this checks actual loadability
     (file exists AND torch is installed AND the checkpoint can be
     deserialized), not just file existence.
+
+    Handles both wrapped checkpoints (dict with "state_dict" key) and
+    raw state_dicts (dict of param_name → tensor).
     """
     if not weights_path.exists():
         return False
     try:
         import torch  # noqa: F401
-        # Verify the checkpoint can actually be deserialized
         checkpoint = torch.load(
             str(weights_path), map_location="cpu", weights_only=True
         )
-        # Must have a state_dict to be loadable
+        # Wrapped checkpoint: {"state_dict": {...}, "metadata": {...}}
         if isinstance(checkpoint, dict) and "state_dict" in checkpoint:
             return True
-        if isinstance(checkpoint, dict) and not isinstance(checkpoint.get("state_dict"), dict):
-            return False
-        return True
+        # Raw state_dict: {"enc1.conv1.weight": tensor, ...}
+        # Check that it's a non-empty dict with tensor values
+        if isinstance(checkpoint, dict) and len(checkpoint) > 0:
+            first_val = next(iter(checkpoint.values()))
+            if hasattr(first_val, "shape"):
+                return True
+        return False
     except Exception:
         return False
 

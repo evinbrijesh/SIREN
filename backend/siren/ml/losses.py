@@ -62,20 +62,30 @@ def dice_loss(logits: torch.Tensor, target: torch.Tensor, valid: torch.Tensor | 
     return (1.0 - dice).mean()
 
 
-def bce_loss(logits: torch.Tensor, target: torch.Tensor, valid: torch.Tensor | None = None) -> torch.Tensor:
-    """Binary cross-entropy loss with optional validity mask.
+def bce_loss(
+    logits: torch.Tensor,
+    target: torch.Tensor,
+    valid: torch.Tensor | None = None,
+    pos_weight: "torch.Tensor | None" = None,
+) -> torch.Tensor:
+    """Binary cross-entropy loss with optional validity mask and pos_weight.
 
     Args:
         logits: (B, 1, H, W) raw logits.
         target: (B, 1, H, W) binary water mask {0, 1}.
         valid: optional (B, 1, H, W) validity mask; invalid pixels excluded.
+        pos_weight: optional scalar tensor to upweight positive (water) pixels.
     """
     if valid is not None:
         # Mask invalid pixels by zeroing their contribution
-        loss = F.binary_cross_entropy_with_logits(logits, target, reduction="none")
+        loss = F.binary_cross_entropy_with_logits(
+            logits, target, pos_weight=pos_weight, reduction="none",
+        )
         loss = loss * valid
         return loss.sum() / (valid.sum() + 1e-7)
-    return F.binary_cross_entropy_with_logits(logits, target)
+    return F.binary_cross_entropy_with_logits(
+        logits, target, pos_weight=pos_weight,
+    )
 
 
 def gravity_penalty(
@@ -156,6 +166,7 @@ class WaterLoss(nn.Module):
         lambda_gravity: weight for the gravity penalty (default 0.1, V3 §2.6).
         dice_weight: weight for the Dice loss term.
         bce_weight: weight for the BCE loss term.
+        pos_weight: optional float to upweight positive (water) pixels in BCE.
     """
 
     def __init__(
@@ -163,11 +174,22 @@ class WaterLoss(nn.Module):
         lambda_gravity: float = DEFAULT_LAMBDA_GRAVITY,
         dice_weight: float = 1.0,
         bce_weight: float = 0.5,
+        pos_weight: float | None = None,
     ) -> None:
         super().__init__()
         self.lambda_gravity = lambda_gravity
         self.dice_weight = dice_weight
         self.bce_weight = bce_weight
+        self._pos_weight_value = pos_weight
+        self._pos_weight_tensor = None  # built lazily on first forward (needs device)
+
+    def _pos_weight(self, device: "torch.device") -> "torch.Tensor | None":
+        if self._pos_weight_value is None:
+            return None
+        if self._pos_weight_tensor is None or self._pos_weight_tensor.device != device:
+            import torch
+            self._pos_weight_tensor = torch.tensor(self._pos_weight_value, device=device)
+        return self._pos_weight_tensor
 
     def forward(
         self,
@@ -188,8 +210,9 @@ class WaterLoss(nn.Module):
         Returns:
             Dict with 'total', 'dice', 'bce', 'gravity' loss components.
         """
+        pw = self._pos_weight(logits.device)
         d = dice_loss(logits, target, valid)
-        b = bce_loss(logits, target, valid)
+        b = bce_loss(logits, target, valid, pos_weight=pw)
 
         g = torch.tensor(0.0, device=logits.device)
         if dem is not None and self.lambda_gravity > 0:

@@ -21,6 +21,10 @@ from siren.risk.breach_volume import (
     _lake_rim,
     _shoreline_elevation,
     _hypsometric_volume,
+    _huggel_volume,
+    HUGGEL_ALPHA,
+    HUGGEL_GAMMA,
+    MIN_BATHYMETRIC_MEAN_DEPTH_M,
 )
 
 
@@ -375,16 +379,17 @@ def test_nan_in_dem_raises():
 
 
 def test_non_positive_volume_raises():
-    """Non-positive V_breach (flat DEM, bed ≥ shoreline) raises ValueError.
+    """Flat DEM (bed ≥ shoreline) with method='hypsometric' raises ValueError.
 
     If the bed elevation equals the rim elevation everywhere, the lake has
-    zero depth and V_breach = 0. This should raise, not silently return 0.
+    zero depth and V_breach = 0. With the default strict hypsometric method,
+    this should raise, not silently return 0.
     """
     dem = np.full((10, 10), 5.0, dtype=np.float64)  # flat everywhere
     pre = np.zeros((10, 10), dtype=bool)
     pre[3:7, 3:7] = True
     post = np.zeros((10, 10), dtype=bool)
-    with pytest.raises(ValueError, match="non-positive"):
+    with pytest.raises(ValueError, match="does not resolve submerged lake bathymetry"):
         estimate_breach_volume(pre, post, dem, pixel_area_m2=1.0)
 
 
@@ -438,3 +443,219 @@ def test_result_provenance_tag():
 
     result = estimate_breach_volume(pre, post, dem, pixel_area_m2=1.0)
     assert result.provenance == "breach_volume_hypsometric_v1"
+
+
+# --------------------------------------------------------------------------- #
+# Huggel et al. (2002) empirical area-volume scaling
+# --------------------------------------------------------------------------- #
+
+def test_huggel_volume_formula():
+    """Huggel volume formula: V = 0.104 * A^1.421."""
+    # Known: A = 1e6 m² (1 km²) → V = 0.104 * (1e6)^1.421
+    expected = 0.104 * (1e6 ** 1.421)
+    assert _huggel_volume(1e6) == pytest.approx(expected, rel=1e-6)
+
+
+def test_huggel_volume_zero_area():
+    """Zero or negative area returns 0.0."""
+    assert _huggel_volume(0.0) == 0.0
+    assert _huggel_volume(-1.0) == 0.0
+
+
+def test_huggel_volume_scales_with_area():
+    """Larger area → larger volume (non-linear power law)."""
+    v1 = _huggel_volume(1e5)
+    v2 = _huggel_volume(1e6)
+    v3 = _huggel_volume(1e7)
+    assert v1 < v2 < v3
+    # Power law: V(10A) / V(A) = 10^gamma = 10^1.421 ≈ 26.3
+    assert v2 / v1 == pytest.approx(10 ** HUGGEL_GAMMA, rel=1e-4)
+
+
+def test_huggel_fallback_on_flat_surface_dem():
+    """Auto mode falls back to Huggel 2002 when DEM bathymetry is unresolved.
+
+    Simulates SRTM over a lake: flat water surface (5000 m) with no submerged
+    bathymetry. The hypsometric integral is 0, so auto mode falls back to
+    Huggel empirical scaling and records the method in provenance.
+    """
+    H, W = 50, 50
+    dem = np.full((H, W), 5000.0, dtype=np.float32)  # flat water surface (DSM)
+    dem[0, :] = 5010.0  # rim elevated
+
+    pre_mask = np.zeros((H, W), dtype=np.float32)
+    pre_mask[10:40, 10:40] = 1.0  # 900 px
+
+    post_mask = np.zeros((H, W), dtype=np.float32)
+    post_mask[15:35, 15:35] = 1.0  # 400 px
+
+    res = estimate_breach_volume(
+        pre_mask, post_mask, dem, pixel_area_m2=100.0, method="auto"
+    )
+
+    assert res.method == "empirical_huggel"
+    assert res.bathymetry_resolved is False
+    assert res.v_breach_m3 > 0.0
+    assert res.provenance == "breach_volume_huggel_2002"
+    # Verify the Huggel formula was applied
+    area_pre = 900 * 100.0  # 90000 m²
+    area_post = 400 * 100.0  # 40000 m²
+    expected_v = _huggel_volume(area_pre) - _huggel_volume(area_post)
+    assert res.v_breach_m3 == pytest.approx(expected_v, rel=1e-3)
+
+
+def test_hypsometric_strict_failure():
+    """method='hypsometric' fails fast without silent fallback if bathymetry missing."""
+    H, W = 30, 30
+    dem = np.full((H, W), 5000.0, dtype=np.float32)
+    pre_mask = np.zeros((H, W), dtype=np.float32)
+    pre_mask[5:25, 5:25] = 1.0
+
+    with pytest.raises(ValueError, match="does not resolve submerged lake bathymetry"):
+        estimate_breach_volume(
+            pre_mask, np.zeros_like(pre_mask), dem,
+            pixel_area_m2=100.0, method="hypsometric"
+        )
+
+
+def test_empirical_huggel_mode_explicit():
+    """method='empirical_huggel' uses Huggel scaling directly."""
+    dem = _flat_basin_dem(grid_size=12, bed_elev=0.0, terrain_elev=5.0)
+    pre = np.zeros((12, 12), dtype=bool)
+    pre[1:11, 1:11] = True  # 100 px
+    post = np.zeros((12, 12), dtype=bool)
+    post[2:10, 2:10] = True  # 64 px
+
+    res = estimate_breach_volume(
+        pre, post, dem, pixel_area_m2=100.0, method="empirical_huggel"
+    )
+
+    assert res.method == "empirical_huggel"
+    assert res.bathymetry_resolved is False
+    assert res.provenance == "breach_volume_huggel_2002"
+    # Verify Huggel formula
+    area_pre = 100 * 100.0  # 10000 m²
+    area_post = 64 * 100.0  # 6400 m²
+    expected = _huggel_volume(area_pre) - _huggel_volume(area_post)
+    assert res.v_breach_m3 == pytest.approx(expected, rel=1e-3)
+
+
+def test_auto_uses_hypsometric_when_bathymetry_available():
+    """Auto mode uses hypsometric when the DEM resolves bathymetry."""
+    dem = _flat_basin_dem(grid_size=12, bed_elev=0.0, terrain_elev=5.0)
+    pre = np.zeros((12, 12), dtype=bool)
+    pre[1:11, 1:11] = True
+    post = np.zeros((12, 12), dtype=bool)
+
+    res = estimate_breach_volume(
+        pre, post, dem, pixel_area_m2=1.0, method="auto"
+    )
+
+    assert res.method == "hypsometric"
+    assert res.bathymetry_resolved is True
+    assert res.provenance == "breach_volume_hypsometric_v1"
+    assert res.v_breach_m3 == pytest.approx(500.0)
+
+
+def test_huggel_result_to_dict_includes_method():
+    """to_dict includes method and bathymetry_resolved fields."""
+    H, W = 30, 30
+    dem = np.full((H, W), 5000.0, dtype=np.float32)
+    dem[0, :] = 5010.0
+    pre = np.zeros((H, W), dtype=np.float32)
+    pre[5:25, 5:25] = 1.0
+
+    res = estimate_breach_volume(
+        pre, np.zeros_like(pre), dem,
+        pixel_area_m2=100.0, method="auto"
+    )
+    d = res.to_dict()
+
+    assert d["method"] == "empirical_huggel"
+    assert d["bathymetry_resolved"] is False
+    assert d["provenance"] == "breach_volume_huggel_2002"
+    assert "v_breach_m3" in d
+    assert d["v_breach_m3"] > 0.0
+
+
+def test_huggel_fno_channel_normalization():
+    """Huggel-derived V_breach produces a valid FNO channel-1 value."""
+    H, W = 30, 30
+    dem = np.full((H, W), 5000.0, dtype=np.float32)
+    dem[0, :] = 5010.0
+    pre = np.zeros((H, W), dtype=np.float32)
+    pre[5:25, 5:25] = 1.0
+
+    res = estimate_breach_volume(
+        pre, np.zeros_like(pre), dem,
+        pixel_area_m2=900.0, method="auto"
+    )
+    v_norm = float(np.log1p(res.v_breach_m3) / 20.0)
+
+    assert np.isfinite(v_norm)
+    assert v_norm > 0.0
+    assert v_norm < 1.0  # should be in a reasonable range for FNO input
+
+
+# --------------------------------------------------------------------------- #
+# Noisy DSM (SRTM-over-water) auto fallback — mean-depth criterion
+# --------------------------------------------------------------------------- #
+
+def test_auto_falls_back_on_noisy_dsm_small_positive_vpre():
+    """Auto mode falls back to Huggel when a DSM produces a small but nonzero
+    V_pre from elevation noise (the real SRTM/Imja case).
+
+    SRTM is a surface model: over a lake it returns the flat water surface
+    (~5003 m), not the bed. Tiny per-pixel noise yields a small positive
+    hypsometric V_pre, but the mean depth is far below the bathymetric
+    threshold. The old ``v_pre > 0`` check wrongly treated this as resolved
+    and then raised on V_breach=0 (z_pre == z_post). The mean-depth criterion
+    detects the DSM and falls back to Huggel with full provenance.
+    """
+    rng = np.random.default_rng(42)
+    H, W = 50, 50
+    # Flat water surface at 5003 m with sub-metre noise (SRTM DSM signature).
+    dem = np.full((H, W), 5003.0, dtype=np.float64) + rng.normal(0, 0.05, (H, W))
+    dem[0, :] = 5010.0  # elevated rim row so a shoreline exists
+
+    pre = np.zeros((H, W), dtype=bool)
+    pre[10:40, 10:40] = True   # 900 px
+    post = np.zeros((H, W), dtype=bool)
+    post[15:35, 15:35] = True  # 400 px (contraction → observed drainage)
+
+    res = estimate_breach_volume(
+        pre, post, dem, pixel_area_m2=900.0, method="auto",
+    )
+
+    # Must fall back to Huggel, not raise.
+    assert res.method == "empirical_huggel"
+    assert res.bathymetry_resolved is False
+    assert res.provenance == "breach_volume_huggel_2002"
+    assert res.mode == "observed_drainage"
+    # Huggel formula on the area delta.
+    area_pre = 900 * 900.0
+    area_post = 400 * 900.0
+    expected = _huggel_volume(area_pre) - _huggel_volume(area_post)
+    assert res.v_breach_m3 == pytest.approx(expected, rel=1e-3)
+    assert res.v_breach_m3 > 0.0
+
+
+def test_hypsometric_strict_fails_on_noisy_dsm():
+    """method='hypsometric' fails fast on the noisy DSM (no silent fallback)."""
+    rng = np.random.default_rng(42)
+    H, W = 50, 50
+    dem = np.full((H, W), 5003.0, dtype=np.float64) + rng.normal(0, 0.05, (H, W))
+    dem[0, :] = 5010.0
+    pre = np.zeros((H, W), dtype=bool)
+    pre[10:40, 10:40] = True
+
+    with pytest.raises(ValueError, match="does not resolve submerged lake bathymetry"):
+        estimate_breach_volume(
+            pre, np.zeros_like(pre), dem,
+            pixel_area_m2=900.0, method="hypsometric",
+        )
+
+
+def test_min_bathymetric_mean_depth_constant():
+    """The threshold constant is exposed and is a conservative 1.0 m floor."""
+    assert MIN_BATHYMETRIC_MEAN_DEPTH_M == 1.0

@@ -1,0 +1,54 @@
+{
+  "architecture": "WaterResUNet",
+  "variant": "6-channel multi-temporal fine-tuned (V3 \u00a72.8)",
+  "in_channels": 6,
+  "channel_names": [
+    "VV_post",
+    "VH_post",
+    "VV_pre",
+    "VH_pre",
+    "dVV",
+    "dVH"
+  ],
+  "dataset": "kuro_siwo_grd",
+  "base_channels": 32,
+  "num_parameters": 7938177,
+  "training": {
+    "epochs": 5,
+    "batch_size": 8,
+    "lr": 0.0001,
+    "strategy": "event_holdout",
+    "seed": 42,
+    "amp": true,
+    "pos_weight": 2.0,
+    "init_from_6ch": "water_resunet_6ch_kuro_siwo_v1_best.pt",
+    "scheduler": "CosineAnnealingLR(T_max=5, eta_min=1e-06)",
+    "best_val_iou": 0.6161,
+    "best_epoch": 3,
+    "train_time_seconds": 444
+  },
+  "test_metrics": {
+    "iou": 0.6161,
+    "precision": 0.8379,
+    "recall": 0.6994,
+    "f1": 0.7624,
+    "n_chips": 3081
+  },
+  "threshold_sweep": {
+    "best_threshold": 0.45,
+    "best_iou": 0.6163,
+    "best_precision": 0.8303,
+    "best_recall": 0.7052,
+    "sweep_file": "threshold_sweep_v2.json"
+  },
+  "gate": {
+    "target_iou": 0.65,
+    "passed": false
+  },
+  "evaluation_valid": true,
+  "inference_allowed": false,
+  "status": "shadow_only",
+  "notes": "Fine-tuned from v1_best with pos_weight=2.0 to target recall deficit. Recall improved (0.676->0.699) but precision dropped (0.871->0.838); net IoU unchanged (0.6147->0.6161). Model has saturated at ~0.62 IoU on truncated Kuro Siwo shards (~6,775 of ~40,000+ samples). Both TTA and pos_weight fine-tuning exhausted. Gap to 0.65 gate cannot be closed without uncorrupted training shards.",
+  "checkpoint_path": "models/checkpoints/water_resunet_kuro_siwo_full/water_resunet_6ch_kuro_siwo_v2_finetuned.pt",
+  "best_checkpoint_path": "models/checkpoints/water_resunet_kuro_siwo_full/water_resunet_6ch_kuro_siwo_v2_finetuned_best.pt"
+}

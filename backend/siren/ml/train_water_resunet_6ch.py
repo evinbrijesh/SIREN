@@ -284,6 +284,10 @@ def main(argv: list[str] | None = None) -> int:
                         help="which pre-flood image to use (sec1=first, sec2=second)")
     parser.add_argument("--init-from-4ch", type=str, default=None,
                         help="path to 4-channel checkpoint for transfer learning")
+    parser.add_argument("--init-from-6ch", type=str, default=None,
+                        help="path to 6-channel checkpoint for fine-tuning (same architecture)")
+    parser.add_argument("--pos-weight", type=float, default=None,
+                        help="BCE positive class weight (upweight water pixels for recall)")
     parser.add_argument("--seed", type=int, default=42, help="random seed")
     parser.add_argument("--save-name", type=str, default="water_resunet_6ch_v1.pt",
                         help="checkpoint filename")
@@ -384,8 +388,21 @@ def main(argv: list[str] | None = None) -> int:
         else:
             logger.warning("4-channel checkpoint not found: %s", ckpt_path)
 
+    # Optional: fine-tune from a 6-channel checkpoint (same architecture)
+    if args.init_from_6ch:
+        ft_path = Path(args.init_from_6ch)
+        if ft_path.exists():
+            logger.info("Loading 6-channel checkpoint for fine-tuning: %s", ft_path)
+            ckpt = torch.load(str(ft_path), map_location=device, weights_only=True)
+            model.load_state_dict(ckpt)
+            logger.info("Fine-tuning from %s (all layers loaded)", ft_path.name)
+        else:
+            logger.warning("6-channel checkpoint not found: %s", ft_path)
+
     # --- Loss + Optimizer + Scheduler ---
-    criterion = WaterLoss(lambda_gravity=1.0)
+    criterion = WaterLoss(lambda_gravity=1.0, pos_weight=args.pos_weight)
+    if args.pos_weight is not None:
+        logger.info("BCE pos_weight=%.2f (upweighting water pixels for recall)", args.pos_weight)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-5)
     # Cosine annealing: smooth decay from args.lr to ~0 over the full run,
     # avoiding plateau/divergence after epoch 15-20.
@@ -441,6 +458,8 @@ def main(argv: list[str] | None = None) -> int:
             "strategy": args.strategy,
             "seed": args.seed,
             "amp": args.amp,
+            "pos_weight": args.pos_weight,
+            "init_from_6ch": args.init_from_6ch,
             "best_val_iou": train_result["best_val_iou"],
             "best_epoch": train_result["best_epoch"],
             "train_time_seconds": train_time,

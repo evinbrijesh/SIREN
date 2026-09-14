@@ -31,6 +31,12 @@ backend/checkpoints/
 backend/models/
 *.bak
 
+# --- Disqualified weights (audit record lives in JSON sidecars; ADR-011.1) ---
+# Only the gate-passing v1 checkpoint is tracked. v1_best and v2_finetuned
+# weights failed the precision floor and are excluded from git history.
+models/checkpoints/water_resunet_kuro_siwo_full/*.pt
+!models/checkpoints/water_resunet_kuro_siwo_full/water_resunet_6ch_kuro_siwo_v1.pt
+
 # --- Redundant design archives (extracted dirs are committed) ---
 docs/*.zip
 docs/archive/

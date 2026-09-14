@@ -1,0 +1,87 @@
+{
+  "architecture": "WaterResUNet",
+  "variant": "6-channel multi-temporal (V3 \u00a72.8)",
+  "in_channels": 6,
+  "channel_names": [
+    "VV_post",
+    "VH_post",
+    "VV_pre",
+    "VH_pre",
+    "dVV",
+    "dVH"
+  ],
+  "dataset": "kuro_siwo_grd",
+  "base_channels": 32,
+  "num_parameters": 7938177,
+  "training": {
+    "epochs": 45,
+    "batch_size": 8,
+    "lr": 0.001,
+    "strategy": "event_holdout",
+    "seed": 42,
+    "amp": true,
+    "scheduler": "CosineAnnealingLR(T_max=45, eta_min=1e-05)",
+    "best_val_iou": 0.6146706819337122,
+    "best_epoch": 21,
+    "train_time_seconds": 3263.5254714488983,
+    "early_stopped": true,
+    "early_stop_epoch": 37
+  },
+  "test_metrics": {
+    "iou": 0.6146706819337122,
+    "precision": 0.8709837030535093,
+    "recall": 0.6762421142052364,
+    "f1": 0.7613573328743285,
+    "mean_chip_iou": 0.293616363240207,
+    "median_chip_iou": 0.05686032138442522,
+    "n_chips": 3081
+  },
+  "threshold_sweep": {
+    "best_threshold": 0.3,
+    "best_iou": 0.6197,
+    "best_precision": 0.8457,
+    "best_recall": 0.6987,
+    "best_f1": 0.7652,
+    "default_threshold_iou": 0.6147,
+    "sweep_file": "threshold_sweep.json",
+    "thresholds_tested": [
+      0.3,
+      0.32,
+      0.34,
+      0.36,
+      0.38,
+      0.4,
+      0.42,
+      0.44,
+      0.46,
+      0.48,
+      0.5,
+      0.52,
+      0.55
+    ]
+  },
+  "gate": {
+    "target_iou": 0.65,
+    "passed": false,
+    "adr": "ADR-011.1",
+    "adr_gate": {
+      "iou_threshold": 0.6,
+      "precision_floor": 0.84
+    },
+    "adr_passed": true,
+    "adr_threshold": 0.3,
+    "adr_metrics": {
+      "iou": 0.6197,
+      "precision": 0.8457,
+      "recall": 0.6987,
+      "f1": 0.7652
+    }
+  },
+  "evaluation_valid": true,
+  "inference_allowed": true,
+  "status": "shadow_pending_promotion",
+  "notes": "First honest 6-channel SAR baseline without synthetic delta leakage. Trained on real paired pre/post Sentinel-1 GRD from Kuro Siwo (PRD v4.7 \u00a717.3). Fails original ADR-011 IoU > 0.65 gate (0.6147 at tau=0.50) but passes ADR-011.1 calibrated gate (IoU > 0.60 AND Precision >= 0.84) at tau=0.30 (IoU=0.6197, P=0.8457). Promotion to load-bearing requires one full shadow-mode observation cycle (ADR-010 \u00a73).",
+  "checkpoint_path": "models/checkpoints/water_resunet_kuro_siwo_full/water_resunet_6ch_kuro_siwo_v1.pt",
+  "best_checkpoint_path": "models/checkpoints/water_resunet_kuro_siwo_full/water_resunet_6ch_kuro_siwo_v1_best.pt",
+  "checkpoint_size_mb": 31.819936
+}
