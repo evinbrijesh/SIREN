@@ -204,6 +204,10 @@ def test_neural_vs_huggel_volume_comparison():
     """Neural bathymetry and Huggel produce comparable volume orders of magnitude."""
     from siren.risk.breach_volume import _huggel_volume
 
+    # Seed model init (Hard Rule 6: no unseeded randomness). Without this the
+    # under-trained synthetic model's volume is nondeterministic across torch
+    # versions/RNG states and can exceed the 100x sanity bound.
+    torch.manual_seed(42)
     model = BathymetryUNet(in_channels=2, base_channels=16, n_down=3)
     dems, masks, beds = generate_synthetic_bathymetry_data(n_samples=20, grid_size=64, seed=42)
 
