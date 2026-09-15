@@ -71,7 +71,7 @@ backend/
     audit/        # append-only log writer + SHA-256 hash chain
     db/           # SQLite schema + repositories
     pipeline.py   # orchestrator: detect→geo→risk→DB→audit
-  tests/          # 782 tests (pytest: 768 active + 14 skipped/torch-gated)
+  tests/          # 916 tests (pytest: 902 active + 14 skipped/torch-gated)
 frontend/
   src/
     views/        # MapView, TimelineView, ReviewView, AuditView
@@ -149,7 +149,7 @@ pip install -e ".[dev]"          # or use existing venv
 uvicorn siren.api:app --port 8010 --reload
 
 # run tests
-pytest                           # 782 tests, ~30s
+pytest                           # 916 tests, ~60s
 ```
 
 ### Frontend
@@ -332,7 +332,7 @@ The prevention story: the +8% expansion on 07-23 was the early warning. Had SIRE
 
 ```bash
 cd backend
-pytest                           # 782 tests, ~30s
+pytest                           # 916 tests, ~60s
 ```
 
 | Test Suite | Tests | Coverage |
@@ -349,6 +349,10 @@ pytest                           # 782 tests, ~30s
 | test_sar_calibrate | 6 | SAR calibration: sigma0 dB formula, normalize_sar contract, NaN handling |
 | test_open_meteo | 8 | Real ERA5 rainfall fetcher: antecedent computation, temp index, mocked API |
 | test_bathymetry | 13 | Neural bathymetry architecture + synthetic data (E2 scaffold) |
+| test_bathymetry_dataset | 33 | Unified loader for 20 surveyed lakes (Zhang 2023 + Das 2025), LOO splits |
+| test_bathymetry_benchmark | 25 | LOO volume estimation: Huggel vs regression vs neural baseline |
+| test_bathymetry_training_data | 27 | (DEM, lake_mask, bed_elevation) sample builder from Copernicus GLO30 |
+| test_south_lhonak_dem | 18 | South Lhonak pre/post Pléiades DEM differencing (2023 GLOF event) |
 | test_fusion | 15 | Multi-modal cross-attention + cloud gating (E3 scaffold) |
 | test_fusion_dataset | 34 | Fusion dataset + real SAR/optical pair tensor-flow tests |
 | test_s2_optical | 24 | S2 L2A NDWI/MNDWI/SCL cloud-mask extraction |
@@ -358,7 +362,7 @@ pytest                           # 782 tests, ~30s
 | test_contract_multitemporal | 36 | 6-channel tensor contract round-trip |
 | test_susceptibility_v2 | 26 | XGBoost breach susceptibility + isotonic calibration |
 
-> **All 782 tests pass** (768 active + 14 skipped/torch-gated). The neural scaffold tests (E0–E3) verify architecture and tensor flow only — no gate has been evaluated on real held-out data (ADR-013).
+> **All 916 tests pass** (902 active + 14 skipped/torch-gated). The neural scaffold tests (E0–E3) verify architecture and tensor flow. The E2 bathymetry gate has been evaluated on real held-out data (20 surveyed lakes, LOO) — it fails at 676.4% MAPE vs the 15% target. E0, E1, E3 remain unevaluated (ADR-013).
 
 ---
 

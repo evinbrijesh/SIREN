@@ -30,6 +30,9 @@ backend/
                    #   model.py — WaterResUNet (6ch SAR, MC Dropout-ready)
                    #   fusion.py — multi-modal SAR+optical cross-attention (E3)
                    #   bathymetry.py — neural bed elevation estimator (E2)
+                   #   bathymetry_dataset.py — unified loader for 20 surveyed lakes (Zhang 2023 + Das 2025)
+                   #   bathymetry_benchmark.py — LOO volume estimation benchmark (Huggel vs regression vs neural)
+                   #   bathymetry_training_data.py — (DEM, lake_mask, bed_elevation) sample builder from Copernicus GLO30
                    #   uncertainty.py — MC Dropout inference + conformal calibration (E1)
                    #   latent_coupling.py — segmentation bottleneck → FNO conditioning (E0)
                    #   registry.py — model registry with gate status + provenance
@@ -78,6 +81,7 @@ docs/
 - **Offline demo:** zero network calls at runtime. All data loads from `data/`. Live ingestion is a bonus script, never a runtime dependency.
 - **SQLite spatial joins:** run in-memory via geopandas on the small basin extract. Do not reach for PostGIS.
 - **SRTM is a DSM (v5.0):** SRTM over water returns the flat water surface, not the lake bed. The `breach_volume.py` `auto` mode detects this via mean-depth criterion (`MIN_BATHYMETRIC_MEAN_DEPTH_M = 1.0`) and falls back to Huggel. The neural bathymetry model (E2) will replace this fallback when trained.
+- **E2 neural bathymetry — LOO benchmark evaluated (2026-09-15):** 20 surveyed Himalayan glacial lakes (117k depth points) with Copernicus DEM GLO30 terrain now support real-data training. LOO volume estimation: Huggel MAPE 75.6%, power-law regression MAPE 82.1%, neural `BathymetryUNet` (100 epochs, 19 training lakes) MAPE 676.4%. All three fail the 15% ADR-013 gate. The neural model is overparameterised for 19 samples. Huggel remains the best method at this dataset size. See `ml/bathymetry_benchmark.py`, `ml/bathymetry_training_data.py`, `train_bathymetry.py --benchmark` / `--train-real`.
 - **FNO input contract (v5.0):** `FNO2D` accepts `in_channels=2` (scalar-only, the frozen ADR-012 baseline) or `in_channels=2+d_latent` (experimental latent-conditioned, ADR-013). The frozen scalar checkpoint (`input_proj.weight: [32, 2]`) loads only with `in_channels=2`. The latent-conditioned variant is experimental — no trained checkpoint exists yet. See ADR-013-addendum for the dual-contract policy.
 
 ## Module Map
@@ -95,6 +99,9 @@ docs/
 | Water segmentation (SAR 6ch + multi-modal fusion) | `ml/model.py`, `ml/engine.py`, `ml/fusion.py`, `ml/fusion_dataset.py`, `ml/train_fusion.py` |
 | S2 optical feature extraction (NDWI/MNDWI/cloud) | `preprocess/s2_optical.py` |
 | Neural bathymetry inversion | `ml/bathymetry.py` |
+| Bathymetry dataset + LOO splits | `ml/bathymetry_dataset.py` |
+| Bathymetry volume benchmark | `ml/bathymetry_benchmark.py` |
+| Bathymetry training data pipeline | `ml/bathymetry_training_data.py` |
 | Bayesian uncertainty (MC Dropout + conformal) | `ml/uncertainty.py` |
 | Latent coupling (segmentation → FNO) | `ml/latent_coupling.py` |
 | Model registry + gate status | `ml/registry.py` |
