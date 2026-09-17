@@ -1,14 +1,18 @@
 # SIREN — Satellite-Informed Risk & Emergency Network
 
-**Human-in-the-loop, satellite-assisted early-warning and disaster-response platform for Himalayan basins.**
+**An audited satellite monitoring pipeline for glacial lake hazards — deterministic hydrological baselines + shadow-track deep learning, strict spatial gating, and split-conformal uncertainty bounds. Human-in-the-loop by design.**
 
 > What changed? How serious is it? Who and what are in the path? What should responders do right now?
+
+SIREN does **not** predict floods. It monitors a glacial basin for observable change, scores hazard and exposure deterministically, and puts a fully-audited evidence card in front of a human coordinator. Nothing dispatches without human confirmation.
 
 ---
 
 ## What SIREN Does
 
 SIREN fuses Sentinel-1 SAR and Sentinel-2 optical imagery with rainfall, terrain, river, population, and infrastructure data to model hazard progression and downstream exposure. It surfaces evidence to an authorized emergency coordinator through an explainable review console and — only after human confirmation — dispatches a geofenced, bandwidth-light alert alongside a disease-prevention action sheet.
+
+The ML layer runs in **shadow mode**: a gate-passed 6-channel SAR segmenter produces supplementary evidence that is terrain-gated, uncertainty-quantified, and split into persistent water extent vs. differential change — but never touches the hazard score, corridor, or dispatch. Every experimental claim in this repo is backed by a measured number, including the negative results.
 
 The offline demo runs a retrospective "what-if" prevention scenario for the **Dudh Koshi / Imja glacial basin, Nepal**:
 
@@ -271,7 +275,15 @@ The pipeline extracts real calibrated dB from Sentinel-1 SAFE archives via `prep
 
 Verified on real Dudh Koshi scenes: VV mean -12.3 dB, VH mean -18.6 dB (physically realistic for C-band GRD).
 
-> **Domain shift (documented):** the model reproduces its gate metrics exactly on the Kuro Siwo test set (3,081 chips) but is out-of-distribution on the full Imja scene — it over-predicts water by orders of magnitude there. This is why it is shadow-only and why the deterministic mask remains authoritative.
+> **Domain shift (documented):** the model reproduces its gate metrics exactly on the Kuro Siwo test set (3,081 chips) but is out-of-distribution on the full Imja scene — it over-predicts water by orders of magnitude there (115k false-positive px on glacier). This is why it is shadow-only and why the deterministic mask remains authoritative.
+
+### State vs. change display
+
+The shadow evidence is decomposed into **persistent water extent (t1)**, **expansion Δ** (new water), and **drainage Δ** (receded water) — deterministic set differences of per-date segmentations (`ml/engine.py::predict_state_and_change`). This matters for a *persistent* lake: a correct segmenter sees Imja at both dates, so expansion alone is ~empty and a change-only view would make the lake disappear. All three layers carry the same AOI + slope + glacier-vicinity terrain gate, GCP-derived bounds, and per-layer area stats; the review card shows extent (blue), expansion (red), and drainage (amber) as toggleable shadow layers with a delineation summary.
+
+### High-altitude adapter (experiment, shadow-only)
+
+A decoder fine-tune on 697 verified Himalayan lake-inventory chips (`ml/lake_adapter_finetune.py` — frozen encoder, north–south spatial split) reduces glacier false positives by **92%** (115,100 → 8,738 water-extent px on glacier) while retaining 71–87% recall on Imja itself. The checkpoint (`water_resunet_6ch_himalayan_adapter.pt`) is **not** wired into runtime — it is an experiment pending the ADR-013 gate on held-out real data. See `models/checkpoints/lake_adapter_report.json` and `docs/reference/CASE_STUDY.md`.
 
 ### Dual-split evaluation (Sen1Floods11)
 
@@ -393,6 +405,7 @@ pytest                           # 916 tests, ~60s
 
 ### Reference
 
+- [`docs/reference/CASE_STUDY.md`](docs/reference/CASE_STUDY.md) — Architectural case study: the three silent geospatial bugs, the Kuro Siwo domain shift and how it was bounded, the state/change discovery, and honest negative results
 - [`docs/reference/KNOWN_LIMITATIONS.md`](docs/reference/KNOWN_LIMITATIONS.md) — Demo limitations + production transition gaps (phase-tagged)
 - [`docs/reference/DL_MODEL_AUDIT.md`](docs/reference/DL_MODEL_AUDIT.md) — 2026-09-07 audit of the four PRD-nominated ML models; verdict: no existing checkpoint is qualified for live hazard assessment
 - [`docs/reference/PRODUCTION_ML_PLAN.md`](docs/reference/PRODUCTION_ML_PLAN.md) — Recommended production pipeline, models, datasets, and the dual-basin strategy (Imja monitoring + South Lhonak event validation)
