@@ -1,0 +1,21 @@
+{
+  "architecture": "BathymetryUNet",
+  "in_channels": 2,
+  "base_channels": 32,
+  "n_down": 3,
+  "num_parameters": 1926721,
+  "training": {
+    "best_val_loss": 0.0005083145280458176,
+    "best_epoch": 37,
+    "epochs": 40,
+    "n_samples": 2000,
+    "data_source": "synthetic_transfer_basins"
+  },
+  "gate": {
+    "target_mape": 0.15,
+    "passed": false,
+    "adr": "ADR-013",
+    "note": "Gate evaluation requires DEM data for the 20 surveyed lakes. LOO benchmark baseline: Huggel MAPE ~76%, regression MAPE ~82%. The neural model must beat Huggel once DEMs are acquired."
+  },
+  "checkpoint_path": "/home/e0kt/Documents/01_projects/2026/hackathons/hack_26/project/models/checkpoints/bathymetry_unet_synth_pretrain.pt"
+}

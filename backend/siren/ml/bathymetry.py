@@ -249,6 +249,95 @@ def predict_bed_elevation(
     )
 
 
+def generate_transfer_bathymetry_data(
+    n_samples: int = 2000,
+    grid_size: int = 128,
+    seed: int = 123,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Synthetic basins for transfer-learning pretraining (E2, ADR-013 §9.7.1).
+
+    Unlike ``generate_synthetic_bathymetry_data`` (flat terrain, circular
+    lakes — architecture smoke tests only), these samples mimic the real
+    ``BathymetrySample`` contract so pretrained weights transfer:
+
+      - Varied relief terrain (planar gradient + smoothed noise), not flat.
+      - The DEM channel has the lake region masked to 0, exactly like
+        ``BathymetrySample.dem``.
+      - Non-circular, blobby lake outlines (rotated noisy ellipses).
+      - Bowl beds that follow the shoreline via a distance transform,
+        with max depths spanning the surveyed range (~5–120 m).
+
+    Normalisation is still applied per-sample by the trainer (the same
+    min/max contract as ``BathymetrySample.to_input_target``).
+
+    Args:
+        n_samples: number of synthetic basins.
+        grid_size: spatial grid size (match the real pipeline's 128).
+        seed: random seed for reproducibility (Hard Rule 6).
+
+    Returns:
+        Tuple of (dems, lake_masks, bed_elevations) each (N, H, W);
+        dems are already lake-masked to 0.
+    """
+    from scipy.ndimage import binary_erosion, distance_transform_edt, gaussian_filter
+
+    rng = np.random.default_rng(seed)
+    g = grid_size
+    dems = np.zeros((n_samples, g, g), dtype=np.float32)
+    lake_masks = np.zeros((n_samples, g, g), dtype=np.float32)
+    beds = np.zeros((n_samples, g, g), dtype=np.float32)
+
+    yy, xx = np.mgrid[:g, :g].astype(np.float32)
+
+    for i in range(n_samples):
+        # Terrain: planar gradient + low-frequency relief noise
+        base = float(rng.uniform(3500, 5600))
+        grad = (rng.uniform(-1, 1, 2) * rng.uniform(100, 600)).astype(np.float32)
+        terrain = base + grad[0] * (xx / g) + grad[1] * (yy / g)
+        terrain += gaussian_filter(
+            rng.normal(0, 1, (g, g)), sigma=g / 10.0
+        ).astype(np.float32) * rng.uniform(20, 90)
+
+        # Lake: rotated, radially-perturbed ellipse (blobby outline)
+        cy = float(rng.uniform(g * 0.3, g * 0.7))
+        cx = float(rng.uniform(g * 0.3, g * 0.7))
+        a = float(rng.uniform(g / 14, g / 4))
+        b = float(rng.uniform(g / 14, g / 4))
+        theta = float(rng.uniform(0, np.pi))
+        k = int(rng.integers(2, 6))
+        phase = float(rng.uniform(0, 2 * np.pi))
+        dx = xx - cx
+        dy = yy - cy
+        xr = dx * np.cos(theta) + dy * np.sin(theta)
+        yr = -dx * np.sin(theta) + dy * np.cos(theta)
+        phi = np.arctan2(yr / b, xr / a)
+        r_wobble = 1.0 + 0.22 * np.sin(k * phi + phase)
+        mask = ((xr / (a * r_wobble)) ** 2 + (yr / (b * r_wobble)) ** 2 < 1.0).astype(np.float32)
+        if mask.sum() < 16:  # degenerate lake — resample a plain ellipse
+            mask = ((xr / a) ** 2 + (yr / b) ** 2 < 1.0).astype(np.float32)
+
+        # Water surface = lowest rim elevation (proglacial lake dammed by
+        # the lowest point on its moraine rim)
+        rim = (mask > 0.5) & ~binary_erosion(mask > 0.5)
+        z_surface = float(terrain[rim].min()) if rim.any() else float(terrain[mask > 0.5].min())
+
+        # Bowl bed: depth grows with distance from the shoreline
+        dist = distance_transform_edt(mask > 0.5)
+        max_depth = float(rng.uniform(5, 120))
+        power = float(rng.uniform(1.0, 2.5))
+        depth = max_depth * (dist / dist.max()) ** power
+        bed = z_surface - depth.astype(np.float32)
+
+        # DEM channel contract: lake region masked to 0
+        terrain[mask > 0.5] = 0.0
+
+        dems[i] = terrain
+        lake_masks[i] = mask
+        beds[i] = bed
+
+    return dems, lake_masks, beds
+
+
 def generate_synthetic_bathymetry_data(
     n_samples: int = 100,
     grid_size: int = 64,

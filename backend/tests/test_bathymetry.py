@@ -136,14 +136,17 @@ def test_predict_bed_elevation_shapes():
 
 def test_predict_bed_elevation_positive_volume():
     """A trained model on synthetic data produces positive breach volume."""
-    # Train briefly on synthetic data
+    # Seed model init (Hard Rule 6: no unseeded randomness). Without this the
+    # under-trained model can collapse to a flat bed plane and produce V=0.
+    torch.manual_seed(42)
     model = BathymetryUNet(in_channels=2, base_channels=16, n_down=3)
     dems, masks, beds = generate_synthetic_bathymetry_data(n_samples=50, grid_size=64, seed=42)
 
-    # Quick training (just a few steps to verify the pipeline works)
+    # Short training run — enough epochs for the parabolic basin shape to
+    # produce a positive volume at inference time.
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
     model.train()
-    for epoch in range(5):
+    for epoch in range(30):
         for i in range(0, 50, 8):
             dem_batch = dems[i:i + 8]
             mask_batch = masks[i:i + 8]

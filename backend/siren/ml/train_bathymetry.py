@@ -22,6 +22,12 @@ Usage:
     # Real-data LOO training and evaluation with neural model
     python -m siren.ml.train_bathymetry --train-real --epochs 200
 
+    # Transfer learning (E2): pre-train on ~2000 synthetic basins that
+    # mimic the real-sample contract, then fine-tune per LOO fold
+    python -m siren.ml.train_bathymetry --pretrain-synthetic --epochs 40
+    python -m siren.ml.train_bathymetry --train-real --epochs 60 --lr 1e-4 \
+        --pretrain-weights models/checkpoints/bathymetry_unet_synth_pretrain.pt
+
     # Real training with external data (requires DEM data for the surveyed lakes)
     python -m siren.ml.train_bathymetry --data-dir data/raw/millan --epochs 200
 """
@@ -42,6 +48,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from siren.ml.bathymetry import (
     BathymetryUNet,
     generate_synthetic_bathymetry_data,
+    generate_transfer_bathymetry_data,
 )
 
 logger = logging.getLogger(__name__)
@@ -145,6 +152,120 @@ def train_on_synthetic(
     }
 
 
+def _normalize_sample(dem: np.ndarray, mask: np.ndarray, bed: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Per-sample normalisation matching BathymetrySample.to_input_target."""
+    dem_min = float(dem[dem > 0].min()) if (dem > 0).any() else 0.0
+    dem_max = float(dem.max())
+    if dem_max > dem_min:
+        dem_norm = np.clip((dem - dem_min) / (dem_max - dem_min), 0.0, 1.0)
+        bed_norm = np.clip((bed - dem_min) / (dem_max - dem_min), 0.0, 1.0)
+    else:
+        dem_norm = np.zeros_like(dem)
+        bed_norm = np.zeros_like(bed)
+    x = np.stack([dem_norm, mask], axis=0).astype(np.float32)
+    y = bed_norm[np.newaxis].astype(np.float32)
+    return x, y
+
+
+def train_transfer_pretrain(
+    model: BathymetryUNet,
+    n_samples: int = 2000,
+    grid_size: int = 128,
+    epochs: int = 40,
+    batch_size: int = 16,
+    lr: float = 1e-3,
+    device: torch.device = torch.device("cpu"),
+    seed: int = 123,
+) -> dict:
+    """Pre-train on synthetic basins matching the real-sample contract (E2).
+
+    Uses ``generate_transfer_bathymetry_data`` — relief terrain, masked
+    lake DEM channel, blobby outlines, shoreline-following bowls — with
+    the same per-sample normalisation and lake-masked MSE loss the real
+    LOO loop uses, so the learned features transfer. The resulting
+    checkpoint is a weight initialisation for ``run_loo_neural``
+    (--pretrain-weights), not a deployable model.
+    """
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+
+    logger.info(
+        "Generating %d transfer basins (grid=%d, seed=%d)...",
+        n_samples, grid_size, seed,
+    )
+    dems, masks, beds = generate_transfer_bathymetry_data(
+        n_samples=n_samples, grid_size=grid_size, seed=seed,
+    )
+
+    xs, ys = [], []
+    for i in range(n_samples):
+        x, y = _normalize_sample(dems[i], masks[i], beds[i])
+        xs.append(x)
+        ys.append(y)
+    x_all = np.stack(xs)
+    y_all = np.stack(ys)
+
+    n_train = int(0.9 * n_samples)
+    train_ds = TensorDataset(
+        torch.from_numpy(x_all[:n_train]), torch.from_numpy(y_all[:n_train]),
+    )
+    val_ds = TensorDataset(
+        torch.from_numpy(x_all[n_train:]), torch.from_numpy(y_all[n_train:]),
+    )
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(val_ds, batch_size=batch_size)
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        optimizer, T_max=epochs, eta_min=1e-5,
+    )
+
+    best_val_loss = float("inf")
+    best_epoch = 0
+    for epoch in range(epochs):
+        model.train()
+        train_loss = 0.0
+        for xb, yb in train_loader:
+            xb, yb = xb.to(device), yb.to(device)
+            pred = model(xb)
+            mask = xb[:, 1:2]
+            loss = F.mse_loss(pred * mask, yb * mask)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            train_loss += loss.item()
+        train_loss /= len(train_loader)
+
+        model.eval()
+        val_loss = 0.0
+        with torch.no_grad():
+            for xb, yb in val_loader:
+                xb, yb = xb.to(device), yb.to(device)
+                pred = model(xb)
+                mask = xb[:, 1:2]
+                val_loss += F.mse_loss(pred * mask, yb * mask).item()
+        val_loss /= len(val_loader)
+
+        scheduler.step()
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            best_epoch = epoch
+
+        if (epoch + 1) % 10 == 0 or epoch == 0:
+            logger.info(
+                "Pretrain epoch %d/%d: train=%.6f val=%.6f best=%.6f@%d",
+                epoch + 1, epochs, train_loss, val_loss, best_val_loss, best_epoch,
+            )
+
+    return {
+        "best_val_loss": best_val_loss,
+        "best_epoch": best_epoch,
+        "epochs": epochs,
+        "n_samples": n_samples,
+        "data_source": "synthetic_transfer_basins",
+    }
+
+
 def run_loo_benchmark() -> dict:
     """Run the leave-one-lake-out volume estimation benchmark.
 
@@ -188,6 +309,7 @@ def run_loo_neural(
     grid_size: int = 128,
     seed: int = 42,
     device: torch.device | None = None,
+    pretrained_weights: Path | None = None,
 ) -> dict:
     """Run leave-one-lake-out training and evaluation with the neural model.
 
@@ -202,6 +324,11 @@ def run_loo_neural(
     The sample volume uses the same lake mask as the prediction, so the
     comparison is fair (both use the convex hull of surveyed points). The
     published volume comparison is also reported for context.
+
+    When ``pretrained_weights`` is given, each fold fine-tunes from the
+    synthetic-basin pretrained checkpoint instead of a random init — the
+    E2 transfer-learning path (ADR-013 §9.7.1). Use a lower ``--lr``
+    (e.g. 1e-4) for fine-tuning than for pretraining.
 
     Returns:
         Dict with per-fold results and aggregate MAPE.
@@ -242,12 +369,21 @@ def run_loo_neural(
         test_x, test_y = test_sample.to_input_target()
         test_x_t = torch.from_numpy(test_x[np.newaxis]).to(device)
 
-        # Fresh model for each fold
+        # Fresh model for each fold (optionally from pretrained weights —
+        # the transfer-learning path starts each fold from the synthetic-
+        # basin initialisation rather than random weights)
         model = BathymetryUNet(
             in_channels=2,
             base_channels=base_channels,
             n_down=n_down,
         ).to(device)
+        if pretrained_weights is not None:
+            state = torch.load(
+                str(pretrained_weights), map_location=device, weights_only=True
+            )
+            if isinstance(state, dict) and "state_dict" in state:
+                state = state["state_dict"]
+            model.load_state_dict(state)
 
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
@@ -353,6 +489,7 @@ def run_loo_neural(
         "gate_target_mape": 0.15,
         "sample_gate_passed": sample_mape < 0.15,
         "gt_gate_passed": gt_mape < 0.15,
+        "pretrained_weights": str(pretrained_weights) if pretrained_weights else None,
         "folds": folds,
     }
 
@@ -373,6 +510,14 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Train neural bathymetry model")
     parser.add_argument("--synthetic", action="store_true",
                         help="Train on synthetic data (architecture testing only)")
+    parser.add_argument("--pretrain-synthetic", action="store_true",
+                        help="Pre-train on transfer-contract synthetic basins "
+                             "(E2 transfer learning — initialisation for LOO fine-tuning)")
+    parser.add_argument("--pretrain-weights", type=str, default=None,
+                        help="Checkpoint to initialise each LOO fold from "
+                             "(use with --train-real; e.g. the "
+                             "bathymetry_unet_synth_pretrain.pt output of "
+                             "--pretrain-synthetic)")
     parser.add_argument("--benchmark", action="store_true",
                         help="Run the LOO volume estimation benchmark (Huggel vs regression)")
     parser.add_argument("--train-real", action="store_true",
@@ -407,6 +552,10 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.train_real:
+        pretrained = Path(args.pretrain_weights) if args.pretrain_weights else None
+        if pretrained is not None and not pretrained.exists():
+            logger.error("Pretrained weights not found: %s", pretrained)
+            return 1
         result = run_loo_neural(
             epochs=args.epochs,
             batch_size=args.batch_size,
@@ -415,9 +564,15 @@ def main(argv: list[str] | None = None) -> int:
             n_down=args.n_down,
             grid_size=args.grid_size,
             seed=args.seed,
+            pretrained_weights=pretrained,
         )
         CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
-        report_path = CHECKPOINT_DIR / "bathymetry_loo_neural.json"
+        report_name = (
+            "bathymetry_loo_neural_transfer.json"
+            if pretrained is not None
+            else "bathymetry_loo_neural.json"
+        )
+        report_path = CHECKPOINT_DIR / report_name
         with open(report_path, "w") as f:
             json.dump(result, f, indent=2)
         logger.info("Neural LOO report saved: %s", report_path)
@@ -439,6 +594,14 @@ def main(argv: list[str] | None = None) -> int:
             epochs=args.epochs, batch_size=args.batch_size, lr=args.lr,
             device=device, seed=args.seed,
         )
+    elif args.pretrain_synthetic:
+        result = train_transfer_pretrain(
+            model, n_samples=args.n_samples, grid_size=args.grid_size,
+            epochs=args.epochs, batch_size=args.batch_size, lr=args.lr,
+            device=device, seed=args.seed,
+        )
+        if args.save_name == "bathymetry_unet_v1.pt":
+            args.save_name = "bathymetry_unet_synth_pretrain.pt"
     elif args.data_dir:
         # Real data training requires surrounding DEM terrain for each lake.
         # The surveyed bathymetry points (Zhang 2023 + Das 2025) provide
@@ -457,7 +620,10 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 1
     else:
-        parser.error("Must specify --synthetic, --benchmark, --train-real, or --data-dir")
+        parser.error(
+            "Must specify --synthetic, --pretrain-synthetic, --benchmark, "
+            "--train-real, or --data-dir"
+        )
 
     # Save checkpoint
     CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)

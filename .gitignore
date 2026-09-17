@@ -37,6 +37,10 @@ backend/models/
 models/checkpoints/water_resunet_kuro_siwo_full/*.pt
 !models/checkpoints/water_resunet_kuro_siwo_full/water_resunet_6ch_kuro_siwo_v1.pt
 
+# --- Bathymetry pretraining weights (E2 transfer init; reproducible via
+# `python -m siren.ml.train_bathymetry --pretrain-synthetic`) ---
+models/checkpoints/bathymetry_unet_synth_pretrain.pt
+
 # --- Redundant design archives (extracted dirs are committed) ---
 docs/*.zip
 .~lock.*
