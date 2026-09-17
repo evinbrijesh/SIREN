@@ -250,6 +250,22 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
             "ml_shadow_mask_uri": stats.get("ml_shadow_mask_uri"),
             "model_available": stats.get("ml_source", "deterministic-fallback") not in ("deterministic-fallback", "deterministic_fallback"),
             "change_polygon": stats.get("change_polygon"),
+            # Provenance + uncertainty (ADR-013 §9.7.4 — informational only
+            # until the conformal gate passes)
+            "model_architecture": stats.get("model_architecture"),
+            "model_checkpoint": stats.get("model_checkpoint"),
+            "model_in_channels": stats.get("model_in_channels"),
+            "model_contract": stats.get("model_contract"),
+            "sar_pair": stats.get("sar_pair"),
+            "uncertainty_method": stats.get("uncertainty_method"),
+            "uncertainty_mean_variance": stats.get("uncertainty_mean_variance"),
+            "uncertainty_max_std": stats.get("uncertainty_max_std"),
+            "uncertainty_map_uri": stats.get("uncertainty_map_uri"),
+            "uncertainty_map_bounds": _image_bounds(stats.get("uncertainty_map_uri") or ""),
+            "uncertainty_conformal_quantile": stats.get("uncertainty_conformal_quantile"),
+            "uncertainty_conformal_gate_passed": stats.get(
+                "uncertainty_conformal_gate_passed", False
+            ),
         }
 
     # POST /runs/{run_id}/review

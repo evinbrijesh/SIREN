@@ -165,6 +165,7 @@ def calibrate_conformal(
     n_samples: int = 30,
     confidence_level: float = 0.90,
     apply_sigmoid: bool = True,
+    valid_masks: list[np.ndarray] | None = None,
 ) -> float:
     """Split conformal calibration for distribution-free coverage.
 
@@ -184,6 +185,10 @@ def calibrate_conformal(
         n_samples: number of MC forward passes per calibration sample.
         confidence_level: nominal coverage level (e.g., 0.90).
         apply_sigmoid: if True, apply sigmoid to logits.
+        valid_masks: optional list of per-sample valid-pixel masks (1=valid).
+            When provided, nonconformity scores are computed only on valid
+            pixels — datasets like Kuro Siwo carry nodata regions whose
+            pixels must not contaminate the score distribution.
 
     Returns:
         The calibrated conformal quantile q* ∈ [0, 1].
@@ -193,7 +198,7 @@ def calibrate_conformal(
     nonconformity_scores = []
 
     with torch.no_grad():
-        for x, target in zip(calibration_inputs, calibration_targets):
+        for i, (x, target) in enumerate(zip(calibration_inputs, calibration_targets)):
             # Run MC inference
             samples = []
             for _ in range(n_samples):
@@ -212,6 +217,11 @@ def calibrate_conformal(
 
             # Per-pixel nonconformity
             nonconformity = np.abs(mean_pred - target_arr)
+            if valid_masks is not None:
+                vm = np.asarray(valid_masks[i])
+                while vm.ndim < nonconformity.ndim:
+                    vm = vm[np.newaxis, ...]
+                nonconformity = nonconformity[vm > 0]
             nonconformity_scores.extend(nonconformity.flatten().tolist())
 
     n = len(nonconformity_scores)
@@ -240,6 +250,7 @@ def evaluate_coverage(
     n_samples: int = 30,
     confidence_level: float = 0.90,
     apply_sigmoid: bool = True,
+    valid_masks: list[np.ndarray] | None = None,
 ) -> dict[str, float]:
     """Evaluate empirical coverage of the conformal confidence interval.
 
@@ -255,6 +266,8 @@ def evaluate_coverage(
         n_samples: number of MC forward passes.
         confidence_level: nominal coverage level.
         apply_sigmoid: if True, apply sigmoid to logits.
+        valid_masks: optional list of per-sample valid-pixel masks (1=valid).
+            Coverage is computed only on valid pixels.
 
     Returns:
         Dict with 'empirical_coverage', 'nominal_level', 'coverage_error'.
@@ -265,7 +278,7 @@ def evaluate_coverage(
     covered_pixels = 0
 
     with torch.no_grad():
-        for x, target in zip(test_inputs, test_targets):
+        for i, (x, target) in enumerate(zip(test_inputs, test_targets)):
             result = mc_dropout_inference(
                 model, x, n_samples=n_samples,
                 confidence_level=confidence_level,
@@ -282,8 +295,15 @@ def evaluate_coverage(
             upper = result.mean + conformal_quantile
 
             covered = (target_arr >= lower) & (target_arr <= upper)
-            covered_pixels += int(covered.sum())
-            total_pixels += target_arr.size
+            if valid_masks is not None:
+                vm = np.asarray(valid_masks[i]) > 0
+                while vm.ndim < covered.ndim:
+                    vm = vm[np.newaxis, ...]
+                covered_pixels += int((covered & vm).sum())
+                total_pixels += int(vm.sum())
+            else:
+                covered_pixels += int(covered.sum())
+                total_pixels += target_arr.size
 
     empirical_coverage = covered_pixels / total_pixels if total_pixels > 0 else 0.0
     coverage_error = abs(empirical_coverage - confidence_level)

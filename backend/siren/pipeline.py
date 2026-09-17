@@ -184,12 +184,32 @@ def _ensure_obs003_mask() -> None:
 # Module-level cache for ML engines (avoids reloading weights per observation)
 _ml_engine_cache: dict[str, Any] = {}
 
+# MC Dropout rate for the runtime engine (E1, ADR-013 §9.7.4). Dropout2d is
+# parameter-free, so this is checkpoint-compatible; in eval mode dropout is
+# identity, so the deterministic path is unchanged.
+ML_MC_DROPOUT_RATE = 0.1
+
 
 def _get_ml_engine() -> Any:
-    """Get or create a cached ChangeDetectionEngine."""
+    """Get or create a cached ChangeDetectionEngine.
+
+    Constructed with dropout>0 so the MC Dropout uncertainty path (E1) is
+    available, and prefers CUDA when present — MC sampling over a full
+    swath is ~30× faster on GPU. The deterministic path is unchanged
+    (dropout is inert in eval mode).
+    """
     if "engine" not in _ml_engine_cache:
         from siren.ml.engine import ChangeDetectionEngine
-        _ml_engine_cache["engine"] = ChangeDetectionEngine()
+        device = "cpu"
+        try:
+            import torch
+            if torch.cuda.is_available():
+                device = "cuda"
+        except ImportError:
+            pass
+        _ml_engine_cache["engine"] = ChangeDetectionEngine(
+            device=device, dropout=ML_MC_DROPOUT_RATE
+        )
     return _ml_engine_cache["engine"]
 
 
@@ -257,40 +277,79 @@ def _try_ml_evidence_layer(
         # affect hazard scoring, corridor routing, exposure, or dispatch.
         from siren.preprocess.sar_calibrate import (
             extract_and_cache_vv_vh_db,
+            find_imja_descending_pair,
             find_safe_for_observation,
         )
 
         raw_dir = DATA_DIR / "raw"
+        sar_pair_provenance: dict[str, Any] | None = None
 
-        # Find the SAFE archive for this observation
-        safe_path = find_safe_for_observation(observation_id, raw_dir)
-        if safe_path is None:
-            logger.info(
-                f"No SAFE archive for {observation_id} — "
-                "ML shadow mask skipped (no calibrated SAR input)"
+        # Multi-temporal contract (6-ch Kuro Siwo): prefer the verified
+        # descending-orbit pair that covers Imja Tsho (86.925°E). The demo
+        # observations' own ascending scenes (relative orbit 85) only cover
+        # the western AOI and miss the lake, so shadow evidence computed
+        # from them cannot see the feature of interest. The Δσ⁰ channels
+        # also require both dates on the same orbit — the descending pair
+        # (2026-07-02 / 2026-07-14) is the only same-orbit pre/post pair on
+        # disk that covers the lake. Same pair for every observation: it is
+        # the only real lake-covering evidence available, and its scene
+        # dates are recorded in provenance.
+        imja_pair = (
+            find_imja_descending_pair(raw_dir) if engine.is_multitemporal else None
+        )
+        if imja_pair is not None:
+            t0_safe, t1_safe = imja_pair
+            t0_db = extract_and_cache_vv_vh_db(
+                t0_safe, PROCESSED_DIR / "imja_desc_20260702_sar_vv_vh_db.tif"
             )
-            confidence = _derive_synthetic_confidence(rule_mask)
-            return {
-                "source": "deterministic-fallback",
-                "consensus_mask": rule_mask,
-                "confidence_map": confidence,
-                "confidence_mean": float(confidence[rule_mask > 0].mean()) if rule_mask.any() else 0.0,
-                "consensus_pixels": int(rule_mask.sum()),
+            t1_db = extract_and_cache_vv_vh_db(
+                t1_safe, PROCESSED_DIR / "imja_desc_20260714_sar_vv_vh_db.tif"
+            )
+            sar_pair_provenance = {
+                "t0_scene": Path(t0_safe).name,
+                "t1_scene": Path(t1_safe).name,
+                "orbit": "descending",
+                "covers_imja": True,
             }
-
-        # Extract and cache calibrated VV/VH dB for the current observation
-        t1_cache = PROCESSED_DIR / f"{observation_id}_sar_vv_vh_db.tif"
-        t1_db = extract_and_cache_vv_vh_db(safe_path, t1_cache)
-
-        # For the baseline (t0), use obs-001's calibrated SAR if available,
-        # otherwise fall back to the current scene (self-comparison → no change).
-        baseline_safe = find_safe_for_observation("obs-001", raw_dir)
-        if baseline_safe is not None and observation_id != "obs-001":
-            t0_cache = PROCESSED_DIR / "obs-001_sar_vv_vh_db.tif"
-            t0_db = extract_and_cache_vv_vh_db(baseline_safe, t0_cache)
         else:
-            # obs-001 is the baseline — compare against itself (no change expected)
-            t0_db = t1_db.copy()
+            # Per-observation ascending scenes (fallback when the descending
+            # pair is not on disk — e.g. fresh offline checkouts where
+            # data/raw only carries the demo archives).
+            safe_path = find_safe_for_observation(observation_id, raw_dir)
+            if safe_path is None:
+                logger.info(
+                    f"No SAFE archive for {observation_id} — "
+                    "ML shadow mask skipped (no calibrated SAR input)"
+                )
+                confidence = _derive_synthetic_confidence(rule_mask)
+                return {
+                    "source": "deterministic-fallback",
+                    "consensus_mask": rule_mask,
+                    "confidence_map": confidence,
+                    "confidence_mean": float(confidence[rule_mask > 0].mean()) if rule_mask.any() else 0.0,
+                    "consensus_pixels": int(rule_mask.sum()),
+                }
+
+            # Extract and cache calibrated VV/VH dB for the current observation
+            t1_cache = PROCESSED_DIR / f"{observation_id}_sar_vv_vh_db.tif"
+            t1_db = extract_and_cache_vv_vh_db(safe_path, t1_cache)
+
+            # For the baseline (t0), use obs-001's calibrated SAR if available,
+            # otherwise fall back to the current scene (self-comparison → no change).
+            baseline_safe = find_safe_for_observation("obs-001", raw_dir)
+            if baseline_safe is not None and observation_id != "obs-001":
+                t0_cache = PROCESSED_DIR / "obs-001_sar_vv_vh_db.tif"
+                t0_db = extract_and_cache_vv_vh_db(baseline_safe, t0_cache)
+            else:
+                # obs-001 is the baseline — compare against itself (no change expected)
+                t0_db = t1_db.copy()
+
+            sar_pair_provenance = {
+                "t0_scene": Path(baseline_safe).name if baseline_safe and observation_id != "obs-001" else Path(safe_path).name,
+                "t1_scene": Path(safe_path).name,
+                "orbit": "ascending",
+                "covers_imja": False,
+            }
 
         # Resize t0 to match t1's spatial dimensions if they differ
         if t0_db.shape[1:] != t1_db.shape[1:]:
@@ -316,6 +375,34 @@ def _try_ml_evidence_layer(
         # engine.predict_change_mask() calls normalize_sar() internally
         # to clamp [-30, 0] dB → [0, 1] per the frozen contract.
         ml_mask = engine.predict_change_mask(t0_db, t1_db)
+
+        # E1: MC Dropout uncertainty (ADR-013 §9.7.4) — a per-pixel variance
+        # map σ²(x, y) alongside the shadow mask. Informational only until
+        # the conformal gate is evaluated on the held-out calibration split.
+        # Only runs when the engine was constructed with dropout > 0 —
+        # without dropout layers every MC pass is identical and the map is
+        # degenerate zeros.
+        uncertainty_map: np.ndarray | None = None
+        uncertainty_stats: dict[str, Any] = {}
+        if engine.has_dropout_layers():
+            try:
+                unc = engine.predict_change_uncertainty(t0_db, t1_db, n_samples=20)
+                uncertainty_map = np.sqrt(unc["change_variance"]).astype(np.float32)
+                uncertainty_stats = {
+                    "uncertainty_method": unc["method"],
+                    "uncertainty_mean_variance": round(
+                        float(unc["change_variance"].mean()), 6
+                    ),
+                    "uncertainty_max_std": round(
+                        float(np.sqrt(unc["change_variance"]).max()), 4
+                    ),
+                    "uncertainty_conformal_quantile": unc.get("conformal_quantile"),
+                    "uncertainty_conformal_gate_passed": unc.get(
+                        "conformal_gate_passed", False
+                    ),
+                }
+            except Exception as exc:
+                logger.warning(f"MC Dropout uncertainty failed: {exc}")
 
         # Compute DEM slope for physical consensus gating (metadata only)
         dem_slope_arr = None
@@ -386,6 +473,15 @@ def _try_ml_evidence_layer(
             "model_contract": (
                 "kuro_siwo_6ch" if engine.is_multitemporal else "single_date"
             ),
+            # SAR pair provenance — which real scenes fed the shadow layer
+            # and whether they cover the lake (descending pair does;
+            # per-observation ascending scenes do not).
+            "sar_pair": sar_pair_provenance,
+            # E1 uncertainty (ADR-013 §9.7.4): scalar stats are JSON-safe and
+            # flow into change_stats; the map array is consumed below for
+            # the PNG layer and must NOT be stored in the JSON column.
+            "uncertainty_map": uncertainty_map,
+            **uncertainty_stats,
         }
     except ImportError:
         # torch not installed — silent fallback to deterministic
@@ -585,6 +681,18 @@ def run_pipeline(
             change_stats["ml_rule_agreement_pct"] = round(
                 ml_evidence.get("ml_rule_agreement_pct", 0.0), 1
             )
+        # Model + input provenance (ADR-013: the audit trail must show which
+        # checkpoint and which real scenes produced the shadow evidence).
+        for key in (
+            "model_architecture", "model_checkpoint", "model_in_channels",
+            "model_contract", "sar_pair",
+            "uncertainty_method", "uncertainty_mean_variance",
+            "uncertainty_max_std", "uncertainty_map_uri",
+            "uncertainty_conformal_quantile",
+            "uncertainty_conformal_gate_passed",
+        ):
+            if key in ml_evidence and ml_evidence[key] is not None:
+                change_stats[key] = ml_evidence[key]
         # Generate visual heatmap for the UI (from the rule-based mask)
         heatmap_path = PROCESSED_DIR / f"{observation_id}_change_heatmap.png"
         try:
@@ -611,6 +719,22 @@ def run_pipeline(
                 change_stats["ml_shadow_mask_uri"] = f"/data/processed/{observation_id}_ml_shadow_mask.png"
             except Exception:
                 pass  # shadow mask visualization is optional
+
+        # Save the MC Dropout uncertainty (std) map as a PNG layer (E1).
+        # Informational only — never enters scoring (ADR-010 / ADR-013).
+        unc_map = ml_evidence.get("uncertainty_map")
+        if unc_map is not None:
+            unc_png_path = PROCESSED_DIR / f"{observation_id}_ml_uncertainty.png"
+            try:
+                from siren.ml.visualize import generate_confidence_heatmap_png
+                vmax = float(unc_map.max())
+                normalized = unc_map / vmax if vmax > 0 else unc_map
+                generate_confidence_heatmap_png(normalized, unc_png_path)
+                change_stats["uncertainty_map_uri"] = (
+                    f"/data/processed/{observation_id}_ml_uncertainty.png"
+                )
+            except Exception:
+                pass  # uncertainty visualization is optional
 
     # 5c. SegFormer classification breakdown — METADATA ONLY (ADR-010).
     # Previously this replaced the consensus mask (load-bearing ML violation).

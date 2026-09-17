@@ -271,13 +271,55 @@ def extract_and_cache_vv_vh_db(
     return data
 
 
+def find_safe_by_date(date_str: str, raw_dir: Path) -> str | None:
+    """Find a Sentinel-1 SAFE ZIP containing an acquisition-date token.
+
+    Args:
+        date_str: acquisition date token, e.g. "20260702".
+        raw_dir: Path to data/raw/.
+
+    Returns:
+        Path to the matching SAFE ZIP, or None.
+    """
+    for f in Path(raw_dir).glob("S1*_*.SAFE.zip"):
+        if date_str in f.name:
+            return str(f)
+    return None
+
+
+# Verified descending-orbit Sentinel-1D pair covering Imja Tsho (86.925°E).
+# The demo observations' ascending scenes (relative orbit 85) only cover the
+# western AOI and miss the lake — see KNOWN_LIMITATIONS.md §Known Data Gaps.
+# The descending repeat is 12 days; only these two dates are on disk.
+IMJA_DESCENDING_DATES: tuple[str, str] = ("20260702", "20260714")
+
+
+def find_imja_descending_pair(raw_dir: Path) -> tuple[str, str] | None:
+    """Return (pre, post) SAFE paths for the Imja-covering descending pair.
+
+    The descending pair (2026-07-02 / 2026-07-14) is the only same-orbit
+    pre/post pair on disk that actually covers Imja Tsho. Multi-temporal
+    SAR contracts (e.g. the 6-channel Kuro Siwo model) require both dates
+    on the same orbit so the Δσ⁰ channels are physically meaningful —
+    mixing orbits produces incomparable footprints.
+
+    Returns:
+        (pre_safe_path, post_safe_path), or None if either is missing.
+    """
+    pre = find_safe_by_date(IMJA_DESCENDING_DATES[0], raw_dir)
+    post = find_safe_by_date(IMJA_DESCENDING_DATES[1], raw_dir)
+    if pre and post:
+        return (pre, post)
+    return None
+
+
 def find_safe_for_observation(observation_id: str, raw_dir: Path) -> str | None:
     """Find the Sentinel-1 SAFE ZIP corresponding to a demo observation.
 
     The demo observations map to specific dates:
       obs-001 → 2026-07-23
       obs-002 → 2026-08-04
-      obs-003 → (no real scene yet — returns None)
+      obs-003 → 2026-08-11
 
     Args:
         observation_id: e.g. "obs-001"
@@ -297,12 +339,7 @@ def find_safe_for_observation(observation_id: str, raw_dir: Path) -> str | None:
     if date_str is None:
         return None
 
-    # Find SAFE ZIP matching this date
-    for f in Path(raw_dir).glob("S1*_*.SAFE.zip"):
-        if date_str in f.name:
-            return str(f)
-
-    return None
+    return find_safe_by_date(date_str, raw_dir)
 
 
 def find_safe_for_scene_id(scene_id: str, raw_dir: Path) -> str | None:

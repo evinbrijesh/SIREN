@@ -144,6 +144,7 @@ class ChangeDetectionEngine:
         weights_path: Path | str | None = None,
         device: str = "cpu",
         in_channels: int | None = None,
+        dropout: float = 0.0,
     ) -> None:
         self.device = device
         self.weights_path: Path | None = (
@@ -157,6 +158,17 @@ class ChangeDetectionEngine:
         # explicit argument only acts as a fallback for scaffold mode.
         self.in_channels = in_channels
         self.base_channels = 32
+        # Dropout rate for MC Dropout uncertainty (E1, ADR-013 §9.7.4).
+        # Dropout2d is parameter-free, so instantiating WaterResUNet with
+        # dropout > 0 is checkpoint-compatible — the same state_dict loads
+        # unchanged. In eval mode dropout is identity, so the deterministic
+        # path is bit-identical to dropout=0; the rate only matters when
+        # predict_change_uncertainty() re-enables dropout for MC passes.
+        self.dropout_rate = float(dropout)
+        # Conformal calibration sidecar (E1): populated by _load_model from
+        # conformal_calibration.json next to the checkpoint when present.
+        self.conformal_quantile: float | None = None
+        self.conformal_gate_passed = False
 
         try:
             import torch  # noqa: F401
@@ -228,7 +240,9 @@ class ChangeDetectionEngine:
 
             if architecture == "WaterResUNet":
                 self.model = WaterResUNet(
-                    in_channels=detected_in, base_channels=detected_base
+                    in_channels=detected_in,
+                    base_channels=detected_base,
+                    dropout=self.dropout_rate,
                 ).to(self.device)
             else:
                 self.model = WaterUNet(
@@ -258,6 +272,24 @@ class ChangeDetectionEngine:
                     }
                 except Exception as exc:  # noqa: BLE001 — metadata is advisory
                     logger.warning(f"Could not read checkpoint sidecar: {exc}")
+
+            # Conformal calibration sidecar (E1): when the MC Dropout
+            # quantile has been calibrated on the held-out Kuro Siwo split
+            # (ml/calibrate_uncertainty.py), predict_change_uncertainty
+            # uses it instead of nominal quantiles. The gate flag records
+            # whether coverage met PRD §17.2 (±5% of nominal 90%).
+            cal_path = resolved.parent / "conformal_calibration.json"
+            if cal_path.exists():
+                try:
+                    cal = json.loads(cal_path.read_text())
+                    self.conformal_quantile = cal.get("conformal_quantile")
+                    self.conformal_gate_passed = bool(cal.get("gate_passed", False))
+                    logger.info(
+                        f"Conformal calibration loaded: q*={self.conformal_quantile} "
+                        f"(gate_passed={self.conformal_gate_passed})"
+                    )
+                except Exception as exc:  # noqa: BLE001 — advisory
+                    logger.warning(f"Could not read conformal sidecar: {exc}")
 
             logger.info(
                 f"ML engine loaded {architecture} weights from {resolved} "
@@ -472,6 +504,150 @@ class ChangeDetectionEngine:
         # (Expansion only — contraction is not a flood hazard signal.)
         change = water_t1 & ~water_t0
         return change.astype(np.uint8)
+
+    # ------------------------------------------------------------------ #
+    # MC Dropout uncertainty (E1, ADR-013 §9.7.4)
+    # ------------------------------------------------------------------ #
+    def has_dropout_layers(self) -> bool:
+        """True when the loaded model contains Dropout modules.
+
+        The gate-passed checkpoints were trained with ``dropout=0.0`` (the
+        ResidualBlock uses ``nn.Identity``), so an engine constructed with
+        the default ``dropout=0.0`` has no stochastic layers and MC
+        sampling would produce degenerate zero-variance maps. Construct the
+        engine with ``dropout > 0`` to enable MC Dropout.
+        """
+        if self.model is None:
+            return False
+        import torch.nn as nn
+
+        return any(
+            isinstance(m, (nn.Dropout, nn.Dropout2d, nn.Dropout3d))
+            for m in self.model.modules()
+        )
+
+    def _mc_forward(self, tensor_chw: np.ndarray, **mc_kwargs) -> tuple[np.ndarray, np.ndarray]:
+        """Run MC Dropout on a (C, H, W) tensor; returns (mean, variance) (H, W)."""
+        import torch
+
+        from siren.ml.uncertainty import mc_dropout_inference
+
+        tensor, pad_h, pad_w = self._pad_to_multiple(tensor_chw.astype(np.float32))
+        x = torch.from_numpy(tensor).float().unsqueeze(0).to(self.device)
+        result = mc_dropout_inference(self.model, x, apply_sigmoid=True, **mc_kwargs)
+        mean = result.mean[0, 0]
+        var = result.variance[0, 0]
+        if pad_h or pad_w:
+            mean = mean[: tensor.shape[1] - pad_h, : tensor.shape[2] - pad_w]
+            var = var[: tensor.shape[1] - pad_h, : tensor.shape[2] - pad_w]
+        return mean.astype(np.float32), var.astype(np.float32)
+
+    def predict_change_uncertainty(
+        self,
+        t0_raster: np.ndarray,
+        t1_raster: np.ndarray,
+        n_samples: int = 20,
+        confidence_level: float = 0.90,
+        conformal_quantile: float | None = None,
+        threshold: float | None = None,
+        seed: int = 42,
+    ) -> dict:
+        """Bi-temporal change mask + spatially-resolved epistemic uncertainty.
+
+        Runs T stochastic MC Dropout forward passes (Gal & Ghahramani 2016)
+        on the post-date tensor and on the self-paired pre-date tensor —
+        the same two tensors ``predict_change_mask`` uses — and returns the
+        per-pixel mean probability, variance σ²(x, y), and the change mask
+        derived from the MC mean.
+
+        The variance of the change signal is var(p_t1) + var(p_t0): the two
+        MC runs use independent dropout draws, so their errors are
+        independent and variances add.
+
+        Informational only until the conformal gate passes (PRD §17.2:
+        empirical coverage within ±5% of the nominal 90% level on a
+        held-out calibration set). Never enters the hazard score (ADR-010).
+
+        Args:
+            t0_raster: Baseline SAR image (2, H, W) in dB (VV, VH).
+            t1_raster: Current SAR image (2, H, W) in dB (VV, VH).
+            n_samples: number of MC forward passes T per date.
+            confidence_level: nominal coverage (0.90 = 90% CI).
+            conformal_quantile: calibrated quantile from
+                ``uncertainty.calibrate_conformal``; None = nominal quantiles.
+            threshold: water probability threshold; defaults to
+                ``self.default_threshold``.
+            seed: RNG seed for the dropout draws (Hard Rule 6 — identical
+                inputs + seed → identical uncertainty map on the same
+                device/backend).
+
+        Returns:
+            Dict with per-date mean/variance maps, the change mask, the
+            combined change variance, and the uncertainty method tag.
+        """
+        if not self.is_ready or self.model is None:
+            raise RuntimeError(
+                "ML engine not ready — no trained weights loaded. "
+                "Use the deterministic mask instead."
+            )
+        import torch
+
+        tau = self.default_threshold if threshold is None else threshold
+        t0 = np.asarray(t0_raster, dtype=np.float32)[:2]
+        t1 = np.asarray(t1_raster, dtype=np.float32)[:2]
+        if t0.shape != t1.shape:
+            raise ValueError(
+                f"pre/post spatial mismatch: {t0.shape} vs {t1.shape}"
+            )
+
+        # Prefer the calibrated conformal quantile when a sidecar exists.
+        if conformal_quantile is None:
+            conformal_quantile = self.conformal_quantile
+
+        has_dropout = self.has_dropout_layers()
+        if not has_dropout:
+            logger.warning(
+                "Loaded checkpoint has no dropout layers (engine dropout=%.2f) "
+                "— MC variance is degenerate (all passes identical). "
+                "Construct the engine with dropout>0 for real uncertainty.",
+                self.dropout_rate,
+            )
+
+        mc_kwargs = {
+            "n_samples": n_samples,
+            "confidence_level": confidence_level,
+            "conformal_quantile": conformal_quantile,
+        }
+
+        # Seed before the stochastic passes (Hard Rule 6): identical inputs
+        # + seed → identical dropout draws on the same device/backend.
+        torch.manual_seed(seed)
+        if self.device != "cpu" and torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed)
+
+        mean_t1, var_t1 = self._mc_forward(self._build_input(t0, t1), **mc_kwargs)
+        mean_t0, var_t0 = self._mc_forward(self._build_input(t0, t0), **mc_kwargs)
+
+        # Restore strict eval mode (mc_dropout_inference enables dropout).
+        self.model.eval()
+
+        change = ((mean_t1 >= tau) & ~(mean_t0 >= tau)).astype(np.uint8)
+        change_var = (var_t0 + var_t1).astype(np.float32)
+
+        return {
+            "change_mask": change,
+            "water_prob_t1": mean_t1,
+            "variance_t1": var_t1,
+            "water_prob_t0": mean_t0,
+            "variance_t0": var_t0,
+            "change_variance": change_var,
+            "n_samples": n_samples,
+            "confidence_level": confidence_level,
+            "conformal_quantile": conformal_quantile,
+            "conformal_gate_passed": self.conformal_gate_passed,
+            "method": f"mc_dropout_t{n_samples}",
+            "has_dropout": has_dropout,
+        }
 
     @staticmethod
     def _adjust_channels(arr: np.ndarray, target: int) -> np.ndarray:
