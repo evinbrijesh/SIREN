@@ -248,6 +248,19 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
             "preview_baseline_uri": preview_baseline_uri,
             "preview_after_uri": preview_after_uri,
             "ml_shadow_mask_uri": stats.get("ml_shadow_mask_uri"),
+            # State-vs-change split (shadow evidence): persistent water
+            # extent at t1 stays visible even when expansion is ~zero;
+            # drainage shows receded water. Bounds come from the GCP
+            # geolocation grid corners (the SAR cache has no affine).
+            "ml_water_extent_uri": stats.get("ml_water_extent_uri"),
+            "ml_water_extent_bounds": stats.get("ml_sar_grid_bounds"),
+            "ml_drainage_uri": stats.get("ml_drainage_uri"),
+            "ml_drainage_bounds": stats.get("ml_sar_grid_bounds"),
+            "ml_water_extent_px": stats.get("ml_water_extent_px"),
+            "ml_water_extent_km2": stats.get("ml_water_extent_km2"),
+            "ml_expansion_km2": stats.get("ml_expansion_km2"),
+            "ml_drainage_px": stats.get("ml_drainage_px"),
+            "ml_drainage_km2": stats.get("ml_drainage_km2"),
             "model_available": stats.get("ml_source", "deterministic-fallback") not in ("deterministic-fallback", "deterministic_fallback"),
             "change_polygon": stats.get("change_polygon"),
             # Provenance + uncertainty (ADR-013 §9.7.4 — informational only

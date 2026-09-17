@@ -111,6 +111,37 @@ def generate_confidence_heatmap_png(
     return output_path
 
 
+def generate_binary_mask_png(
+    mask: np.ndarray,
+    output_path: Path | str,
+    rgb: tuple[int, int, int] = (30, 136, 229),
+) -> Path:
+    """Render a binary mask as a flat-color PNG on the dark UI canvas.
+
+    Used for the ML state layers (water extent, drainage) where a single
+    semantic colour reads better than a confidence gradient.
+
+    Args:
+        mask: Binary mask (H, W) — nonzero = highlighted
+        output_path: Where to save the PNG
+        rgb: Fill colour for highlighted pixels (default: water blue)
+
+    Returns:
+        Path to the saved PNG
+    """
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    h, w = mask.shape[:2]
+    img = np.zeros((h, w, 3), dtype=np.uint8)
+    img[:, :] = [15, 23, 42]  # dark slate background (#0F172A)
+    img[mask > 0] = rgb
+
+    _save_png(img, output_path)
+    logger.info(f"Generated binary mask PNG: {output_path}")
+    return output_path
+
+
 def generate_before_after_png(
     baseline_mask: np.ndarray,
     current_mask: np.ndarray,

@@ -478,6 +478,44 @@ class ChangeDetectionEngine:
         Returns:
             Binary change mask (H, W) as uint8 (1 = new water at t1).
         """
+        return self.predict_state_and_change(t0_raster, t1_raster, threshold)[
+            "expansion"
+        ]
+
+    def predict_state_and_change(
+        self,
+        t0_raster: np.ndarray,
+        t1_raster: np.ndarray,
+        threshold: float | None = None,
+    ) -> dict[str, np.ndarray]:
+        """Per-date water state plus directional change masks.
+
+        Same two forward passes as ``predict_change_mask``, but returns the
+        full state/change decomposition instead of expansion alone:
+
+          * ``water_t0``   — water extent at the baseline date
+          * ``water_t1``   — water extent at the current date
+          * ``expansion``  — new water: ``water_t1 & ~water_t0``
+          * ``drainage``   — receded water: ``water_t0 & ~water_t1``
+
+        The state-vs-change split matters for persistent lakes: a correct
+        segmenter detects Imja at BOTH dates, so ``expansion`` is ~empty
+        even though the lake is clearly present — a change-only display
+        makes a working model look broken (verified in the 2026-09-17
+        weak-label domain-adaptation experiment). Displaying ``water_t1``
+        alongside ``expansion`` keeps persistent water visible.
+
+        Args:
+            t0_raster: Baseline SAR image (2, H, W) in dB (VV, VH).
+            t1_raster: Current SAR image (2, H, W) in dB (VV, VH).
+            threshold: Water probability threshold per date. Defaults to
+                       ``self.default_threshold`` (0.30 for the calibrated
+                       Kuro Siwo checkpoint, 0.50 otherwise).
+
+        Returns:
+            Dict of binary masks (H, W) uint8: water_t0, water_t1,
+            expansion, drainage.
+        """
         if not self.is_ready or self.model is None:
             raise RuntimeError(
                 "ML engine not ready — no trained weights loaded. "
@@ -500,10 +538,14 @@ class ChangeDetectionEngine:
         water_t0 = p_t0 >= tau
         water_t1 = p_t1 >= tau
 
-        # Deterministic change: water at t1 that was not water at t0.
-        # (Expansion only — contraction is not a flood hazard signal.)
-        change = water_t1 & ~water_t0
-        return change.astype(np.uint8)
+        # Deterministic change decomposition (Hard Rule 1 — set differences,
+        # not a learned change detector).
+        return {
+            "water_t0": water_t0.astype(np.uint8),
+            "water_t1": water_t1.astype(np.uint8),
+            "expansion": (water_t1 & ~water_t0).astype(np.uint8),
+            "drainage": (water_t0 & ~water_t1).astype(np.uint8),
+        }
 
     # ------------------------------------------------------------------ #
     # MC Dropout uncertainty (E1, ADR-013 §9.7.4)

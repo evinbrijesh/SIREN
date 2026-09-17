@@ -42,7 +42,7 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
   const [selectedSector, setSelectedSector] = useState<string>("sector-b");
   const [selectedChannel, setSelectedChannel] = useState<"sms" | "lora" | "satellite">("sms");
   const [viewMode, setViewMode] = useState<"simple" | "advanced">("simple");
-  const [maskLayer, setMaskLayer] = useState<"deterministic" | "shadow">("deterministic");
+  const [maskLayer, setMaskLayer] = useState<"deterministic" | "shadow" | "extent" | "drainage">("deterministic");
   const [swipePos, setSwipePos] = useState(50);
 
   const score = run?.score;
@@ -259,6 +259,25 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
   const sortedExposures = [...exposures].sort((a, b) => (a.distance_m ?? 9999) - (b.distance_m ?? 9999));
   const areaAfter = (run.change_stats_json?.water_area_km2 as number) ?? 4.1;
   const areaBefore = 3.0;
+
+  // Resolve the mask raster for the active evidence layer. "deterministic"
+  // is the load-bearing expansion mask; "shadow" is the ML expansion layer;
+  // "extent"/"drainage" are the ML state layers (persistent water at t1 /
+  // receded water) — a stable lake must stay visible even when expansion
+  // is ~zero.
+  const layerMaskUri = (layer: typeof maskLayer): string => {
+    if (!mlEvidence) return "";
+    if (layer === "extent") return mlEvidence.ml_water_extent_uri ?? mlEvidence.ml_shadow_mask_uri ?? mlEvidence.mask_uri;
+    if (layer === "drainage") return mlEvidence.ml_drainage_uri ?? mlEvidence.mask_uri;
+    if (layer === "shadow") return mlEvidence.ml_shadow_mask_uri ?? mlEvidence.mask_uri;
+    return mlEvidence.mask_uri;
+  };
+  const layerAlt = (layer: typeof maskLayer): string => (
+    layer === "deterministic" ? "Deterministic change mask (authoritative)"
+      : layer === "extent" ? "ML water extent at t1 (shadow)"
+      : layer === "drainage" ? "ML drainage / receded water (shadow)"
+      : "WaterUNet shadow mask (supplementary)"
+  );
   const expansionPct = (run.change_stats_json?.expansion_percent as number) ?? 0;
   const corridorSource = (run.change_stats_json?.corridor_source as string) ?? "unknown";
   const isFallbackCorridor = corridorSource === "fallback_seeded";
@@ -386,14 +405,14 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
                 </div>
                 <div className="flex-1 h-[140px] border border-border-subtle bg-surface-recessed relative overflow-hidden flex flex-col">
                   <img
-                    src={maskLayer === "deterministic" ? mlEvidence.mask_uri : (mlEvidence.ml_shadow_mask_uri ?? mlEvidence.mask_uri)}
-                    alt={maskLayer === "deterministic" ? "Deterministic change mask (authoritative)" : "WaterUNet shadow mask (supplementary)"}
+                    src={layerMaskUri(maskLayer)}
+                    alt={layerAlt(maskLayer)}
                     className="absolute inset-0 w-full h-full object-cover opacity-90"
                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                   />
                   <div className="relative z-10 flex items-center justify-between px-space-8 py-space-4 bg-surface-panel border-b border-border-subtle">
                     <span className="text-body-sm text-text-dim">After</span>
-                    {maskLayer === "shadow" && (
+                    {maskLayer !== "deterministic" && (
                       <span className="text-caption text-status-warn border border-status-warn px-space-2 py-space-1">SHADOW</span>
                     )}
                   </div>
@@ -416,8 +435,8 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
                 >
                   {/* Bottom layer: After (SAR surge / change mask) */}
                   <img
-                    src={maskLayer === "deterministic" ? mlEvidence.mask_uri : (mlEvidence.ml_shadow_mask_uri ?? mlEvidence.mask_uri)}
-                    alt="After"
+                    src={layerMaskUri(maskLayer)}
+                    alt={layerAlt(maskLayer)}
                     className="absolute inset-0 w-full h-full object-cover opacity-90"
                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                   />
@@ -459,9 +478,9 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
                 />
               </div>
 
-              {/* Mask layer toggle — deterministic (authoritative) vs WaterUNet shadow */}
+              {/* Mask layer toggle — deterministic (authoritative) vs ML shadow layers */}
               {mlEvidence.model_available && mlEvidence.ml_shadow_mask_uri && (
-                <div className="flex items-center gap-space-4 bg-surface-recessed border border-border-subtle p-space-2">
+                <div className="flex items-center gap-space-4 bg-surface-recessed border border-border-subtle p-space-2 flex-wrap">
                   <button
                     onClick={() => setMaskLayer("deterministic")}
                     className={`px-space-8 py-space-2 text-caption font-medium transition-colors ${
@@ -480,8 +499,64 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
                         : "text-text-dim hover:text-text-primary"
                     }`}
                   >
-                    WaterUNet (shadow)
+                    Δ Expansion (shadow)
                   </button>
+                  {mlEvidence.ml_water_extent_uri && (
+                    <button
+                      onClick={() => setMaskLayer("extent")}
+                      className={`px-space-8 py-space-2 text-caption font-medium transition-colors ${
+                        maskLayer === "extent"
+                          ? "bg-status-warn text-surface-canvas"
+                          : "text-text-dim hover:text-text-primary"
+                      }`}
+                    >
+                      Water extent t1 (shadow)
+                    </button>
+                  )}
+                  {mlEvidence.ml_drainage_uri && (
+                    <button
+                      onClick={() => setMaskLayer("drainage")}
+                      className={`px-space-8 py-space-2 text-caption font-medium transition-colors ${
+                        maskLayer === "drainage"
+                          ? "bg-status-warn text-surface-canvas"
+                          : "text-text-dim hover:text-text-primary"
+                      }`}
+                    >
+                      Drainage (shadow)
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Delineation summary — state vs change. A persistent lake
+                  shows a large extent with ~zero expansion; a change-only
+                  view would make it look empty. */}
+              {(mlEvidence.ml_water_extent_km2 != null || mlEvidence.ml_expansion_km2 != null) && (
+                <div className="grid grid-cols-3 gap-space-4 border border-border-subtle bg-surface-recessed px-space-8 py-space-6" data-testid="delineation-summary">
+                  <div>
+                    <span className="text-caption text-text-dim block">Lake extent t1 (ML)</span>
+                    <span className="data-val text-body-sm text-status-safe">
+                      {(mlEvidence.ml_water_extent_km2 ?? 0).toFixed(3)} km²
+                    </span>
+                    <span className="text-caption text-text-dim block">
+                      {(mlEvidence.ml_water_extent_px ?? 0).toLocaleString()} px
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-caption text-text-dim block">Net expansion Δ</span>
+                    <span className={`data-val text-body-sm ${(mlEvidence.ml_expansion_km2 ?? 0) > 0 ? "text-status-warn" : "text-text-primary"}`}>
+                      +{(mlEvidence.ml_expansion_km2 ?? 0).toFixed(3)} km²
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-caption text-text-dim block">Drainage Δ</span>
+                    <span className="data-val text-body-sm text-text-primary">
+                      −{(mlEvidence.ml_drainage_km2 ?? 0).toFixed(3)} km²
+                    </span>
+                    <span className="text-caption text-text-dim block">
+                      {(mlEvidence.ml_drainage_px ?? 0).toLocaleString()} px
+                    </span>
+                  </div>
                 </div>
               )}
 

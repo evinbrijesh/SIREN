@@ -391,9 +391,15 @@ def _try_ml_evidence_layer(
             t0_db = t0_resized
 
         # Run ML inference with calibrated VV/VH dB input.
-        # engine.predict_change_mask() calls normalize_sar() internally
-        # to clamp [-30, 0] dB → [0, 1] per the frozen contract.
-        ml_mask = engine.predict_change_mask(t0_db, t1_db)
+        # engine.predict_state_and_change() calls normalize_sar() internally
+        # to clamp [-30, 0] dB → [0, 1] per the frozen contract. The
+        # state/change split matters for persistent lakes: a correct
+        # segmenter sees Imja at BOTH dates, so expansion alone is ~empty
+        # — the review card needs water_t1 (extent) alongside the delta.
+        ml_state = engine.predict_state_and_change(t0_db, t1_db)
+        ml_mask = ml_state["expansion"]           # keeps shadow semantics
+        ml_water_t1 = ml_state["water_t1"]
+        ml_drainage = ml_state["drainage"]
 
         # Terrain / evidence-quality gating of the shadow mask (ADR-010):
         # the Kuro Siwo model is badly out-of-distribution on high-Himalaya
@@ -472,6 +478,39 @@ def _try_ml_evidence_layer(
                 gate_stats["ml_shadow_px_raw"] = int(ml_mask.sum())
                 ml_mask = np.where(exclusion, 0, ml_mask).astype(np.uint8)
                 gate_stats["ml_shadow_px_gated"] = int(ml_mask.sum())
+
+                # The same display-hygiene gate applies to the state layers
+                # — glacier/slope OOD noise pollutes the extent and drainage
+                # maps identically.
+                ml_water_t1 = np.where(exclusion, 0, ml_water_t1).astype(np.uint8)
+                ml_drainage = np.where(exclusion, 0, ml_drainage).astype(np.uint8)
+
+                # Per-pixel area and map bounds from the GCP lon/lat grid
+                # (the SAR cache has no affine — GCPs are the geolocation).
+                dlat_m = float(np.abs(np.diff(lat_g, axis=0)).mean()) * 110_540
+                dlon_m = (
+                    float(np.abs(np.diff(lon_g, axis=1)).mean())
+                    * 111_320
+                    * np.cos(np.deg2rad(float(np.nanmean(lat_g))))
+                )
+                px_area_m2 = dlat_m * dlon_m
+                gate_stats["ml_water_extent_px"] = int(ml_water_t1.sum())
+                gate_stats["ml_water_extent_km2"] = round(
+                    ml_water_t1.sum() * px_area_m2 / 1e6, 3
+                )
+                gate_stats["ml_expansion_km2"] = round(
+                    ml_mask.sum() * px_area_m2 / 1e6, 3
+                )
+                gate_stats["ml_drainage_px"] = int(ml_drainage.sum())
+                gate_stats["ml_drainage_km2"] = round(
+                    ml_drainage.sum() * px_area_m2 / 1e6, 3
+                )
+                gate_stats["ml_sar_grid_bounds"] = [
+                    [float(lon_g[0, 0]), float(lat_g[0, 0])],
+                    [float(lon_g[0, -1]), float(lat_g[0, -1])],
+                    [float(lon_g[-1, -1]), float(lat_g[-1, -1])],
+                    [float(lon_g[-1, 0]), float(lat_g[-1, 0])],
+                ]
                 gate_stats["ml_terrain_gate"] = {
                     "slope_deg": ML_SLOPE_GATE_DEG,
                     "glacier_exempt_lake_vicinity": True,
@@ -573,6 +612,8 @@ def _try_ml_evidence_layer(
             "source": "ml-shadow",
             "consensus_mask": rule_mask,  # ALWAYS the rule-based mask
             "ml_shadow_mask": ml_mask,     # supplementary evidence, NOT load-bearing
+            "ml_water_extent_mask": ml_water_t1,  # persistent extent at t1 (shadow)
+            "ml_drainage_mask": ml_drainage,      # receded water (shadow)
             "confidence_map": result["confidence"],
             "confidence_mean": float(result["confidence"].mean()),
             "consensus_pixels": int(rule_mask.sum()),
@@ -814,6 +855,9 @@ def run_pipeline(
             "ml_shadow_px_outside_aoi", "ml_shadow_px_steep",
             "ml_shadow_px_glacier", "ml_terrain_gate",
             "ml_rule_overlap_px", "ml_rule_overlap_pct",
+            "ml_water_extent_px", "ml_water_extent_km2",
+            "ml_expansion_km2", "ml_drainage_px", "ml_drainage_km2",
+            "ml_sar_grid_bounds",
         ):
             if key in ml_evidence and ml_evidence[key] is not None:
                 change_stats[key] = ml_evidence[key]
@@ -843,6 +887,29 @@ def run_pipeline(
                 change_stats["ml_shadow_mask_uri"] = f"/data/processed/{observation_id}_ml_shadow_mask.png"
             except Exception:
                 pass  # shadow mask visualization is optional
+
+        # State/change layers (state-vs-change split): the persistent water
+        # extent at t1 keeps a stable lake visible even when expansion is
+        # ~zero; drainage shows receded water. Both are shadow evidence —
+        # display only, never scoring.
+        for key, suffix, rgb in (
+            ("ml_water_extent_mask", "ml_water_extent", (30, 136, 229)),   # blue
+            ("ml_drainage_mask", "ml_drainage", (251, 140, 0)),            # amber
+        ):
+            layer = ml_evidence.get(key)
+            if layer is not None:
+                try:
+                    from siren.ml.visualize import generate_binary_mask_png
+                    generate_binary_mask_png(
+                        layer,
+                        PROCESSED_DIR / f"{observation_id}_{suffix}.png",
+                        rgb=rgb,
+                    )
+                    change_stats[f"{suffix}_uri"] = (
+                        f"/data/processed/{observation_id}_{suffix}.png"
+                    )
+                except Exception:
+                    pass  # state layer visualization is optional
 
         # Save the MC Dropout uncertainty (std) map as a PNG layer (E1).
         # Informational only — never enters scoring (ADR-010 / ADR-013).

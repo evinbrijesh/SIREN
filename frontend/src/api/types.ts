@@ -159,6 +159,15 @@ export interface MlEvidence {
   preview_baseline_uri: string;
   preview_after_uri: string;
   ml_shadow_mask_uri: string | null;
+  ml_water_extent_uri: string | null;
+  ml_water_extent_bounds: number[][] | null;
+  ml_drainage_uri: string | null;
+  ml_drainage_bounds: number[][] | null;
+  ml_water_extent_px: number | null;
+  ml_water_extent_km2: number | null;
+  ml_expansion_km2: number | null;
+  ml_drainage_px: number | null;
+  ml_drainage_km2: number | null;
   model_available: boolean;
   change_polygon: GeoJSONFeature | null;
 }

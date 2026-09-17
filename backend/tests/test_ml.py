@@ -288,6 +288,62 @@ def test_engine_change_mask_is_deterministic_diff(tmp_path) -> None:
     assert change.sum() == 0, "Identical inputs should produce no change"
 
 
+def test_engine_state_and_change_semantics(tmp_path) -> None:
+    """predict_state_and_change returns the full state/change decomposition:
+    water_t0, water_t1, expansion (t1 & ~t0), drainage (t0 & ~t1).
+
+    A persistent lake must keep its extent even when expansion is zero —
+    this is the fix for the change-only display making stable lakes
+    disappear (verified in the weak-label adaptation experiment).
+    """
+    try:
+        import torch
+    except ImportError:
+        pytest.skip("torch not installed")
+
+    from siren.ml.engine import ChangeDetectionEngine
+    from siren.ml.model import WaterUNet
+
+    wpath = tmp_path / "test_weights.pt"
+    model = WaterUNet(in_channels=2)
+    torch.save({"state_dict": model.state_dict(), "in_channels": 2}, str(wpath))
+    engine = ChangeDetectionEngine(weights_path=wpath, device="cpu")
+    assert engine.is_ready is True
+
+    sar = np.random.RandomState(42).randn(2, 64, 64).astype(np.float32) * 20 - 15
+    state = engine.predict_state_and_change(sar, sar)
+
+    for key in ("water_t0", "water_t1", "expansion", "drainage"):
+        assert key in state
+        assert state[key].shape == (64, 64)
+        assert state[key].dtype == np.uint8
+
+    # Identical inputs: both deltas are empty, extent may be nonzero.
+    assert state["expansion"].sum() == 0
+    assert state["drainage"].sum() == 0
+    np.testing.assert_array_equal(state["water_t0"], state["water_t1"])
+
+    # Set-algebra invariants on arbitrary inputs.
+    t0 = np.random.RandomState(1).randn(2, 64, 64).astype(np.float32) * 20 - 15
+    t1 = np.random.RandomState(2).randn(2, 64, 64).astype(np.float32) * 20 - 15
+    state = engine.predict_state_and_change(t0, t1)
+    w0, w1, exp, dra = (
+        state["water_t0"].astype(bool),
+        state["water_t1"].astype(bool),
+        state["expansion"].astype(bool),
+        state["drainage"].astype(bool),
+    )
+    np.testing.assert_array_equal(exp, w1 & ~w0)
+    np.testing.assert_array_equal(dra, w0 & ~w1)
+    assert not (exp & dra).any(), "expansion and drainage must be disjoint"
+    # expansion + unchanged water = full t1 extent
+    np.testing.assert_array_equal(w1, exp | (w0 & w1))
+    # predict_change_mask must equal the expansion layer (delegation)
+    np.testing.assert_array_equal(
+        engine.predict_change_mask(t0, t1), state["expansion"]
+    )
+
+
 # --- Metrics module tests ---
 
 def test_metrics_perfect_prediction() -> None:
