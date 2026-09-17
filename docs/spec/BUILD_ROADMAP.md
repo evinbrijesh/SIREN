@@ -415,3 +415,21 @@ The MVP is done when, offline, in one click-chain: baseline loads → 3 observat
 - ✅ ≤250-byte dispatch (118 bytes actual — POST /runs/{id}/dispatch)
 - ✅ Audit lineage reconstructable with SHA-256 hash chain (GET /audit?run_id=...)
 - ✅ 782 tests passing (768 active + 14 skipped/torch-gated)
+
+---
+
+## Neural Track Data Requirements (ADR-013 promotion prerequisites)
+
+Status as of 2026-09-17: every neural module is **data-blocked, not code-blocked**. Scaffolds and gates exist; what is missing is real labelled data. Do not add more neural architecture until the corresponding acquisition requirement below is met.
+
+| Track | Module | Empirical status | What unblocks it |
+|---|---|---|---|
+| **E0** latent coupling | `ml/latent_coupling.py` | Interface + tensor-flow tests only | 500+ shallow-water simulation outputs on real basin DEMs; RTX-class GPU for training runs |
+| **E1** uncertainty | `ml/uncertainty.py` | MC Dropout + conformal calibration implemented; conformal evaluated on event-level Kuro Siwo split | Same OOD blocker as segmentation — calibration on lowland data does not transfer to Himalayan terrain |
+| **E2** neural bathymetry | `ml/bathymetry.py` | LOO benchmarked: Huggel 75.6% MAPE, regression 82.1%, neural 676.4% (328.8% with synthetic transfer). Metadata LOO: Himalaya Huggel 33.5% | More *dense* surveyed bathymetry (soundings/sonar), not metadata. The 323-entry global compilation has volumes but no bed elevation — usable only for area→volume benchmarking |
+| **E3** fusion | `ml/fusion.py` | S2 spectral eval: NDWI/MNDWI do not separate frozen Imja from glacier (AUC 0.18–0.29); paired Jul-05 scene 72.7% cloud | A clear paired S1+S2 acquisition (SCL clear ≥70%) over a liquid-water season, plus a non-index discriminator (SCL class, NDSI, texture) |
+| SAR segmentation | `ml/model.py` + terrain gate | Kuro Siwo IoU 0.62 in-domain; ~6% geographic overlap on Imja (flat-terrain glacier confusion, not slope — measured) | Himalayan-region labelled water/flood masks. Check `data/datasets/S1GFloods` coverage before acquiring new labels |
+
+Real-event reference points now on disk: South Lhonak 2023 Pleiades pre/post DEMs (measured lake area 0.87 km², 14 m drawdown; Huggel brackets the documented 40–50 MCM release within the published area range — see `ml/south_lhonak_lake_eval.py`).
+
+**License review pending:** before any public release, audit redistribution terms for all `data/datasets/` sources (Pleiades DEMs are CC BY 4.0; Kuro Siwo, RGI, S1GFloods, bathymetry compilations, and S2/S1 scenes each carry their own terms).
