@@ -266,6 +266,16 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
             "uncertainty_conformal_gate_passed": stats.get(
                 "uncertainty_conformal_gate_passed", False
             ),
+            # Terrain/evidence-quality gate on the shadow mask (ADR-010 —
+            # shapes displayed evidence only, never the score)
+            "ml_shadow_px_raw": stats.get("ml_shadow_px_raw"),
+            "ml_shadow_px_gated": stats.get("ml_shadow_px_gated"),
+            "ml_shadow_px_outside_aoi": stats.get("ml_shadow_px_outside_aoi"),
+            "ml_shadow_px_steep": stats.get("ml_shadow_px_steep"),
+            "ml_shadow_px_glacier": stats.get("ml_shadow_px_glacier"),
+            "ml_terrain_gate": stats.get("ml_terrain_gate"),
+            "ml_rule_overlap_px": stats.get("ml_rule_overlap_px"),
+            "ml_rule_overlap_pct": stats.get("ml_rule_overlap_pct"),
         }
 
     # POST /runs/{run_id}/review

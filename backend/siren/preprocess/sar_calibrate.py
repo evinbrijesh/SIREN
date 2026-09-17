@@ -240,15 +240,22 @@ def extract_and_cache_vv_vh_db(
     # Extract and calibrate
     data = extract_vv_vh_db(safe_zip, decimation=decimation)
 
-    # Write cache GeoTIFF
-    # We need geotransform/CRS from the original SAFE for georeferencing
+    # Write cache GeoTIFF.
+    # S1 GRD measurement TIFFs carry no geotransform — geolocation lives in
+    # the annotation GCP grid (EPSG:4326). A fitted affine has 1–4 km
+    # residuals over mountain terrain (GRD geolocation is not affine), so
+    # instead we persist the GCPs themselves, scaled to the decimated grid.
+    # Downstream layers (DEM slope gating, overlays) use GCPTransformer.
     inner_tiff = _find_measurement_tiff(safe_zip, "vv")
     with rasterio.open(f"/vsizip/{safe_zip}/{inner_tiff}") as src:
-        gt = list(src.transform)
-        crs = src.crs
-        # Scale geotransform for decimation
-        gt[1] = gt[1] * decimation
-        gt[5] = gt[5] * decimation
+        gcps, gcp_crs = src.gcps
+    scaled_gcps = [
+        rasterio.control.GroundControlPoint(
+            row=g.row / decimation, col=g.col / decimation,
+            x=g.x, y=g.y, z=g.z, id=g.id,
+        )
+        for g in gcps
+    ]
 
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     with rasterio.open(
@@ -258,9 +265,9 @@ def extract_and_cache_vv_vh_db(
         width=data.shape[2],
         count=2,
         dtype="float32",
-        crs=crs,
-        transform=rasterio.transform.Affine(gt[1], gt[2], gt[0], gt[4], gt[5], gt[3]),
     ) as dst:
+        if scaled_gcps:
+            dst.gcps = (scaled_gcps, gcp_crs)
         dst.write(data[0], 1)
         dst.write(data[1], 2)
         dst.set_band_description(1, "VV sigma0 dB")

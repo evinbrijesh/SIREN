@@ -151,18 +151,18 @@ def dem_slope(dem_path: str) -> tuple[np.ndarray, "rasterio.DatasetReader"]:
     if nodata is not None:
         dem = np.where(dem == nodata, np.nan, dem)
 
-    # Per-row meter conversion (row 0 = north)
+    # Per-pixel metre conversion: np.gradient returns dz per pixel, so the
+    # divisor must be metres per PIXEL (metres per degree × degrees per
+    # pixel), not metres per degree. (Dividing by m/degree shrinks the
+    # slope by ~10^5 — the gate would never fire.)
     lats = np.array([ds.xy(r, 0)[1] for r in range(ds.height)])
-    m_per_lon = 111_320.0 * np.cos(np.deg2rad(lats))
-    m_per_lat = 110_540.0
+    m_per_px_lon = 111_320.0 * np.cos(np.deg2rad(lats)) * abs(ds.transform.a)
+    m_per_px_lat = 110_540.0 * abs(ds.transform.e)
 
     dy, dx = np.gradient(dem)
-    # dx: per column (lon), dy: per row (lat, negative direction)
-    slope = np.zeros_like(dem)
-    for r in range(ds.height):
-        gz = -dy[r] / m_per_lat            # dz/dy in meters/meter
-        gx = -dx[r] / m_per_lon[r]         # dz/dx in meters/meter
-        slope[r] = np.degrees(np.arctan(np.sqrt(gx**2 + gz**2)))
+    gx = dx / m_per_px_lon[:, np.newaxis]   # dz/dx in metres/metre
+    gz = dy / m_per_px_lat                  # dz/dy in metres/metre
+    slope = np.degrees(np.arctan(np.sqrt(gx**2 + gz**2))).astype(np.float32)
     return slope, ds
 
 
@@ -194,3 +194,206 @@ def filter_change_by_slope(
         ds.close()
     keep = s < max_slope_deg
     return change_mask & keep
+
+
+def sar_grid_dem_slope(
+    sar_path: str,
+    dem_path: str,
+    stride: int = 8,
+) -> np.ndarray | None:
+    """Sample DEM slope onto a calibrated SAR cache grid via its GCPs.
+
+    Calibrated SAR caches (``extract_and_cache_vv_vh_db``) carry the
+    Sentinel-1 GCP geolocation grid (EPSG:4326) rather than an affine —
+    GRD geolocation is not affine over mountain terrain (a fitted affine
+    has 1–4 km residuals). Each SAR pixel is mapped to (lon, lat) through
+    GDAL's GCP polynomial transformer, then the DEM-derived slope raster
+    is nearest-sampled at those coordinates.
+
+    Args:
+        sar_path: calibrated VV/VH cache GeoTIFF (must carry GCPs).
+        dem_path: DEM GeoTIFF (EPSG:4326) to derive slope from.
+        stride: geolocation is smooth — transform every ``stride``-th
+            pixel and bilinearly upsample (much faster than transforming
+            all ~4M pixels individually).
+
+    Returns:
+        (H, W) float32 slope in degrees aligned with the SAR grid, NaN
+        where the pixel falls outside the DEM extent — or None when the
+        SAR cache carries no GCPs (old ungeoreferenced caches).
+    """
+    ll = sar_grid_lonlat(sar_path, stride=stride)
+    if ll is None:
+        return None
+    lon, lat = ll
+    h, w = lon.shape
+
+    slope, ds = dem_slope(dem_path)
+    try:
+        dem_inv = ~ds.transform
+        # (lon, lat) -> DEM pixel coordinates
+        dem_cols = dem_inv.a * lon + dem_inv.b * lat + dem_inv.c
+        dem_rows = dem_inv.d * lon + dem_inv.e * lat + dem_inv.f
+        dc = np.rint(dem_cols).astype(np.int64)
+        dr = np.rint(dem_rows).astype(np.int64)
+
+        valid = (
+            (dr >= 0) & (dr < slope.shape[0])
+            & (dc >= 0) & (dc < slope.shape[1])
+        )
+        out = np.full((h, w), np.nan, dtype=np.float32)
+        out[valid] = slope[dr[valid], dc[valid]]
+        return out
+    finally:
+        ds.close()
+
+
+def sar_grid_lonlat(
+    sar_path: str,
+    stride: int = 8,
+) -> tuple[np.ndarray, np.ndarray] | None:
+    """Per-pixel (lon, lat) geolocation for a calibrated SAR cache grid.
+
+    Reads the S1 GCP grid persisted by ``extract_and_cache_vv_vh_db`` and
+    maps pixel coordinates to EPSG:4326 through GDAL's GCP polynomial
+    transformer (a fitted affine is inaccurate by 1–4 km over mountain
+    terrain — the GCPs are the honest geolocation). Every ``stride``-th
+    pixel is transformed and the smooth field bilinearly upsampled.
+
+    Returns:
+        (lon, lat) float64 arrays shaped (H, W) — or None when the cache
+        carries no GCPs (old ungeoreferenced caches).
+    """
+    import rasterio
+    from rasterio.transform import GCPTransformer
+    from scipy.ndimage import zoom
+
+    with rasterio.open(sar_path) as src:
+        gcps, _ = src.gcps
+        h, w = src.height, src.width
+    if not gcps:
+        return None
+
+    transformer = GCPTransformer(gcps)
+    rows_s = np.arange(0, h, stride, dtype=np.float64)
+    cols_s = np.arange(0, w, stride, dtype=np.float64)
+    rr, cc = np.meshgrid(rows_s, cols_s, indexing="ij")
+    xs, ys = transformer.xy(rr.ravel().tolist(), cc.ravel().tolist())
+    lon_s = np.asarray(xs).reshape(rr.shape)
+    lat_s = np.asarray(ys).reshape(rr.shape)
+
+    # Upsample geolocation to the full grid — the field is smooth, so
+    # bilinear interpolation introduces sub-pixel error only.
+    zh, zw = h / lon_s.shape[0], w / lon_s.shape[1]
+    lon = zoom(lon_s, (zh, zw), order=1)
+    lat = zoom(lat_s, (zh, zw), order=1)
+    lon = lon[:h, :w]
+    lat = lat[:h, :w]
+    if lon.shape != (h, w):
+        pad_h, pad_w = h - lon.shape[0], w - lon.shape[1]
+        lon = np.pad(lon, ((0, pad_h), (0, pad_w)), mode="edge")
+        lat = np.pad(lat, ((0, pad_h), (0, pad_w)), mode="edge")
+    return lon, lat
+
+
+def sar_grid_polygon_mask(
+    vector_path: str,
+    lon: np.ndarray,
+    lat: np.ndarray,
+    cell_deg: float = 0.001,
+) -> np.ndarray:
+    """Rasterize vector polygons onto a geolocated SAR grid.
+
+    The polygons are burned onto a regular EPSG:4326 grid (``cell_deg``
+    resolution ≈ 110 m, matched to the ~90 m SAR pixel pitch) covering the
+    lon/lat extent, then nearest-sampled at each SAR pixel's geolocation.
+
+    Args:
+        vector_path: polygon source readable by geopandas (shapefile,
+            GeoJSON, or a GDAL ``/vsizip/`` path).
+        lon, lat: per-pixel geolocation from ``sar_grid_lonlat``.
+        cell_deg: rasterisation cell size in degrees.
+
+    Returns:
+        (H, W) bool array — True where the SAR pixel falls inside a polygon.
+    """
+    import geopandas as gpd
+    from rasterio.features import rasterize
+    from rasterio.transform import from_origin
+
+    h, w = lon.shape
+    west, east = float(np.nanmin(lon)), float(np.nanmax(lon))
+    south, north = float(np.nanmin(lat)), float(np.nanmax(lat))
+
+    try:
+        gdf = gpd.read_file(vector_path, bbox=(west, south, east, north))
+    except TypeError:
+        gdf = gpd.read_file(vector_path)
+        gdf = gdf[gdf.intersects(
+            gpd.GeoSeries.from_xy([west, east, east, west],
+                                [south, south, north, north]).union_all()
+        )]
+    out = np.zeros((h, w), dtype=bool)
+    if gdf.empty:
+        return out
+
+    if gdf.crs is not None and gdf.crs.to_epsg() != 4326:
+        gdf = gdf.to_crs(4326)
+
+    grid_w = int(np.ceil((east - west) / cell_deg)) + 2
+    grid_h = int(np.ceil((north - south) / cell_deg)) + 2
+    transform = from_origin(west - cell_deg, north + cell_deg, cell_deg, cell_deg)
+    burned = rasterize(
+        [(geom, 1) for geom in gdf.geometry if geom is not None],
+        out_shape=(grid_h, grid_w),
+        transform=transform,
+        fill=0,
+        dtype="uint8",
+    )
+
+    inv = ~transform
+    cols = np.rint(inv.a * lon + inv.b * lat + inv.c).astype(np.int64)
+    rows = np.rint(inv.d * lon + inv.e * lat + inv.f).astype(np.int64)
+    valid = (rows >= 0) & (rows < grid_h) & (cols >= 0) & (cols < grid_w)
+    out[valid] = burned[rows[valid], cols[valid]] > 0
+    return out
+
+
+def sar_grid_sample(
+    raster_path: str,
+    lon: np.ndarray,
+    lat: np.ndarray,
+    fill: float = 0.0,
+) -> np.ndarray:
+    """Nearest-sample any georeferenced raster onto a geolocated SAR grid.
+
+    Reprojects the SAR pixel (lon, lat) into the source raster's CRS, then
+    nearest-samples band 1. Pixels outside the source extent get ``fill``.
+
+    This is the geographically correct way to compare the full-scene SAR
+    shadow mask against the small AOI masks — index-based resizing
+    (``consensus._resize_mask``) assumes identical extents and produces
+    meaningless overlap counts when the scenes differ.
+    """
+    import rasterio
+    from rasterio.warp import transform as warp_transform
+
+    with rasterio.open(raster_path) as ds:
+        arr = ds.read(1)
+        if ds.crs is not None and ds.crs.to_epsg() != 4326:
+            xs, ys = warp_transform(
+                "EPSG:4326", ds.crs,
+                lon.ravel().tolist(), lat.ravel().tolist(),
+            )
+        else:
+            xs, ys = lon.ravel().tolist(), lat.ravel().tolist()
+        inv = ~ds.transform
+
+    bx = np.asarray(xs).reshape(lon.shape)
+    by = np.asarray(ys).reshape(lat.shape)
+    cols = np.rint(inv.a * bx + inv.b * by + inv.c).astype(np.int64)
+    rows = np.rint(inv.d * bx + inv.e * by + inv.f).astype(np.int64)
+    valid = (rows >= 0) & (rows < arr.shape[0]) & (cols >= 0) & (cols < arr.shape[1])
+    out = np.full(lon.shape, fill, dtype=np.float32)
+    out[valid] = arr[rows[valid], cols[valid]].astype(np.float32)
+    return out

@@ -54,6 +54,24 @@ PROCESSED_DIR = DATA_DIR / "processed"
 ASSETS_DIR = DATA_DIR / "assets"
 DEM_PATH = DATA_DIR / "raw" / "srtm_30m.tif"
 OSM_PATH = ASSETS_DIR / "osm_infrastructure.geojson"
+AOI_GEOJSON_PATH = ASSETS_DIR / "dudh_koshi_aoi.geojson"
+RGI_GLACIER_SHP_PATH = (
+    "/vsizip/"
+    + str(
+        DATA_DIR
+        / "datasets"
+        / "RGI2000-v7.0-G-15_south_asia_east.zip"
+        / "RGI2000-v7.0-G-15_south_asia_east.shp"
+    )
+)
+BASELINE_WATER_MASK_PATH = PROCESSED_DIR / "baseline_water_mask.tif"
+# Terrain gate for the ML shadow mask (ADR-010 display hygiene — shapes
+# what the reviewer sees, never the load-bearing rule mask or the score).
+# Water surfaces are flat: >15° at ~90 m pitch cannot be lake. RGI glacier
+# outlines include terminus lakes (Imja sits on the glacier tongue), so
+# glacier gating is disabled in the vicinity of mapped baseline water.
+ML_SLOPE_GATE_DEG = 15.0
+ML_LAKE_VICINITY_DILATION_PX = 3  # ~270 m at ~90 m SAR pixel pitch
 
 # Demo scenario: observation IDs + scenario-only overrides.
 #
@@ -299,12 +317,11 @@ def _try_ml_evidence_layer(
         )
         if imja_pair is not None:
             t0_safe, t1_safe = imja_pair
+            t1_cache = PROCESSED_DIR / "imja_desc_20260714_sar_vv_vh_db.tif"
             t0_db = extract_and_cache_vv_vh_db(
                 t0_safe, PROCESSED_DIR / "imja_desc_20260702_sar_vv_vh_db.tif"
             )
-            t1_db = extract_and_cache_vv_vh_db(
-                t1_safe, PROCESSED_DIR / "imja_desc_20260714_sar_vv_vh_db.tif"
-            )
+            t1_db = extract_and_cache_vv_vh_db(t1_safe, t1_cache)
             sar_pair_provenance = {
                 "t0_scene": Path(t0_safe).name,
                 "t1_scene": Path(t1_safe).name,
@@ -375,6 +392,98 @@ def _try_ml_evidence_layer(
         # engine.predict_change_mask() calls normalize_sar() internally
         # to clamp [-30, 0] dB → [0, 1] per the frozen contract.
         ml_mask = engine.predict_change_mask(t0_db, t1_db)
+
+        # Terrain / evidence-quality gating of the shadow mask (ADR-010):
+        # the Kuro Siwo model is badly out-of-distribution on high-Himalaya
+        # terrain — it fires on glacier surfaces and across the full
+        # Sentinel-1 swath far outside the modelled basin. The displayed
+        # evidence is gated by (1) the AOI polygon — evidence outside the
+        # basin cannot be evaluated, (2) DEM slope > 15° within DEM
+        # coverage — water surfaces are flat, and (3) RGI glacier outlines
+        # EXCEPT in the vicinity of mapped baseline water — RGI outlines
+        # include terminus lakes like Imja, so a hard glacier gate would
+        # erase the very feature being monitored. The rule-based mask and
+        # the hazard score are never touched (Hard Rule 1).
+        gate_stats: dict[str, Any] = {}
+        try:
+            from siren.detect.sar import (
+                sar_grid_dem_slope,
+                sar_grid_lonlat,
+                sar_grid_polygon_mask,
+                sar_grid_sample,
+            )
+
+            ll = sar_grid_lonlat(str(t1_cache))
+            if ll is not None:
+                lon_g, lat_g = ll
+                exclusion = np.zeros(ml_mask.shape, dtype=bool)
+
+                if AOI_GEOJSON_PATH.exists():
+                    aoi_g = sar_grid_polygon_mask(
+                        str(AOI_GEOJSON_PATH), lon_g, lat_g
+                    )
+                    gate_stats["ml_shadow_px_outside_aoi"] = int(
+                        (ml_mask & ~aoi_g).sum()
+                    )
+                    exclusion |= ~aoi_g
+
+                if DEM_PATH.exists():
+                    slope_g = sar_grid_dem_slope(str(t1_cache), str(DEM_PATH))
+                    steep_g = (~np.isnan(slope_g)) & (
+                        slope_g > ML_SLOPE_GATE_DEG
+                    )
+                    gate_stats["ml_shadow_px_steep"] = int(
+                        (ml_mask & steep_g).sum()
+                    )
+                    exclusion |= steep_g
+
+                if Path(
+                    DATA_DIR / "datasets" / "RGI2000-v7.0-G-15_south_asia_east.zip"
+                ).exists():
+                    glac_g = sar_grid_polygon_mask(
+                        RGI_GLACIER_SHP_PATH, lon_g, lat_g
+                    )
+                    lake_vic = np.zeros(ml_mask.shape, dtype=bool)
+                    if BASELINE_WATER_MASK_PATH.exists():
+                        from scipy.ndimage import binary_dilation
+
+                        bw = sar_grid_sample(
+                            str(BASELINE_WATER_MASK_PATH), lon_g, lat_g
+                        ) > 0
+                        lake_vic = binary_dilation(
+                            bw, iterations=ML_LAKE_VICINITY_DILATION_PX
+                        )
+                    glac_gate = glac_g & ~lake_vic
+                    gate_stats["ml_shadow_px_glacier"] = int(
+                        (ml_mask & glac_gate).sum()
+                    )
+                    exclusion |= glac_gate
+
+                gate_stats["ml_shadow_px_raw"] = int(ml_mask.sum())
+                ml_mask = np.where(exclusion, 0, ml_mask).astype(np.uint8)
+                gate_stats["ml_shadow_px_gated"] = int(ml_mask.sum())
+                gate_stats["ml_terrain_gate"] = {
+                    "slope_deg": ML_SLOPE_GATE_DEG,
+                    "glacier_exempt_lake_vicinity": True,
+                    "aoi_restricted": AOI_GEOJSON_PATH.exists(),
+                }
+
+                # Geographic agreement (replaces the index-resize overlap,
+                # which assumes identical extents and is meaningless when
+                # the full-scene SAR mask meets the small AOI rule mask):
+                # the rule mask is sampled onto the SAR grid through GCP
+                # geolocation.
+                rule_on_sar = (
+                    sar_grid_sample(rule_mask_path, lon_g, lat_g) > 0
+                )
+                rule_px = int(rule_on_sar.sum())
+                overlap_px = int((ml_mask & rule_on_sar).sum())
+                gate_stats["ml_rule_overlap_px"] = overlap_px
+                gate_stats["ml_rule_overlap_pct"] = (
+                    round(overlap_px / rule_px * 100, 1) if rule_px else 0.0
+                )
+        except Exception as exc:
+            logger.warning(f"Shadow-mask terrain gating failed: {exc}")
 
         # E1: MC Dropout uncertainty (ADR-013 §9.7.4) — a per-pixel variance
         # map σ²(x, y) alongside the shadow mask. Informational only until
@@ -482,6 +591,7 @@ def _try_ml_evidence_layer(
             # the PNG layer and must NOT be stored in the JSON column.
             "uncertainty_map": uncertainty_map,
             **uncertainty_stats,
+            **gate_stats,
         }
     except ImportError:
         # torch not installed — silent fallback to deterministic
@@ -690,6 +800,10 @@ def run_pipeline(
             "uncertainty_max_std", "uncertainty_map_uri",
             "uncertainty_conformal_quantile",
             "uncertainty_conformal_gate_passed",
+            "ml_shadow_px_raw", "ml_shadow_px_gated",
+            "ml_shadow_px_outside_aoi", "ml_shadow_px_steep",
+            "ml_shadow_px_glacier", "ml_terrain_gate",
+            "ml_rule_overlap_px", "ml_rule_overlap_pct",
         ):
             if key in ml_evidence and ml_evidence[key] is not None:
                 change_stats[key] = ml_evidence[key]
