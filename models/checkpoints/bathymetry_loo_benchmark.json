@@ -1,0 +1,273 @@
+{
+  "n_lakes": 20,
+  "n_with_published": 10,
+  "huggel_mape": 0.7565,
+  "regression_mape": 0.821,
+  "huggel_median_ape": 0.5024,
+  "regression_median_ape": 0.534,
+  "gate_target_mape": 0.15,
+  "huggel_passes_gate": false,
+  "regression_passes_gate": false,
+  "folds": [
+    {
+      "test_lake_id": "das4:gepang_gath_lake",
+      "test_lake_name": "Gepang Gath Lake",
+      "ground_truth_volume_m3": 24120000.0,
+      "huggel_volume_m3": 38592869.3,
+      "huggel_ape": 0.6,
+      "regression_volume_m3": 36364892.4,
+      "regression_ape": 0.51,
+      "regression_params": [
+        0.14094942033120716,
+        1.3948243492491883
+      ]
+    },
+    {
+      "test_lake_id": "das4:kya_tso_lake",
+      "test_lake_name": "Kya Tso Lake",
+      "ground_truth_volume_m3": 890000.0,
+      "huggel_volume_m3": 1310023.5,
+      "huggel_ape": 0.47,
+      "regression_volume_m3": 1388738.7,
+      "regression_ape": 0.56,
+      "regression_params": [
+        0.23776027231761365,
+        1.3542024022775163
+      ]
+    },
+    {
+      "test_lake_id": "das4:panchi_nala_lake",
+      "test_lake_name": "Panchi Nala Lake",
+      "ground_truth_volume_m3": 440000.0,
+      "huggel_volume_m3": 1464230.6,
+      "huggel_ape": 2.33,
+      "regression_volume_m3": 1706311.4,
+      "regression_ape": 2.88,
+      "regression_params": [
+        0.4356026382860742,
+        1.3105557042090568
+      ]
+    },
+    {
+      "test_lake_id": "das4:samudra_tapu_lake",
+      "test_lake_name": "Samudra Tapu Lake",
+      "ground_truth_volume_m3": 24690000.0,
+      "huggel_volume_m3": 59334811.0,
+      "huggel_ape": 1.4,
+      "regression_volume_m3": 59122374.2,
+      "regression_ape": 1.39,
+      "regression_params": [
+        0.09827578294794018,
+        1.4247372499415547
+      ]
+    },
+    {
+      "test_lake_id": "zhang16:bechung_tsho",
+      "test_lake_name": "Bechung Tsho",
+      "ground_truth_volume_m3": 4250000.0,
+      "huggel_volume_m3": 10006442.1,
+      "huggel_ape": 1.35,
+      "regression_volume_m3": 9862429.9,
+      "regression_ape": 1.32,
+      "regression_params": [
+        0.1715992059592426,
+        1.3811680711549674
+      ]
+    },
+    {
+      "test_lake_id": "zhang16:bencoguoco",
+      "test_lake_name": "Bencoguoco",
+      "ground_truth_volume_m3": 1311865.0,
+      "huggel_volume_m3": 1074309.3,
+      "huggel_ape": 0.18,
+      "regression_volume_m3": 1054883.2,
+      "regression_ape": 0.2,
+      "regression_params": [
+        0.14481746800639644,
+        1.3902642426037866
+      ]
+    },
+    {
+      "test_lake_id": "zhang16:bielongco",
+      "test_lake_name": "Bielongco",
+      "ground_truth_volume_m3": 93410000.0,
+      "huggel_volume_m3": 43644090.6,
+      "huggel_ape": 0.53,
+      "regression_volume_m3": 35736958.5,
+      "regression_ape": 0.62,
+      "regression_params": [
+        0.2873137707719611,
+        1.3339672400809959
+      ]
+    },
+    {
+      "test_lake_id": "zhang16:cirenmaco",
+      "test_lake_name": "Cirenmaco",
+      "ground_truth_volume_m3": 7722909.0,
+      "huggel_volume_m3": 5624627.6,
+      "huggel_ape": 0.27,
+      "regression_volume_m3": 5299548.4,
+      "regression_ape": 0.31,
+      "regression_params": [
+        0.15962651869989408,
+        1.3820571099484145
+      ]
+    },
+    {
+      "test_lake_id": "zhang16:galongco",
+      "test_lake_name": "Galongco",
+      "ground_truth_volume_m3": 375420000.0,
+      "huggel_volume_m3": 389568725.5,
+      "huggel_ape": 0.04,
+      "regression_volume_m3": 307813839.0,
+      "regression_ape": 0.18,
+      "regression_params": [
+        0.2237386220921797,
+        1.3564325182542156
+      ]
+    },
+    {
+      "test_lake_id": "zhang16:guangxieco",
+      "test_lake_name": "Guangxieco",
+      "ground_truth_volume_m3": 2590000.0,
+      "huggel_volume_m3": 11226601.9,
+      "huggel_ape": 3.33,
+      "regression_volume_m3": 11404377.9,
+      "regression_ape": 3.4,
+      "regression_params": [
+        0.16095898392535452,
+        1.388654036708842
+      ]
+    },
+    {
+      "test_lake_id": "zhang16:jialongco",
+      "test_lake_name": "Jialongco",
+      "ground_truth_volume_m3": 29519001.5,
+      "huggel_volume_m3": 12082269.6,
+      "huggel_ape": 0.59,
+      "regression_volume_m3": 10764718.5,
+      "regression_ape": 0.64,
+      "regression_params": [
+        0.18523325165407561,
+        1.3679962317498313
+      ]
+    },
+    {
+      "test_lake_id": "zhang16:jinwongco",
+      "test_lake_name": "Jinwongco",
+      "ground_truth_volume_m3": 2214730.3,
+      "huggel_volume_m3": 5000784.9,
+      "huggel_ape": 1.26,
+      "regression_volume_m3": 5052111.5,
+      "regression_ape": 1.28,
+      "regression_params": [
+        0.21067573868497558,
+        1.3651096305531945
+      ]
+    },
+    {
+      "test_lake_id": "zhang16:luggye_tsho",
+      "test_lake_name": "Luggye Tsho",
+      "ground_truth_volume_m3": 58300000.0,
+      "huggel_volume_m3": 43644090.6,
+      "huggel_ape": 0.25,
+      "regression_volume_m3": 37700783.4,
+      "regression_ape": 0.35,
+      "regression_params": [
+        0.21725283870890824,
+        1.3578003546728759
+      ]
+    },
+    {
+      "test_lake_id": "zhang16:maqiongco",
+      "test_lake_name": "Maqiongco",
+      "ground_truth_volume_m3": 2798114.3,
+      "huggel_volume_m3": 3010199.8,
+      "huggel_ape": 0.08,
+      "regression_volume_m3": 2961820.3,
+      "regression_ape": 0.06,
+      "regression_params": [
+        0.1764715032413871,
+        1.3759264284256636
+      ]
+    },
+    {
+      "test_lake_id": "zhang16:poiqu_no.1",
+      "test_lake_name": "Poiqu No.1",
+      "ground_truth_volume_m3": 2375370.0,
+      "huggel_volume_m3": 989650.0,
+      "huggel_ape": 0.58,
+      "regression_volume_m3": 870036.4,
+      "regression_ape": 0.63,
+      "regression_params": [
+        0.07521174623864567,
+        1.4382682734729269
+      ]
+    },
+    {
+      "test_lake_id": "zhang16:ranzeriaco",
+      "test_lake_name": "Ranzeriaco",
+      "ground_truth_volume_m3": 2849154.5,
+      "huggel_volume_m3": 3764882.7,
+      "huggel_ape": 0.32,
+      "regression_volume_m3": 3727128.3,
+      "regression_ape": 0.31,
+      "regression_params": [
+        0.18902211550699802,
+        1.3713963605659967
+      ]
+    },
+    {
+      "test_lake_id": "zhang16:raphstreng_tsho",
+      "test_lake_name": "Raphstreng Tsho",
+      "ground_truth_volume_m3": 57940000.0,
+      "huggel_volume_m3": 51247873.6,
+      "huggel_ape": 0.12,
+      "regression_volume_m3": 44730251.8,
+      "regression_ape": 0.23,
+      "regression_params": [
+        0.20066143004208692,
+        1.3646832118826078
+      ]
+    },
+    {
+      "test_lake_id": "zhang16:rewuco",
+      "test_lake_name": "Rewuco",
+      "ground_truth_volume_m3": 10736623.5,
+      "huggel_volume_m3": 6422074.2,
+      "huggel_ape": 0.4,
+      "regression_volume_m3": 5965248.6,
+      "regression_ape": 0.44,
+      "regression_params": [
+        0.1572929907276073,
+        1.3823821175454176
+      ]
+    },
+    {
+      "test_lake_id": "zhang16:shishapangma_no.1",
+      "test_lake_name": "Shishapangma No.1",
+      "ground_truth_volume_m3": 13487416.5,
+      "huggel_volume_m3": 7655963.8,
+      "huggel_ape": 0.43,
+      "regression_volume_m3": 7057865.1,
+      "regression_ape": 0.48,
+      "regression_params": [
+        0.16233435290427115,
+        1.379689561675965
+      ]
+    },
+    {
+      "test_lake_id": "zhang16:talongco",
+      "test_lake_name": "Talongco",
+      "ground_truth_volume_m3": 3084376.7,
+      "huggel_volume_m3": 1284152.3,
+      "huggel_ape": 0.58,
+      "regression_volume_m3": 1145589.3,
+      "regression_ape": 0.63,
+      "regression_params": [
+        0.08345539656631144,
+        1.4302156692027996
+      ]
+    }
+  ]
+}

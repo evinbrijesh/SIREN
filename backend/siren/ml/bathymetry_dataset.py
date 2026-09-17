@@ -220,6 +220,8 @@ class GlobalCompilationEntry:
         volume_mcm: lake volume in millions of m³.
         max_depth_m: maximum depth in metres (or None).
         source: source publication string.
+        lake_type: worksheet the entry came from — one of "proglacial",
+            "periglacial", "extraglacial", "supraglacial", "ice-dammed".
     """
 
     name: str
@@ -232,6 +234,7 @@ class GlobalCompilationEntry:
     volume_mcm: float | None
     max_depth_m: float | None
     source: str
+    lake_type: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -561,14 +564,28 @@ def load_das_4lakes(
 # ---------------------------------------------------------------------------
 
 
+def _parse_survey_year(value: Any) -> int | None:
+    """Parse a survey year that may be an int, float, or annotated string
+    like '<2014' or 'c.2009'. Returns the first 4-digit year found."""
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return None
+    if isinstance(value, (int, np.integer)):
+        return int(value)
+    if isinstance(value, float):
+        return int(value)
+    m = re.search(r"(\d{4})", str(value))
+    return int(m.group(1)) if m else None
+
+
 def load_global_compilation(
     path: Path | None = None,
 ) -> list[GlobalCompilationEntry]:
     """Load the global glacial-lake bathymetry compilation (metadata only).
 
-    This is a spreadsheet with 101 entries covering 64 unique lakes across
-    13 mountain ranges. It provides published area, volume, and max depth
-    for benchmarking — not dense bed-elevation ground truth.
+    This is a spreadsheet with 323 entries across five worksheets
+    (proglacial, periglacial, extraglacial, supraglacial, ice-dammed)
+    covering ~250 unique lakes. It provides published area, volume, and
+    max depth for benchmarking — not dense bed-elevation ground truth.
 
     Args:
         path: path to the XLSX file. Defaults to the standard location.
@@ -582,23 +599,25 @@ def load_global_compilation(
         logger.warning("Global compilation not found: %s", path)
         return []
 
-    df = pd.read_excel(path)
+    sheets = pd.read_excel(path, sheet_name=None)
     entries: list[GlobalCompilationEntry] = []
-    for _, row in df.iterrows():
-        entries.append(
-            GlobalCompilationEntry(
-                name=str(row.get("Name", "")),
-                mountain=str(row.get("Mountain", "")),
-                country=str(row.get("Country", "")),
-                lon=str(row.get("Lon", "")),
-                lat=str(row.get("Lat", "")),
-                survey_year=int(row["Survey time"]) if pd.notna(row.get("Survey time")) else None,
-                area_km2=float(row["Area/km2"]) if pd.notna(row.get("Area/km2")) else None,
-                volume_mcm=float(row["Volume/m6"]) if pd.notna(row.get("Volume/m6")) else None,
-                max_depth_m=float(row["Max Depth"]) if pd.notna(row.get("Max Depth")) else None,
-                source=str(row.get("Source", "")),
+    for lake_type, df in sheets.items():
+        for _, row in df.iterrows():
+            entries.append(
+                GlobalCompilationEntry(
+                    name=str(row.get("Name", "")),
+                    mountain=str(row.get("Mountain", "")),
+                    country=str(row.get("Country", "")),
+                    lon=str(row.get("Lon", "")),
+                    lat=str(row.get("Lat", "")),
+                    survey_year=_parse_survey_year(row.get("Survey time")),
+                    area_km2=float(row["Area/km2"]) if pd.notna(row.get("Area/km2")) else None,
+                    volume_mcm=float(row["Volume/m6"]) if pd.notna(row.get("Volume/m6")) else None,
+                    max_depth_m=float(row["Max Depth"]) if pd.notna(row.get("Max Depth")) else None,
+                    source=str(row.get("Source", "")),
+                    lake_type=str(lake_type),
+                )
             )
-        )
     logger.info("Loaded %d entries from global compilation", len(entries))
     return entries
 
@@ -793,6 +812,7 @@ def get_split_data(
 def validate_volumes(
     records: list[LakeRecord],
     global_entries: list[GlobalCompilationEntry] | None = None,
+    lake_types: set[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Cross-check surveyed lake volumes against the global compilation.
 
@@ -803,6 +823,11 @@ def validate_volumes(
     Args:
         records: surveyed LakeRecord objects.
         global_entries: global compilation entries (loaded if None).
+        lake_types: if given, only compare against entries from these
+            worksheets. The dense surveys are proglacial moraine-dammed
+            lakes; names also appear in other sheets with incomparable
+            published values (e.g. Bencoguoco's periglacial entry), so
+            pass {"proglacial"} to restrict the comparison.
 
     Returns:
         List of comparison dicts with lake name, surveyed max depth,
@@ -810,6 +835,8 @@ def validate_volumes(
     """
     if global_entries is None:
         global_entries = load_global_compilation()
+    if lake_types is not None:
+        global_entries = [e for e in global_entries if e.lake_type in lake_types]
 
     # Build a lookup by normalised name
     global_by_name: dict[str, GlobalCompilationEntry] = {}

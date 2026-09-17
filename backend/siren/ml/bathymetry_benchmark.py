@@ -83,6 +83,19 @@ DAS_PUBLISHED_VOLUMES_MCM: dict[str, float] = {
 # ---------------------------------------------------------------------------
 
 
+def _published_entries_for_dense_lakes() -> list:
+    """Compilation entries eligible as published values for the dense
+    surveyed lakes.
+
+    The 20 dense-sounding lakes are all proglacial moraine-dammed lakes
+    whose published metadata lives in the "proglacial" worksheet. Other
+    sheets contain same-named lakes measured by different programmes
+    (e.g. Bencoguoco's periglacial entry), so lookups are restricted to
+    proglacial rows.
+    """
+    return [e for e in load_global_compilation() if e.lake_type == "proglacial"]
+
+
 def _get_published_area_km2(record: LakeRecord) -> float | None:
     """Get the published area for a lake from the global compilation.
 
@@ -92,7 +105,7 @@ def _get_published_area_km2(record: LakeRecord) -> float | None:
     Returns:
         Published area in km², or None if not available.
     """
-    entries = load_global_compilation()
+    entries = _published_entries_for_dense_lakes()
     for entry in entries:
         name_key = entry.name.lower().strip()
         rec_key = record.lake_name.lower().strip()
@@ -198,7 +211,7 @@ def get_published_volume_m3(record: LakeRecord) -> float | None:
         return DAS_PUBLISHED_VOLUMES_MCM[record.lake_name] * 1e6
 
     # Check global compilation
-    entries = load_global_compilation()
+    entries = _published_entries_for_dense_lakes()
     for entry in entries:
         name_key = entry.name.lower().strip()
         rec_key = record.lake_name.lower().strip()
@@ -573,3 +586,135 @@ def run_loo_benchmark(
     )
 
     return summary
+
+
+# ---------------------------------------------------------------------------
+# Metadata-level benchmark over the global compilation
+# ---------------------------------------------------------------------------
+
+
+def _normalise_lake_name(name: str) -> str:
+    """Normalise a compilation lake name for cross-year grouping."""
+    return name.lower().strip()
+
+
+def run_metadata_loo_benchmark(
+    entries: list | None = None,
+    gate_target_mape: float = 0.15,
+) -> dict[str, Any]:
+    """Grouped leave-one-lake-out benchmark over the global compilation.
+
+    Evaluates the Huggel formula and a fitted power-law regression on the
+    published (area, volume) pairs from the global bathymetry
+    compilation — ~300 metadata entries across five lake-type sheets, a
+    much larger sample than the 20 dense-sounding lakes (metadata-level
+    only; no bed-elevation ground truth).
+
+    Entries are grouped by normalised lake name: all survey-year rows of
+    the same lake are held out together so a lake's other-year
+    measurements can't leak into its own training fold.
+
+    Args:
+        entries: GlobalCompilationEntry list. Loaded if None.
+        gate_target_mape: target MAPE for the E2 gate (default 15%).
+
+    Returns:
+        Dict with entry/lake counts, overall + per-type + Himalaya-subset
+        MAPE for both methods, and per-fold results.
+    """
+    if entries is None:
+        entries = load_global_compilation()
+
+    # Only entries with both published area and volume are evaluable
+    evaluable = [
+        e for e in entries
+        if e.area_km2 is not None and e.area_km2 > 0
+        and e.volume_mcm is not None and e.volume_mcm > 0
+    ]
+
+    # Group by normalised name (same lake, different survey years)
+    groups: dict[str, list] = {}
+    for e in evaluable:
+        groups.setdefault(_normalise_lake_name(e.name), []).append(e)
+    group_names = sorted(groups)
+
+    folds: list[dict[str, Any]] = []
+    for hold_name in group_names:
+        held = groups[hold_name]
+        train = [e for n, g in groups.items() if n != hold_name for e in g]
+        train_areas = np.array([e.area_km2 for e in train])
+        train_volumes = np.array([e.volume_mcm * 1e6 for e in train])
+        try:
+            params = fit_power_law(train_areas, train_volumes)
+        except Exception as exc:
+            logger.warning("Power-law fit failed holding out %s: %s", hold_name, exc)
+            params = (HUGGEL_ALPHA, HUGGEL_GAMMA)
+
+        for e in held:
+            gt = e.volume_mcm * 1e6
+            huggel_v = huggel_volume_m3(e.area_km2)
+            reg_v = predict_power_law_volume_m3(e.area_km2, params)
+            folds.append({
+                "lake_name": e.name,
+                "lake_type": e.lake_type,
+                "mountain": e.mountain,
+                "survey_year": e.survey_year,
+                "area_km2": e.area_km2,
+                "ground_truth_volume_m3": round(gt, 1),
+                "huggel_ape": abs(huggel_v - gt) / gt,
+                "regression_ape": abs(reg_v - gt) / gt,
+            })
+
+    def _mape(subset: list[dict[str, Any]], key: str) -> float | None:
+        return float(np.mean([f[key] for f in subset])) if subset else None
+
+    def _summarise(subset: list[dict[str, Any]]) -> dict[str, Any]:
+        return {
+            "n_entries": len(subset),
+            "huggel_mape": _mape(subset, "huggel_ape"),
+            "huggel_median_ape": (
+                float(np.median([f["huggel_ape"] for f in subset])) if subset else None
+            ),
+            "regression_mape": _mape(subset, "regression_ape"),
+            "regression_median_ape": (
+                float(np.median([f["regression_ape"] for f in subset])) if subset else None
+            ),
+        }
+
+    by_type: dict[str, dict[str, Any]] = {}
+    for lake_type in sorted({f["lake_type"] for f in folds}):
+        by_type[lake_type] = _summarise(
+            [f for f in folds if f["lake_type"] == lake_type]
+        )
+    himalaya = [f for f in folds if "himalaya" in f["mountain"].lower()]
+
+    overall = _summarise(folds)
+    result = {
+        "n_entries_total": len(entries),
+        "n_entries_evaluable": len(evaluable),
+        "n_unique_lakes": len(group_names),
+        "gate_target_mape": gate_target_mape,
+        "overall": overall,
+        "himalaya_subset": _summarise(himalaya),
+        "by_lake_type": by_type,
+        "huggel_passes_gate": (
+            overall["huggel_mape"] is not None
+            and overall["huggel_mape"] < gate_target_mape
+        ),
+        "regression_passes_gate": (
+            overall["regression_mape"] is not None
+            and overall["regression_mape"] < gate_target_mape
+        ),
+        "folds": folds,
+    }
+
+    logger.info(
+        "Metadata LOO benchmark: %d entries / %d lakes — "
+        "Huggel MAPE=%.1f%%, Regression MAPE=%.1f%% (Himalaya: %d entries)",
+        result["n_entries_evaluable"],
+        result["n_unique_lakes"],
+        (overall["huggel_mape"] or 0) * 100,
+        (overall["regression_mape"] or 0) * 100,
+        len(himalaya),
+    )
+    return result

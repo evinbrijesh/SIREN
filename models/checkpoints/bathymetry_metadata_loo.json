@@ -1,0 +1,3291 @@
+{
+  "n_entries_total": 323,
+  "n_entries_evaluable": 323,
+  "n_unique_lakes": 267,
+  "gate_target_mape": 0.15,
+  "overall": {
+    "n_entries": 323,
+    "huggel_mape": 0.7664888501795352,
+    "huggel_median_ape": 0.3329370386218915,
+    "regression_mape": 0.6747616169149123,
+    "regression_median_ape": 0.37293034861916297
+  },
+  "himalaya_subset": {
+    "n_entries": 69,
+    "huggel_mape": 0.3351206987608062,
+    "huggel_median_ape": 0.25138781098888613,
+    "regression_mape": 0.37514282633409834,
+    "regression_median_ape": 0.34229984064155294
+  },
+  "by_lake_type": {
+    "extraglacial": {
+      "n_entries": 73,
+      "huggel_mape": 1.349219766088681,
+      "huggel_median_ape": 0.35079132464061813,
+      "regression_mape": 1.1354222978247843,
+      "regression_median_ape": 0.38337672655301275
+    },
+    "ice-dammed": {
+      "n_entries": 13,
+      "huggel_mape": 0.47701184291374726,
+      "huggel_median_ape": 0.2718461187693602,
+      "regression_mape": 0.3626113260604592,
+      "regression_median_ape": 0.24869647394341635
+    },
+    "periglacial": {
+      "n_entries": 109,
+      "huggel_mape": 0.5661396058372284,
+      "huggel_median_ape": 0.3681543443727984,
+      "regression_mape": 0.5269859134357043,
+      "regression_median_ape": 0.38991361009152076
+    },
+    "proglacial": {
+      "n_entries": 101,
+      "huggel_mape": 0.699813919459955,
+      "huggel_median_ape": 0.28245247333279666,
+      "regression_mape": 0.6322544442817122,
+      "regression_median_ape": 0.39651676537634273
+    },
+    "supraglacial": {
+      "n_entries": 27,
+      "huggel_mape": 0.3885658823675564,
+      "huggel_median_ape": 0.24577556162135888,
+      "regression_mape": 0.3351505128361759,
+      "regression_median_ape": 0.24785172297591188
+    }
+  },
+  "huggel_passes_gate": false,
+  "regression_passes_gate": false,
+  "folds": [
+    {
+      "lake_name": "513",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2011,
+      "area_km2": 0.21,
+      "ground_truth_volume_m3": 9250000.0,
+      "huggel_ape": 0.589072482606847,
+      "regression_ape": 0.6583469190264254
+    },
+    {
+      "lake_name": "Abmachimaico",
+      "lake_type": "proglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 1987,
+      "area_km2": 0.56,
+      "ground_truth_volume_m3": 19000000.0,
+      "huggel_ape": 0.19377748055204277,
+      "regression_ape": 0.35969069955705174
+    },
+    {
+      "lake_name": "Adygine Lake1",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2008,
+      "area_km2": 0.0034,
+      "ground_truth_volume_m3": 6000.0,
+      "huggel_ape": 0.8076470220044881,
+      "regression_ape": 0.8516928062961685
+    },
+    {
+      "lake_name": "Adygine Lake2",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2008,
+      "area_km2": 0.032,
+      "ground_truth_volume_m3": 205000.0,
+      "huggel_ape": 0.2796688472207394,
+      "regression_ape": 0.16994680273318677
+    },
+    {
+      "lake_name": "Adygine Lake3",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2017,
+      "area_km2": 0.016,
+      "ground_truth_volume_m3": 106000.0,
+      "huggel_ape": 0.07576593950876259,
+      "regression_ape": 0.12745189611480023
+    },
+    {
+      "lake_name": "Akillpo",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2012,
+      "area_km2": 0.41,
+      "ground_truth_volume_m3": 4610000.0,
+      "huggel_ape": 1.1335276437368964,
+      "regression_ape": 0.7278565079969624
+    },
+    {
+      "lake_name": "Akkol",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2013,
+      "area_km2": 0.1595,
+      "ground_truth_volume_m3": 2506000.0,
+      "huggel_ape": 0.026065793218222503,
+      "regression_ape": 0.13275066987833128
+    },
+    {
+      "lake_name": "Allicocha",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2006,
+      "area_km2": 0.36,
+      "ground_truth_volume_m3": 5720000.0,
+      "huggel_ape": 0.4293650674972198,
+      "regression_ape": 0.1628683504922628
+    },
+    {
+      "lake_name": "Amphulachare",
+      "lake_type": "periglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2014,
+      "area_km2": 0.12,
+      "ground_truth_volume_m3": 3200000.0,
+      "huggel_ape": 0.46370973734474663,
+      "regression_ape": 0.5413593453980334
+    },
+    {
+      "lake_name": "Ape Lake",
+      "lake_type": "ice-dammed",
+      "mountain": "British Columbia",
+      "survey_year": 1985,
+      "area_km2": 2.77,
+      "ground_truth_volume_m3": 92700000.0,
+      "huggel_ape": 0.602202322702431,
+      "regression_ape": 0.1825458315183838
+    },
+    {
+      "lake_name": "Arhuaycocha",
+      "lake_type": "proglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2011,
+      "area_km2": 0.41,
+      "ground_truth_volume_m3": 19550000.0,
+      "huggel_ape": 0.49690217710347356,
+      "regression_ape": 0.5950685925310631
+    },
+    {
+      "lake_name": "Artesa",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2005,
+      "area_km2": 0.02,
+      "ground_truth_volume_m3": 120000.0,
+      "huggel_ape": 0.12102608200380782,
+      "regression_ape": 0.04798295042678886
+    },
+    {
+      "lake_name": "Artesoncocha",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2010,
+      "area_km2": 0.07,
+      "ground_truth_volume_m3": 640000.0,
+      "huggel_ape": 0.24663030498563165,
+      "regression_ape": 0.09717875395888986
+    },
+    {
+      "lake_name": "Artizon Alto",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2011,
+      "area_km2": 0.14,
+      "ground_truth_volume_m3": 1420000.0,
+      "huggel_ape": 0.5045025688686438,
+      "regression_ape": 0.2812393207340559
+    },
+    {
+      "lake_name": "Artizon Bajo",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2011,
+      "area_km2": 0.03,
+      "ground_truth_volume_m3": 360000.0,
+      "huggel_ape": 0.3351554064172784,
+      "regression_ape": 0.3918570755386207
+    },
+    {
+      "lake_name": "Auquiscocha",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2008,
+      "area_km2": 0.77,
+      "ground_truth_volume_m3": 49630000.0,
+      "huggel_ape": 0.5147200093805986,
+      "regression_ape": 0.6216857151682171
+    },
+    {
+      "lake_name": "Azulcocha",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2013,
+      "area_km2": 0.15,
+      "ground_truth_volume_m3": 1180000.0,
+      "huggel_ape": 0.9969951545412072,
+      "regression_ape": 0.6965271805793749
+    },
+    {
+      "lake_name": "Bashkara Lake",
+      "lake_type": "ice-dammed",
+      "mountain": "Caucasus",
+      "survey_year": 2005,
+      "area_km2": 0.065,
+      "ground_truth_volume_m3": 740000.0,
+      "huggel_ape": 0.029598410205480902,
+      "regression_ape": 0.1437967777461797
+    },
+    {
+      "lake_name": "Bashkara Lake",
+      "lake_type": "ice-dammed",
+      "mountain": "Caucasus",
+      "survey_year": 2008,
+      "area_km2": 0.085,
+      "ground_truth_volume_m3": 1000000.0,
+      "huggel_ape": 0.05132655144418962,
+      "regression_ape": 0.08430227936794446
+    },
+    {
+      "lake_name": "Bechung Tsho",
+      "lake_type": "proglacial",
+      "mountain": "Eastern Himalaya",
+      "survey_year": 2020,
+      "area_km2": 0.415,
+      "ground_truth_volume_m3": 4250000.0,
+      "huggel_ape": 1.3544569536317959,
+      "regression_ape": 0.9064868137838477
+    },
+    {
+      "lake_name": "Beihu",
+      "lake_type": "periglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2020,
+      "area_km2": 0.58,
+      "ground_truth_volume_m3": 8750000.0,
+      "huggel_ape": 0.8401637245389907,
+      "regression_ape": 0.4648941593998949
+    },
+    {
+      "lake_name": "Beihuco",
+      "lake_type": "periglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 1987,
+      "area_km2": 0.31,
+      "ground_truth_volume_m3": 6000000.0,
+      "huggel_ape": 0.10181087819338605,
+      "regression_ape": 0.0980374409917388
+    },
+    {
+      "lake_name": "Bencoguoco",
+      "lake_type": "periglacial",
+      "mountain": "SE Tibet",
+      "survey_year": 2020,
+      "area_km2": 0.12,
+      "ground_truth_volume_m3": 1670000.0,
+      "huggel_ape": 0.02762206017773105,
+      "regression_ape": 0.11938256430082611
+    },
+    {
+      "lake_name": "Bielongco",
+      "lake_type": "proglacial",
+      "mountain": "SE Tibet",
+      "survey_year": 2020,
+      "area_km2": 1.17,
+      "ground_truth_volume_m3": 93410000.0,
+      "huggel_ape": 0.5327685406343224,
+      "regression_ape": 0.6435614943516313
+    },
+    {
+      "lake_name": "Blanca 1",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2009,
+      "area_km2": 0.084,
+      "ground_truth_volume_m3": 1460000.0,
+      "huggel_ape": 0.291921595737063,
+      "regression_ape": 0.38337672655301275
+    },
+    {
+      "lake_name": "Boiqu NO.1",
+      "lake_type": "periglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2020,
+      "area_km2": 0.11,
+      "ground_truth_volume_m3": 2710000.0,
+      "huggel_ape": 0.4403931086409251,
+      "regression_ape": 0.5193326022393164
+    },
+    {
+      "lake_name": "Boskol",
+      "lake_type": "extraglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2011,
+      "area_km2": 0.19753,
+      "ground_truth_volume_m3": 534200.0,
+      "huggel_ape": 5.522649458044608,
+      "regression_ape": 4.490278942628094
+    },
+    {
+      "lake_name": "Briksdalsbreen",
+      "lake_type": "proglacial",
+      "mountain": "Scandi Lovia",
+      "survey_year": 1979,
+      "area_km2": 0.047,
+      "ground_truth_volume_m3": 314000.0,
+      "huggel_ape": 0.4426292961061727,
+      "regression_ape": 0.2964733605336913
+    },
+    {
+      "lake_name": "Briksdalsbreen",
+      "lake_type": "proglacial",
+      "mountain": "Scandi Lovia",
+      "survey_year": 1982,
+      "area_km2": 0.045,
+      "ground_truth_volume_m3": 282000.0,
+      "huggel_ape": 0.5100774178867287,
+      "regression_ape": 0.3599527085653179
+    },
+    {
+      "lake_name": "Cachet II",
+      "lake_type": "ice-dammed",
+      "mountain": "North Patagonia",
+      "survey_year": 2008,
+      "area_km2": 4.045,
+      "ground_truth_volume_m3": 200000000.0,
+      "huggel_ape": 0.2718461187693602,
+      "regression_ape": 0.08062502860712097
+    },
+    {
+      "lake_name": "Cancahua",
+      "lake_type": "proglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2015,
+      "area_km2": 0.1,
+      "ground_truth_volume_m3": 1770000.0,
+      "huggel_ape": 0.251727003244447,
+      "regression_ape": 0.3537267460603004
+    },
+    {
+      "lake_name": "Cancaraca Chico",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2011,
+      "area_km2": 0.05,
+      "ground_truth_volume_m3": 280000.0,
+      "huggel_ape": 0.7664920372326683,
+      "regression_ape": 0.5821508745395523
+    },
+    {
+      "lake_name": "Cancaraca Grande",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2011,
+      "area_km2": 0.1,
+      "ground_truth_volume_m3": 2030000.0,
+      "huggel_ape": 0.347564924011168,
+      "regression_ape": 0.4367404940654118
+    },
+    {
+      "lake_name": "Carhuanca",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2009,
+      "area_km2": 0.08,
+      "ground_truth_volume_m3": 1490000.0,
+      "huggel_ape": 0.35265180350146114,
+      "regression_ape": 0.435094169630244
+    },
+    {
+      "lake_name": "Carver Lake",
+      "lake_type": "proglacial",
+      "mountain": "Three Sisters",
+      "survey_year": 1986,
+      "area_km2": 0.07,
+      "ground_truth_volume_m3": 900000.0,
+      "huggel_ape": 0.11350733867688415,
+      "regression_ape": 0.22063356961015224
+    },
+    {
+      "lake_name": "Chalhuacocha",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2012,
+      "area_km2": 0.15,
+      "ground_truth_volume_m3": 3600000.0,
+      "huggel_ape": 0.3454293660114932,
+      "regression_ape": 0.44589271598672964
+    },
+    {
+      "lake_name": "Challhuacocha",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2013,
+      "area_km2": 0.46,
+      "ground_truth_volume_m3": 9140000.0,
+      "huggel_ape": 0.2672608620869764,
+      "regression_ape": 0.018335526960581557
+    },
+    {
+      "lake_name": "Chambers Lake 1",
+      "lake_type": "proglacial",
+      "mountain": "Three Sisters",
+      "survey_year": 1991,
+      "area_km2": 0.026,
+      "ground_truth_volume_m3": 260000.0,
+      "huggel_ape": 0.2488319304206629,
+      "regression_ape": 0.3078368002459171
+    },
+    {
+      "lake_name": "Chambers Lake 2",
+      "lake_type": "proglacial",
+      "mountain": "Three Sisters",
+      "survey_year": 1991,
+      "area_km2": 0.009,
+      "ground_truth_volume_m3": 70000.0,
+      "huggel_ape": 0.38210610366556025,
+      "regression_ape": 0.40188687461370926
+    },
+    {
+      "lake_name": "Chamlang South Tsho",
+      "lake_type": "proglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2009,
+      "area_km2": 0.87,
+      "ground_truth_volume_m3": 35600000.0,
+      "huggel_ape": 0.19528851576001466,
+      "regression_ape": 0.37469422631953353
+    },
+    {
+      "lake_name": "Changri Shar",
+      "lake_type": "supraglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2017,
+      "area_km2": 0.18,
+      "ground_truth_volume_m3": 1360000.0,
+      "huggel_ape": 1.24510501862037,
+      "regression_ape": 0.891393188263819
+    },
+    {
+      "lake_name": "Chawuqudenco",
+      "lake_type": "periglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2020,
+      "area_km2": 0.55,
+      "ground_truth_volume_m3": 20050000.0,
+      "huggel_ape": 0.2553120197322916,
+      "regression_ape": 0.40826227620579136
+    },
+    {
+      "lake_name": "Checquiacocha",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2008,
+      "area_km2": 0.35,
+      "ground_truth_volume_m3": 12850000.0,
+      "huggel_ape": 0.388704916815404,
+      "regression_ape": 0.5036994391948838
+    },
+    {
+      "lake_name": "Chukhung",
+      "lake_type": "periglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2014,
+      "area_km2": 0.0652,
+      "ground_truth_volume_m3": 550000.0,
+      "huggel_ape": 0.3113435466123567,
+      "regression_ape": 0.15829953488467474
+    },
+    {
+      "lake_name": "Chungurchat-Chiran glacier lake",
+      "lake_type": "ice-dammed",
+      "mountain": "Caucasus",
+      "survey_year": 2006,
+      "area_km2": 0.089,
+      "ground_truth_volume_m3": 550000.0,
+      "huggel_ape": 1.0405810500856822,
+      "regression_ape": 0.7779270126640009
+    },
+    {
+      "lake_name": "Cirenmaco",
+      "lake_type": "periglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2012,
+      "area_km2": 0.39,
+      "ground_truth_volume_m3": 18000000.0,
+      "huggel_ape": 0.4910634508053267,
+      "regression_ape": 0.5907087013606196
+    },
+    {
+      "lake_name": "Cirenmaco",
+      "lake_type": "periglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2021,
+      "area_km2": 0.31,
+      "ground_truth_volume_m3": 12490000.0,
+      "huggel_ape": 0.4707073443426488,
+      "regression_ape": 0.5694737138488759
+    },
+    {
+      "lake_name": "Cochca",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2007,
+      "area_km2": 0.07,
+      "ground_truth_volume_m3": 1000000.0,
+      "huggel_ape": 0.20215660480919573,
+      "regression_ape": 0.29880634213572416
+    },
+    {
+      "lake_name": "Collier Lake",
+      "lake_type": "proglacial",
+      "mountain": "Three Sisters",
+      "survey_year": 1991,
+      "area_km2": 0.1,
+      "ground_truth_volume_m3": 700000.0,
+      "huggel_ape": 0.8920617203676126,
+      "regression_ape": 0.6388634346160812
+    },
+    {
+      "lake_name": "Contotora",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2013,
+      "area_km2": 0.06,
+      "ground_truth_volume_m3": 40000.0,
+      "huggel_ape": 15.022352225454602,
+      "regression_ape": 13.326755690402637
+    },
+    {
+      "lake_name": "Coyllorcocha alta",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2015,
+      "area_km2": 0.26,
+      "ground_truth_volume_m3": 3570000.0,
+      "huggel_ape": 0.44225565558567526,
+      "regression_ape": 0.19193934080490518
+    },
+    {
+      "lake_name": "Coyllorcocha baja",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2015,
+      "area_km2": 0.51,
+      "ground_truth_volume_m3": 17210000.0,
+      "huggel_ape": 0.22069100465685743,
+      "regression_ape": 0.3783020189145703
+    },
+    {
+      "lake_name": "Cuchillacocha",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2005,
+      "area_km2": 0.14,
+      "ground_truth_volume_m3": 2140000.0,
+      "huggel_ape": 0.0016852113114606815,
+      "regression_ape": 0.15093426310691774
+    },
+    {
+      "lake_name": "Dasuopuco",
+      "lake_type": "proglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2020,
+      "area_km2": 0.56,
+      "ground_truth_volume_m3": 18500000.0,
+      "huggel_ape": 0.171987682729125,
+      "regression_ape": 0.34229984064155294
+    },
+    {
+      "lake_name": "Dig Tsho ",
+      "lake_type": "periglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": null,
+      "area_km2": 0.5,
+      "ground_truth_volume_m3": 10000000.0,
+      "huggel_ape": 0.3039763521587878,
+      "regression_ape": 0.043756726358130014
+    },
+    {
+      "lake_name": "East Bend Lake",
+      "lake_type": "proglacial",
+      "mountain": "Three Sisters",
+      "survey_year": 1988,
+      "area_km2": 0.03,
+      "ground_truth_volume_m3": 200000.0,
+      "huggel_ape": 0.19672026844889887,
+      "regression_ape": 0.0972537114489598
+    },
+    {
+      "lake_name": "Esparta",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2010,
+      "area_km2": 0.1,
+      "ground_truth_volume_m3": 1190000.0,
+      "huggel_ape": 0.11297748256918383,
+      "regression_ape": 0.037550269765669025
+    },
+    {
+      "lake_name": "Galina",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2018,
+      "area_km2": 0.0454,
+      "ground_truth_volume_m3": 391000.0,
+      "huggel_ape": 0.10289190426682178,
+      "regression_ape": 0.009176305481376212
+    },
+    {
+      "lake_name": "Galongco",
+      "lake_type": "proglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2020,
+      "area_km2": 5.46,
+      "ground_truth_volume_m3": 375420000.0,
+      "huggel_ape": 0.037687724537369884,
+      "regression_ape": 0.2628083063253993
+    },
+    {
+      "lake_name": "Gelhaipuco",
+      "lake_type": "proglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": null,
+      "area_km2": 0.58,
+      "ground_truth_volume_m3": 25500000.0,
+      "huggel_ape": 0.3685712709915228,
+      "regression_ape": 0.4999846812309417
+    },
+    {
+      "lake_name": "Goddard Lake",
+      "lake_type": "ice-dammed",
+      "mountain": "British Columbia",
+      "survey_year": 1994,
+      "area_km2": 0.21,
+      "ground_truth_volume_m3": 4000000.0,
+      "huggel_ape": 0.04973011602833367,
+      "regression_ape": 0.20766133462457986
+    },
+    {
+      "lake_name": "Godley",
+      "lake_type": "proglacial",
+      "mountain": "Southern Alps",
+      "survey_year": 1994,
+      "area_km2": 1.65,
+      "ground_truth_volume_m3": 102000000.0,
+      "huggel_ape": 0.30260656902922106,
+      "regression_ape": 0.47573979060975485
+    },
+    {
+      "lake_name": "Guangxieco",
+      "lake_type": "proglacial",
+      "mountain": "SE Tibet",
+      "survey_year": 2020,
+      "area_km2": 0.45,
+      "ground_truth_volume_m3": 2590000.0,
+      "huggel_ape": 3.3345953153971526,
+      "regression_ape": 2.5059336042299996
+    },
+    {
+      "lake_name": "Gueshguecocha",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2010,
+      "area_km2": 0.3,
+      "ground_truth_volume_m3": 1490000.0,
+      "huggel_ape": 3.2348338305573234,
+      "regression_ape": 2.4900640331110906
+    },
+    {
+      "lake_name": "Hazard Creek",
+      "lake_type": "ice-dammed",
+      "mountain": "Yukon",
+      "survey_year": 1974,
+      "area_km2": 0.88,
+      "ground_truth_volume_m3": 14000000.0,
+      "huggel_ape": 1.0797693840872689,
+      "regression_ape": 0.6311671764336835
+    },
+    {
+      "lake_name": "Hazard Creek",
+      "lake_type": "ice-dammed",
+      "mountain": "Yukon",
+      "survey_year": 1978,
+      "area_km2": 1.274,
+      "ground_truth_volume_m3": 19620000.0,
+      "huggel_ape": 1.5106148508281867,
+      "regression_ape": 0.9354413131153403
+    },
+    {
+      "lake_name": "Hidden Creek",
+      "lake_type": "ice-dammed",
+      "mountain": "Alaska",
+      "survey_year": 2000,
+      "area_km2": 0.82,
+      "ground_truth_volume_m3": 41230000.0,
+      "huggel_ape": 0.3612226788767048,
+      "regression_ape": 0.5028314170255364
+    },
+    {
+      "lake_name": "Hooker",
+      "lake_type": "proglacial",
+      "mountain": "Southern Alps",
+      "survey_year": 1995,
+      "area_km2": 0.74,
+      "ground_truth_volume_m3": 41000000.0,
+      "huggel_ape": 0.44482774192829994,
+      "regression_ape": 0.5669262256961575
+    },
+    {
+      "lake_name": "Hooker",
+      "lake_type": "proglacial",
+      "mountain": "Southern Alps",
+      "survey_year": 2009,
+      "area_km2": 1.22,
+      "ground_truth_volume_m3": 50000000.0,
+      "huggel_ape": 0.07363816497217134,
+      "regression_ape": 0.2951191457478313
+    },
+    {
+      "lake_name": "Huallcacocha",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2014,
+      "area_km2": 0.17,
+      "ground_truth_volume_m3": 5250000.0,
+      "huggel_ape": 0.46378130278016405,
+      "regression_ape": 0.5491308292284512
+    },
+    {
+      "lake_name": "Huandoy",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2007,
+      "area_km2": 0.008,
+      "ground_truth_volume_m3": 20000.0,
+      "huggel_ape": 0.829339092135496,
+      "regression_ape": 0.7943645185059122
+    },
+    {
+      "lake_name": "Huascacocha",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2013,
+      "area_km2": 0.25,
+      "ground_truth_volume_m3": 3730000.0,
+      "huggel_ape": 0.30556127520848525,
+      "regression_ape": 0.08062482194746158
+    },
+    {
+      "lake_name": "Huascococha",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2012,
+      "area_km2": 0.24,
+      "ground_truth_volume_m3": 7270000.0,
+      "huggel_ape": 0.3679097332183018,
+      "regression_ape": 0.4771261465474021
+    },
+    {
+      "lake_name": "Huaycococha",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2013,
+      "area_km2": 0.11,
+      "ground_truth_volume_m3": 1230000.0,
+      "huggel_ape": 0.23295502079926256,
+      "regression_ape": 0.061634960421142394
+    },
+    {
+      "lake_name": "Huecrucocha",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2010,
+      "area_km2": 0.21,
+      "ground_truth_volume_m3": 2350000.0,
+      "huggel_ape": 0.6174806535687938,
+      "regression_ape": 0.35111429232928365
+    },
+    {
+      "lake_name": "Huinchas",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2012,
+      "area_km2": 0.25,
+      "ground_truth_volume_m3": 5320000.0,
+      "huggel_ape": 0.0846346698256297,
+      "regression_ape": 0.24330807784452083
+    },
+    {
+      "lake_name": "Huishcash",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2012,
+      "area_km2": 0.14,
+      "ground_truth_volume_m3": 460000.0,
+      "huggel_ape": 3.6443340169423353,
+      "regression_ape": 2.9692590118428943
+    },
+    {
+      "lake_name": "Ichicpotrero",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2015,
+      "area_km2": 0.14,
+      "ground_truth_volume_m3": 2890000.0,
+      "huggel_ape": 0.26076344367007814,
+      "regression_ape": 0.37187735655214404
+    },
+    {
+      "lake_name": "Imja lake",
+      "lake_type": "proglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 1992,
+      "area_km2": 0.64,
+      "ground_truth_volume_m3": 28000000.0,
+      "huggel_ape": 0.33861087300488685,
+      "regression_ape": 0.48509575072718486
+    },
+    {
+      "lake_name": "Imja lake",
+      "lake_type": "proglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2002,
+      "area_km2": 0.86,
+      "ground_truth_volume_m3": 35800000.0,
+      "huggel_ape": 0.21282260917179296,
+      "regression_ape": 0.39651676537634273
+    },
+    {
+      "lake_name": "Imja lake",
+      "lake_type": "proglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2009,
+      "area_km2": 1.01,
+      "ground_truth_volume_m3": 35500000.0,
+      "huggel_ape": 0.0024247667690878603,
+      "regression_ape": 0.24158809355857894
+    },
+    {
+      "lake_name": "Imja lake",
+      "lake_type": "proglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2012,
+      "area_km2": 1.21,
+      "ground_truth_volume_m3": 63800000.0,
+      "huggel_ape": 0.28245247333279666,
+      "regression_ape": 0.45958496990655845
+    },
+    {
+      "lake_name": "Imja lake",
+      "lake_type": "proglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2014,
+      "area_km2": 1.28,
+      "ground_truth_volume_m3": 78400000.0,
+      "huggel_ape": 0.367496921724436,
+      "regression_ape": 0.5250274627456224
+    },
+    {
+      "lake_name": "Ishcaycocha Alta",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2016,
+      "area_km2": 0.08,
+      "ground_truth_volume_m3": 1200000.0,
+      "huggel_ape": 0.19620932268098093,
+      "regression_ape": 0.29809775975952324
+    },
+    {
+      "lake_name": "Ishcaycocha Baja",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2014,
+      "area_km2": 0.02,
+      "ground_truth_volume_m3": 25000.0,
+      "huggel_ape": 4.380925193618277,
+      "regression_ape": 4.0678659375499295
+    },
+    {
+      "lake_name": "Ishinca",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 1905,
+      "area_km2": 0.09,
+      "ground_truth_volume_m3": 780000.0,
+      "huggel_ape": 0.4618989107839644,
+      "regression_ape": 0.27171823845419163
+    },
+    {
+      "lake_name": "Ivory",
+      "lake_type": "proglacial",
+      "mountain": "Southern Alps",
+      "survey_year": 1976,
+      "area_km2": 0.073,
+      "ground_truth_volume_m3": 1450000.0,
+      "huggel_ape": 0.41595390935573323,
+      "regression_ape": 0.49054055664670887
+    },
+    {
+      "lake_name": "Ivory",
+      "lake_type": "proglacial",
+      "mountain": "Southern Alps",
+      "survey_year": 1980,
+      "area_km2": 0.1,
+      "ground_truth_volume_m3": 2020000.0,
+      "huggel_ape": 0.344335047397362,
+      "regression_ape": 0.43666843661034255
+    },
+    {
+      "lake_name": "Ivory",
+      "lake_type": "proglacial",
+      "mountain": "Southern Alps",
+      "survey_year": 1986,
+      "area_km2": 0.12,
+      "ground_truth_volume_m3": 3520000.0,
+      "huggel_ape": 0.5124633975861332,
+      "regression_ape": 0.5847810874591512
+    },
+    {
+      "lake_name": "Jack Lake",
+      "lake_type": "proglacial",
+      "mountain": "Jefferson Wilderness ",
+      "survey_year": 1993,
+      "area_km2": 0.006,
+      "ground_truth_volume_m3": 26500.0,
+      "huggel_ape": 0.08263874812960723,
+      "regression_ape": 0.09205920968930534
+    },
+    {
+      "lake_name": "Jancarurish",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2011,
+      "area_km2": 0.32,
+      "ground_truth_volume_m3": 12320000.0,
+      "huggel_ape": 0.4386409214243841,
+      "regression_ape": 0.5423711957546656
+    },
+    {
+      "lake_name": "Janya Alta",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2007,
+      "area_km2": 0.06,
+      "ground_truth_volume_m3": 230000.0,
+      "huggel_ape": 1.7864960392094962,
+      "regression_ape": 1.4773450774424977
+    },
+    {
+      "lake_name": "Janya Baja",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2007,
+      "area_km2": 0.1,
+      "ground_truth_volume_m3": 1200000.0,
+      "huggel_ape": 0.10370267021444063,
+      "regression_ape": 0.04559549169392286
+    },
+    {
+      "lake_name": "Japracocha",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2007,
+      "area_km2": 0.16,
+      "ground_truth_volume_m3": 2900000.0,
+      "huggel_ape": 0.10938534578855358,
+      "regression_ape": 0.24769407493092857
+    },
+    {
+      "lake_name": "Jarpococha",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2010,
+      "area_km2": 0.12,
+      "ground_truth_volume_m3": 320000.0,
+      "huggel_ape": 4.3629026265525335,
+      "regression_ape": 3.6194754207604283
+    },
+    {
+      "lake_name": "Jatuncocha",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2007,
+      "area_km2": 0.48,
+      "ground_truth_volume_m3": 9230000.0,
+      "huggel_ape": 0.3331390092376565,
+      "regression_ape": 0.06931571736368265
+    },
+    {
+      "lake_name": "Jatuntallancocha",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2008,
+      "area_km2": 0.21,
+      "ground_truth_volume_m3": 2910000.0,
+      "huggel_ape": 0.30621289893012554,
+      "regression_ape": 0.09030964650062434
+    },
+    {
+      "lake_name": "Jialongcuo",
+      "lake_type": "periglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2020,
+      "area_km2": 0.6,
+      "ground_truth_volume_m3": 37500000.0,
+      "huggel_ape": 0.5494375461683724,
+      "regression_ape": 0.6444133286719531
+    },
+    {
+      "lake_name": "Jinwenco",
+      "lake_type": "proglacial",
+      "mountain": "SE Tibet",
+      "survey_year": 2020,
+      "area_km2": 0.25,
+      "ground_truth_volume_m3": 1590000.0,
+      "huggel_ape": 2.0627317965582703,
+      "regression_ape": 1.542814921723154
+    },
+    {
+      "lake_name": "Kapkan ",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2011,
+      "area_km2": 0.1982,
+      "ground_truth_volume_m3": 3724900.0,
+      "huggel_ape": 0.060053774708286635,
+      "regression_ape": 0.21402578755719923
+    },
+    {
+      "lake_name": "Kapkan",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2018,
+      "area_km2": 0.196,
+      "ground_truth_volume_m3": 2810000.0,
+      "huggel_ape": 0.22637389325601548,
+      "regression_ape": 0.026035332311723825
+    },
+    {
+      "lake_name": "Kapkan 2",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2018,
+      "area_km2": 0.0698,
+      "ground_truth_volume_m3": 738000.0,
+      "huggel_ape": 0.07670203286697057,
+      "regression_ape": 0.05269041165923271
+    },
+    {
+      "lake_name": "Kargaly",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2019,
+      "area_km2": 0.0254,
+      "ground_truth_volume_m3": 141200.0,
+      "huggel_ape": 0.3380346307439021,
+      "regression_ape": 0.2373740037565373
+    },
+    {
+      "lake_name": "Kaskabulak",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2018,
+      "area_km2": 0.0285,
+      "ground_truth_volume_m3": 94200.0,
+      "huggel_ape": 1.3622017264145054,
+      "regression_ape": 1.177341490440852
+    },
+    {
+      "lake_name": "Kaskabulak Kora",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2015,
+      "area_km2": 0.13446,
+      "ground_truth_volume_m3": 892500.0,
+      "huggel_ape": 1.260247093493704,
+      "regression_ape": 0.9310632107303525
+    },
+    {
+      "lake_name": "Khumbu Glacier K1",
+      "lake_type": "supraglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2016,
+      "area_km2": 0.000943,
+      "ground_truth_volume_m3": 1443.0,
+      "huggel_ape": 0.21492123679427008,
+      "regression_ape": 0.3217051901462429
+    },
+    {
+      "lake_name": "Khumbu Glacier K10",
+      "lake_type": "supraglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2016,
+      "area_km2": 0.000392,
+      "ground_truth_volume_m3": 752.0,
+      "huggel_ape": 0.33030817121582534,
+      "regression_ape": 0.24812802042844534
+    },
+    {
+      "lake_name": "Khumbu Glacier K11",
+      "lake_type": "supraglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2016,
+      "area_km2": 0.0006,
+      "ground_truth_volume_m3": 882.0,
+      "huggel_ape": 0.04548469851693693,
+      "regression_ape": 0.16042542187641018
+    },
+    {
+      "lake_name": "Khumbu Glacier K12",
+      "lake_type": "supraglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2016,
+      "area_km2": 0.003654,
+      "ground_truth_volume_m3": 5746.0,
+      "huggel_ape": 1.0910374801775442,
+      "regression_ape": 1.137186387379449
+    },
+    {
+      "lake_name": "Khumbu Glacier K14",
+      "lake_type": "supraglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2016,
+      "area_km2": 3.9e-05,
+      "ground_truth_volume_m3": 24.0,
+      "huggel_ape": 0.20982205420081076,
+      "regression_ape": 0.0023435692041675615
+    },
+    {
+      "lake_name": "Khumbu Glacier K15",
+      "lake_type": "supraglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2016,
+      "area_km2": 0.000596,
+      "ground_truth_volume_m3": 1087.0,
+      "huggel_ape": 0.159710899472499,
+      "regression_ape": 0.07098852323449283
+    },
+    {
+      "lake_name": "Khumbu Glacier K16",
+      "lake_type": "supraglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2016,
+      "area_km2": 0.000625,
+      "ground_truth_volume_m3": 1497.0,
+      "huggel_ape": 0.3472347245457114,
+      "regression_ape": 0.28346519520370494
+    },
+    {
+      "lake_name": "Khumbu Glacier K18",
+      "lake_type": "supraglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2016,
+      "area_km2": 0.006428,
+      "ground_truth_volume_m3": 30058.0,
+      "huggel_ape": 0.10803242367162412,
+      "regression_ape": 0.12031560141885518
+    },
+    {
+      "lake_name": "Khumbu Glacier K19",
+      "lake_type": "supraglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2016,
+      "area_km2": 0.001193,
+      "ground_truth_volume_m3": 2116.0,
+      "huggel_ape": 0.15724082541963472,
+      "regression_ape": 0.2431581046351005
+    },
+    {
+      "lake_name": "Khumbu Glacier K2",
+      "lake_type": "supraglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2016,
+      "area_km2": 0.002729,
+      "ground_truth_volume_m3": 9049.0,
+      "huggel_ape": 0.12301174878808349,
+      "regression_ape": 0.09875715501627945
+    },
+    {
+      "lake_name": "Khumbu Glacier K20",
+      "lake_type": "supraglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2016,
+      "area_km2": 0.003502,
+      "ground_truth_volume_m3": 13369.0,
+      "huggel_ape": 0.15392735567847202,
+      "regression_ape": 0.14124054493240099
+    },
+    {
+      "lake_name": "Khumbu Glacier K21",
+      "lake_type": "supraglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2016,
+      "area_km2": 0.018744,
+      "ground_truth_volume_m3": 290928.0,
+      "huggel_ape": 0.5783179529149483,
+      "regression_ape": 0.6064303096295653
+    },
+    {
+      "lake_name": "Khumbu Glacier K22",
+      "lake_type": "supraglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2016,
+      "area_km2": 0.000754,
+      "ground_truth_volume_m3": 1634.0,
+      "huggel_ape": 0.21922487311072297,
+      "regression_ape": 0.14773054398660676
+    },
+    {
+      "lake_name": "Khumbu Glacier K4",
+      "lake_type": "supraglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2016,
+      "area_km2": 0.000958,
+      "ground_truth_volume_m3": 1460.0,
+      "huggel_ape": 0.22800708340502227,
+      "regression_ape": 0.3351117981015572
+    },
+    {
+      "lake_name": "Khumbu Glacier K6",
+      "lake_type": "supraglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2016,
+      "area_km2": 0.00401,
+      "ground_truth_volume_m3": 19042.0,
+      "huggel_ape": 0.27990643162501494,
+      "regression_ape": 0.27496904713521203
+    },
+    {
+      "lake_name": "Khumbu Glacier K7",
+      "lake_type": "supraglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2016,
+      "area_km2": 0.000255,
+      "ground_truth_volume_m3": 379.0,
+      "huggel_ape": 0.2787468453128495,
+      "regression_ape": 0.17200177998724286
+    },
+    {
+      "lake_name": "Khumbu Glacier K8",
+      "lake_type": "supraglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2016,
+      "area_km2": 0.00025,
+      "ground_truth_volume_m3": 445.0,
+      "huggel_ape": 0.40276385899471273,
+      "regression_ape": 0.31703611058707265
+    },
+    {
+      "lake_name": "Khumbu Glacier K9",
+      "lake_type": "supraglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2016,
+      "area_km2": 0.005422,
+      "ground_truth_volume_m3": 26959.0,
+      "huggel_ape": 0.21914529960413723,
+      "regression_ape": 0.22442651368507321
+    },
+    {
+      "lake_name": "Koltor Lake",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2008,
+      "area_km2": 0.22,
+      "ground_truth_volume_m3": 1830000.0,
+      "huggel_ape": 1.219038713436634,
+      "regression_ape": 0.8514873785167968
+    },
+    {
+      "lake_name": "Kyagar Lake",
+      "lake_type": "ice-dammed",
+      "mountain": "Karakoram",
+      "survey_year": null,
+      "area_km2": 0.89,
+      "ground_truth_volume_m3": 16000000.0,
+      "huggel_ape": 0.849253954508605,
+      "regression_ape": 0.4424741312862267
+    },
+    {
+      "lake_name": "Labrascocha",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2013,
+      "area_km2": 0.47,
+      "ground_truth_volume_m3": 7100000.0,
+      "huggel_ape": 0.6820002139589663,
+      "regression_ape": 0.35192911812280736
+    },
+    {
+      "lake_name": "Laguna 69",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2009,
+      "area_km2": 0.1,
+      "ground_truth_volume_m3": 2760000.0,
+      "huggel_ape": 0.5201292738198084,
+      "regression_ape": 0.5861136569560841
+    },
+    {
+      "lake_name": "Langmale Lake",
+      "lake_type": "periglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2017,
+      "area_km2": 0.083,
+      "ground_truth_volume_m3": 1100000.0,
+      "huggel_ape": 0.07604541824816705,
+      "regression_ape": 0.194246423581497
+    },
+    {
+      "lake_name": "Lapa Lake",
+      "lake_type": "proglacial",
+      "mountain": "Caucasus",
+      "survey_year": 2001,
+      "area_km2": 0.017,
+      "ground_truth_volume_m3": 62000.0,
+      "huggel_ape": 0.7223030357457809,
+      "regression_ape": 0.6356913929441723
+    },
+    {
+      "lake_name": "Lapa Lake",
+      "lake_type": "proglacial",
+      "mountain": "Caucasus",
+      "survey_year": 2003,
+      "area_km2": 0.022,
+      "ground_truth_volume_m3": 93000.0,
+      "huggel_ape": 0.6562771874463661,
+      "regression_ape": 0.552953967687964
+    },
+    {
+      "lake_name": "Lapa Lake",
+      "lake_type": "proglacial",
+      "mountain": "Caucasus",
+      "survey_year": 2006,
+      "area_km2": 0.028,
+      "ground_truth_volume_m3": 143000.0,
+      "huggel_ape": 0.5174306933488758,
+      "regression_ape": 0.4058144751761731
+    },
+    {
+      "lake_name": "Lapa Lake",
+      "lake_type": "proglacial",
+      "mountain": "Caucasus",
+      "survey_year": 2010,
+      "area_km2": 0.04,
+      "ground_truth_volume_m3": 200000.0,
+      "huggel_ape": 0.8010699957208929,
+      "regression_ape": 0.6392663691464316
+    },
+    {
+      "lake_name": "Large Tourist Lake",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2012,
+      "area_km2": 0.0235,
+      "ground_truth_volume_m3": 63550.0,
+      "huggel_ape": 1.6619826263982806,
+      "regression_ape": 1.4786273674681034
+    },
+    {
+      "lake_name": "Lechecocha",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2013,
+      "area_km2": 0.06,
+      "ground_truth_volume_m3": 140000.0,
+      "huggel_ape": 3.577814921558458,
+      "regression_ape": 3.0765613456648344
+    },
+    {
+      "lake_name": "Lejiacocha",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2005,
+      "area_km2": 0.18,
+      "ground_truth_volume_m3": 1360000.0,
+      "huggel_ape": 1.24510501862037,
+      "regression_ape": 0.8913931882638173
+    },
+    {
+      "lake_name": "Leones",
+      "lake_type": "proglacial",
+      "mountain": "North Patagonia",
+      "survey_year": 2001,
+      "area_km2": 19.5,
+      "ground_truth_volume_m3": 2454000000.0,
+      "huggel_ape": 0.03105759326730167,
+      "regression_ape": 0.35573905239743203
+    },
+    {
+      "lake_name": "Libron",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2007,
+      "area_km2": 0.55,
+      "ground_truth_volume_m3": 20990000.0,
+      "huggel_ape": 0.2886615529124558,
+      "regression_ape": 0.43488703724630934
+    },
+    {
+      "lake_name": "Llaca",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2012,
+      "area_km2": 0.06,
+      "ground_truth_volume_m3": 490000.0,
+      "huggel_ape": 0.30794712044527367,
+      "regression_ape": 0.15995224348672246
+    },
+    {
+      "lake_name": "Llamacocha",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2013,
+      "area_km2": 0.004,
+      "ground_truth_volume_m3": 280000.0,
+      "huggel_ape": 0.9512019401168985,
+      "regression_ape": 0.9521107073634111
+    },
+    {
+      "lake_name": "Llanganuco Alto",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2007,
+      "area_km2": 0.68,
+      "ground_truth_volume_m3": 2040000.0,
+      "huggel_ape": 8.89460215891882,
+      "regression_ape": 6.887107316023734
+    },
+    {
+      "lake_name": "LLanganuco Bajo",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2007,
+      "area_km2": 0.58,
+      "ground_truth_volume_m3": 11920000.0,
+      "huggel_ape": 0.35079132464061813,
+      "regression_ape": 0.0736825878127014
+    },
+    {
+      "lake_name": "Lobuche Glacier L1",
+      "lake_type": "supraglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2016,
+      "area_km2": 0.003789,
+      "ground_truth_volume_m3": 16986.0,
+      "huggel_ape": 0.255223982251347,
+      "regression_ape": 0.24785172297591188
+    },
+    {
+      "lake_name": "Lobuche Glacier L2",
+      "lake_type": "supraglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2016,
+      "area_km2": 0.000207,
+      "ground_truth_volume_m3": 235.0,
+      "huggel_ape": 0.13511306255971473,
+      "regression_ape": 0.007852237763963689
+    },
+    {
+      "lake_name": "Lobuche Glacier L3",
+      "lake_type": "supraglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2016,
+      "area_km2": 0.000318,
+      "ground_truth_volume_m3": 496.0,
+      "huggel_ape": 0.24577556162135888,
+      "regression_ape": 0.14236140502727554
+    },
+    {
+      "lake_name": "Lobuche Glacier L4",
+      "lake_type": "supraglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2016,
+      "area_km2": 0.013101,
+      "ground_truth_volume_m3": 71514.0,
+      "huggel_ape": 0.03117384240314951,
+      "regression_ape": 0.016461340690336203
+    },
+    {
+      "lake_name": "Lobuche Glacier L5",
+      "lake_type": "supraglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2016,
+      "area_km2": 0.00153,
+      "ground_truth_volume_m3": 2789.0,
+      "huggel_ape": 0.25034927961531994,
+      "regression_ape": 0.32799730483446266
+    },
+    {
+      "lake_name": "Longbasaba lake",
+      "lake_type": "proglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2009,
+      "area_km2": 1.22,
+      "ground_truth_volume_m3": 64000000.0,
+      "huggel_ape": 0.2762798163845089,
+      "regression_ape": 0.4474318261488742
+    },
+    {
+      "lake_name": "Lower Barun",
+      "lake_type": "proglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 1993,
+      "area_km2": 0.6,
+      "ground_truth_volume_m3": 28000000.0,
+      "huggel_ape": 0.39656814218978437,
+      "regression_ape": 0.5249167941370927
+    },
+    {
+      "lake_name": "Lower Barun",
+      "lake_type": "proglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2015,
+      "area_km2": 1.8,
+      "ground_truth_volume_m3": 112300000.0,
+      "huggel_ape": 0.28320360444473547,
+      "regression_ape": 0.46588294998807067
+    },
+    {
+      "lake_name": "Luggye",
+      "lake_type": "proglacial",
+      "mountain": "Eastern Himalaya",
+      "survey_year": 2002,
+      "area_km2": 1.17,
+      "ground_truth_volume_m3": 58300000.0,
+      "huggel_ape": 0.25138781098888613,
+      "regression_ape": 0.428569614247796
+    },
+    {
+      "lake_name": "Luggye",
+      "lake_type": "proglacial",
+      "mountain": "Eastern Himalaya",
+      "survey_year": 2020,
+      "area_km2": 1.57,
+      "ground_truth_volume_m3": 71540000.0,
+      "huggel_ape": 0.07347357621480968,
+      "regression_ape": 0.3030115731007457
+    },
+    {
+      "lake_name": "Macar",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2007,
+      "area_km2": 0.08,
+      "ground_truth_volume_m3": 705000.0,
+      "huggel_ape": 0.3681543443727984,
+      "regression_ape": 0.19672672636568486
+    },
+    {
+      "lake_name": "Makarevich",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2016,
+      "area_km2": 0.092,
+      "ground_truth_volume_m3": 340000.0,
+      "huggel_ape": 2.4601659245330985,
+      "regression_ape": 2.0149031980230703
+    },
+    {
+      "lake_name": "Maksimov",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2018,
+      "area_km2": 0.2339,
+      "ground_truth_volume_m3": 5389000.0,
+      "huggel_ape": 0.1779142865986128,
+      "regression_ape": 0.31847048501362724
+    },
+    {
+      "lake_name": "Malaspina Lake",
+      "lake_type": "proglacial",
+      "mountain": "Alaska",
+      "survey_year": null,
+      "area_km2": 73.243,
+      "ground_truth_volume_m3": 2012290000.0,
+      "huggel_ape": 6.747747047785883,
+      "regression_ape": 4.1132817634140295
+    },
+    {
+      "lake_name": "Maparaju Bajo",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2009,
+      "area_km2": 0.08,
+      "ground_truth_volume_m3": 1350000.0,
+      "huggel_ape": 0.2855193979386497,
+      "regression_ape": 0.37631789384885245
+    },
+    {
+      "lake_name": "Maqiongco",
+      "lake_type": "periglacial",
+      "mountain": "SE Tibet",
+      "survey_year": 2020,
+      "area_km2": 0.23,
+      "ground_truth_volume_m3": 3170000.0,
+      "huggel_ape": 0.3645496176056664,
+      "regression_ape": 0.13418344901401244
+    },
+    {
+      "lake_name": "Maud Lake",
+      "lake_type": "proglacial",
+      "mountain": "Southern Alps",
+      "survey_year": 1994,
+      "area_km2": 1.26,
+      "ground_truth_volume_m3": 78000000.0,
+      "huggel_ape": 0.37832231143754874,
+      "regression_ape": 0.5266125772166202
+    },
+    {
+      "lake_name": "Mellajirca 1",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2009,
+      "area_km2": 0.05,
+      "ground_truth_volume_m3": 770000.0,
+      "huggel_ape": 0.3576392591881206,
+      "regression_ape": 0.42666075302608064
+    },
+    {
+      "lake_name": "Mellajirca 2",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2009,
+      "area_km2": 0.01,
+      "ground_truth_volume_m3": 70000.0,
+      "huggel_ape": 0.2823126369694804,
+      "regression_ape": 0.30805682059627026
+    },
+    {
+      "lake_name": "Mellajirca 3",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2009,
+      "area_km2": 0.005,
+      "ground_truth_volume_m3": 17000.0,
+      "huggel_ape": 0.10362313033253368,
+      "regression_ape": 0.10372302871239213
+    },
+    {
+      "lake_name": "Miage lake",
+      "lake_type": "ice-dammed",
+      "mountain": "Alpes",
+      "survey_year": 2003,
+      "area_km2": 0.036,
+      "ground_truth_volume_m3": 340000.0,
+      "huggel_ape": 0.08786257363241456,
+      "regression_ape": 0.17189173629908389
+    },
+    {
+      "lake_name": "Midui Lake/Ganxico",
+      "lake_type": "proglacial",
+      "mountain": "Nyainqentanglha",
+      "survey_year": 2010,
+      "area_km2": 0.22,
+      "ground_truth_volume_m3": 1130000.0,
+      "huggel_ape": 2.5936644651230445,
+      "regression_ape": 2.003429262951894
+    },
+    {
+      "lake_name": "Milluacocha",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2011,
+      "area_km2": 0.19,
+      "ground_truth_volume_m3": 3980000.0,
+      "huggel_ape": 0.1715636735876933,
+      "regression_ape": 0.30619882246152574
+    },
+    {
+      "lake_name": "Mizinchik Lake",
+      "lake_type": "proglacial",
+      "mountain": "Caucasus",
+      "survey_year": 2001,
+      "area_km2": 0.006,
+      "ground_truth_volume_m3": 30000.0,
+      "huggel_ape": 0.1896642275144864,
+      "regression_ape": 0.1987857612818363
+    },
+    {
+      "lake_name": "MT Lake",
+      "lake_type": "ice-dammed",
+      "mountain": "British Columbia",
+      "survey_year": 1982,
+      "area_km2": 0.042,
+      "ground_truth_volume_m3": 500000.0,
+      "huggel_ape": 0.22785195424561563,
+      "regression_ape": 0.3045867261544728
+    },
+    {
+      "lake_name": "Mueller",
+      "lake_type": "proglacial",
+      "mountain": "Southern Alps",
+      "survey_year": 2009,
+      "area_km2": 0.87,
+      "ground_truth_volume_m3": 20000000.0,
+      "huggel_ape": 0.4323864419471739,
+      "regression_ape": 0.11683105568474289
+    },
+    {
+      "lake_name": "Mullaca",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2006,
+      "area_km2": 0.11,
+      "ground_truth_volume_m3": 2040000.0,
+      "huggel_ape": 0.256600649223974,
+      "regression_ape": 0.36090242192838784
+    },
+    {
+      "lake_name": "Musykol",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2013,
+      "area_km2": 0.01262,
+      "ground_truth_volume_m3": 54250.0,
+      "huggel_ape": 0.28895851573746,
+      "regression_ape": 0.23323805720257423
+    },
+    {
+      "lake_name": "Nef",
+      "lake_type": "proglacial",
+      "mountain": "North Patagonia",
+      "survey_year": 1998,
+      "area_km2": 5.133,
+      "ground_truth_volume_m3": 770710000.0,
+      "huggel_ape": 0.5370011505509926,
+      "regression_ape": 0.6733672612371591
+    },
+    {
+      "lake_name": "Nevadas Aguja",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2011,
+      "area_km2": 0.03,
+      "ground_truth_volume_m3": 250000.0,
+      "huggel_ape": 0.04262378524088091,
+      "regression_ape": 0.12298616926380003
+    },
+    {
+      "lake_name": "Ngozumpa",
+      "lake_type": "supraglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 1999,
+      "area_km2": 0.05,
+      "ground_truth_volume_m3": 240000.0,
+      "huggel_ape": 1.0609073767714465,
+      "regression_ape": 0.8468167191252775
+    },
+    {
+      "lake_name": "Ngozumpa 2",
+      "lake_type": "periglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2008,
+      "area_km2": 0.43,
+      "ground_truth_volume_m3": 10570000.0,
+      "huggel_ape": 0.004326319110110691,
+      "regression_ape": 0.19813145157985157
+    },
+    {
+      "lake_name": "Ngozumpa 3",
+      "lake_type": "periglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2008,
+      "area_km2": 0.185,
+      "ground_truth_volume_m3": 3300000.0,
+      "huggel_ape": 0.03801029247060277,
+      "regression_ape": 0.19290457952253195
+    },
+    {
+      "lake_name": "Nieve",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2013,
+      "area_km2": 0.21,
+      "ground_truth_volume_m3": 3280000.0,
+      "huggel_ape": 0.1588657121605687,
+      "regression_ape": 0.03307803907329571
+    },
+    {
+      "lake_name": "Ocshapalca",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2006,
+      "area_km2": 0.03,
+      "ground_truth_volume_m3": 430000.0,
+      "huggel_ape": 0.44338592165167495,
+      "regression_ape": 0.49122158245367314
+    },
+    {
+      "lake_name": "Orconcocha",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2010,
+      "area_km2": 0.13,
+      "ground_truth_volume_m3": 2360000.0,
+      "huggel_ape": 0.18523035617906272,
+      "regression_ape": 0.3049916794012769
+    },
+    {
+      "lake_name": "Oscura",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2013,
+      "area_km2": 0.13,
+      "ground_truth_volume_m3": 1410000.0,
+      "huggel_ape": 0.363727914480434,
+      "regression_ape": 0.16515869836024644
+    },
+    {
+      "lake_name": "Paccharuri",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2005,
+      "area_km2": 0.27,
+      "ground_truth_volume_m3": 7130000.0,
+      "huggel_ape": 0.23807588667028648,
+      "regression_ape": 0.37293034861916297
+    },
+    {
+      "lake_name": "Pachorgo Alto",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2010,
+      "area_km2": 0.25,
+      "ground_truth_volume_m3": 450000.0,
+      "huggel_ape": 9.821652347839223,
+      "regression_ape": 8.02537797843161
+    },
+    {
+      "lake_name": "Pachorgo Bajo",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2010,
+      "area_km2": 0.43,
+      "ground_truth_volume_m3": 2000000.0,
+      "huggel_ape": 4.262135403503065,
+      "regression_ape": 3.2687044332148263
+    },
+    {
+      "lake_name": "Pacliashcocha",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2010,
+      "area_km2": 0.22,
+      "ground_truth_volume_m3": 2450000.0,
+      "huggel_ape": 0.6574860594240981,
+      "regression_ape": 0.38155310633312794
+    },
+    {
+      "lake_name": "Pag-Pag",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2012,
+      "area_km2": 0.1,
+      "ground_truth_volume_m3": 800000.0,
+      "huggel_ape": 0.655554005321661,
+      "regression_ape": 0.4334108646999547
+    },
+    {
+      "lake_name": "Pagarisha",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2008,
+      "area_km2": 0.19,
+      "ground_truth_volume_m3": 3870000.0,
+      "huggel_ape": 0.14801638782403603,
+      "regression_ape": 0.2864116749711929
+    },
+    {
+      "lake_name": "Palcacocha",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2009,
+      "area_km2": 0.52,
+      "ground_truth_volume_m3": 17320000.0,
+      "huggel_ape": 0.2039759247108152,
+      "regression_ape": 0.36551259339371694
+    },
+    {
+      "lake_name": "Pamparaju",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2010,
+      "area_km2": 0.19,
+      "ground_truth_volume_m3": 1640000.0,
+      "huggel_ape": 1.0104735238542564,
+      "regression_ape": 0.6887230687321388
+    },
+    {
+      "lake_name": "Pariacocha 3",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2013,
+      "area_km2": 0.002,
+      "ground_truth_volume_m3": 140000.0,
+      "huggel_ape": 0.9635524007328246,
+      "regression_ape": 0.9634767297998085
+    },
+    {
+      "lake_name": "Par\u00f3n",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2010,
+      "area_km2": 1.48,
+      "ground_truth_volume_m3": 39890000.0,
+      "huggel_ape": 0.5279572397173928,
+      "regression_ape": 0.16175506770485798
+    },
+    {
+      "lake_name": "Patococha",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2013,
+      "area_km2": 0.04,
+      "ground_truth_volume_m3": 540000.0,
+      "huggel_ape": 0.3329370386218915,
+      "regression_ape": 0.3981418744783939
+    },
+    {
+      "lake_name": "Pelagatos",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2009,
+      "area_km2": 1.8,
+      "ground_truth_volume_m3": 111390000.0,
+      "huggel_ape": 0.27734774018443126,
+      "regression_ape": 0.4589925419019801
+    },
+    {
+      "lake_name": "Pida Lake",
+      "lake_type": "proglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2005,
+      "area_km2": 0.97,
+      "ground_truth_volume_m3": 50440000.0,
+      "huggel_ape": 0.33708034481343957,
+      "regression_ape": 0.48826950683369363
+    },
+    {
+      "lake_name": "Piticocha",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2010,
+      "area_km2": 0.92,
+      "ground_truth_volume_m3": 12840000.0,
+      "huggel_ape": 1.4155210040369428,
+      "regression_ape": 0.8842496697814087
+    },
+    {
+      "lake_name": "Pucacocha",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2006,
+      "area_km2": 0.28,
+      "ground_truth_volume_m3": 8460000.0,
+      "huggel_ape": 0.3238009772284533,
+      "regression_ape": 0.4447190203258281
+    },
+    {
+      "lake_name": "Pucaranracocha",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2007,
+      "area_km2": 0.23,
+      "ground_truth_volume_m3": 4240000.0,
+      "huggel_ape": 0.020193935804236417,
+      "regression_ape": 0.15290018120896068
+    },
+    {
+      "lake_name": "Puntacuerno",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2014,
+      "area_km2": 0.03,
+      "ground_truth_volume_m3": 240000.0,
+      "huggel_ape": 0.002733109625917617,
+      "regression_ape": 0.08629360095772766
+    },
+    {
+      "lake_name": "Purhuay",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2013,
+      "area_km2": 0.84,
+      "ground_truth_volume_m3": 48200000.0,
+      "huggel_ape": 0.43455916839336983,
+      "regression_ape": 0.5607536868914186
+    },
+    {
+      "lake_name": "Pusaccocha 1",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2008,
+      "area_km2": 0.12,
+      "ground_truth_volume_m3": 1860000.0,
+      "huggel_ape": 0.07735008575440276,
+      "regression_ape": 0.2096038854466641
+    },
+    {
+      "lake_name": "Pusaccocha 2",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2008,
+      "area_km2": 0.29,
+      "ground_truth_volume_m3": 4410000.0,
+      "huggel_ape": 0.36352248760233835,
+      "regression_ape": 0.12072068114427241
+    },
+    {
+      "lake_name": "Pusaccocha 3",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2008,
+      "area_km2": 0.09,
+      "ground_truth_volume_m3": 840000.0,
+      "huggel_ape": 0.3574775600136812,
+      "regression_ape": 0.1806085278875236
+    },
+    {
+      "lake_name": "Pusaccocha 4",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2008,
+      "area_km2": 0.06,
+      "ground_truth_volume_m3": 810000.0,
+      "huggel_ape": 0.2087727296071801,
+      "regression_ape": 0.29945721119558627
+    },
+    {
+      "lake_name": "Pusaccocha 5",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2008,
+      "area_km2": 0.06,
+      "ground_truth_volume_m3": 600000.0,
+      "huggel_ape": 0.06815681503030685,
+      "regression_ape": 0.05333518010320647
+    },
+    {
+      "lake_name": "Qangzonkco",
+      "lake_type": "proglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 1987,
+      "area_km2": 0.76,
+      "ground_truth_volume_m3": 21400000.0,
+      "huggel_ape": 0.1047288113892719,
+      "regression_ape": 0.13426124728635042
+    },
+    {
+      "lake_name": "Querococha",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2006,
+      "area_km2": 1.44,
+      "ground_truth_volume_m3": 46350000.0,
+      "huggel_ape": 0.26478498760320124,
+      "regression_ape": 0.03841532052059486
+    },
+    {
+      "lake_name": "Quinuacocha",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2013,
+      "area_km2": 0.38,
+      "ground_truth_volume_m3": 4060000.0,
+      "huggel_ape": 1.1746020670651827,
+      "regression_ape": 0.7676312390916731
+    },
+    {
+      "lake_name": "Quinual",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2009,
+      "area_km2": 0.11,
+      "ground_truth_volume_m3": 1800000.0,
+      "huggel_ape": 0.1574807357871706,
+      "regression_ape": 0.27540756237371955
+    },
+    {
+      "lake_name": "Quitacocha",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2011,
+      "area_km2": 0.13,
+      "ground_truth_volume_m3": 3230000.0,
+      "huggel_ape": 0.4046884336169003,
+      "regression_ape": 0.4926920604106413
+    },
+    {
+      "lake_name": "Racaynaca",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2013,
+      "area_km2": 0.11,
+      "ground_truth_volume_m3": 1620000.0,
+      "huggel_ape": 0.06386748420796731,
+      "regression_ape": 0.19463357871061257
+    },
+    {
+      "lake_name": "Rajucolta",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2004,
+      "area_km2": 0.51,
+      "ground_truth_volume_m3": 17550000.0,
+      "huggel_ape": 0.23578872878316334,
+      "regression_ape": 0.39040200174679796
+    },
+    {
+      "lake_name": "Rajupaquinan",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2007,
+      "area_km2": 0.03,
+      "ground_truth_volume_m3": 460000.0,
+      "huggel_ape": 0.47968683980482657,
+      "regression_ape": 0.524532046284836
+    },
+    {
+      "lake_name": "Ranzeriaco",
+      "lake_type": "periglacial",
+      "mountain": "SE Tibet",
+      "survey_year": 2020,
+      "area_km2": 0.28,
+      "ground_truth_volume_m3": 3860000.0,
+      "huggel_ape": 0.48203205508997016,
+      "regression_ape": 0.22056963026945894
+    },
+    {
+      "lake_name": "Raphsthren",
+      "lake_type": "proglacial",
+      "mountain": "Eastern Himalaya",
+      "survey_year": 1986,
+      "area_km2": 1.38,
+      "ground_truth_volume_m3": 66830000.0,
+      "huggel_ape": 0.17428521701601848,
+      "regression_ape": 0.3728634992688551
+    },
+    {
+      "lake_name": "Raphstreng Tsho",
+      "lake_type": "proglacial",
+      "mountain": "Eastern Himalaya",
+      "survey_year": 2020,
+      "area_km2": 1.31,
+      "ground_truth_volume_m3": 57940000.0,
+      "huggel_ape": 0.11550097287601008,
+      "regression_ape": 0.3261377598226621
+    },
+    {
+      "lake_name": "Raria 1",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2014,
+      "area_km2": 0.05,
+      "ground_truth_volume_m3": 370000.0,
+      "huggel_ape": 0.3368047849328301,
+      "regression_ape": 0.19616187072165148
+    },
+    {
+      "lake_name": "Raria 2",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2014,
+      "area_km2": 0.07,
+      "ground_truth_volume_m3": 1050000.0,
+      "huggel_ape": 0.24014914743732926,
+      "regression_ape": 0.33230063013087735
+    },
+    {
+      "lake_name": "Rewuco",
+      "lake_type": "periglacial",
+      "mountain": "SE Tibet",
+      "survey_year": 2020,
+      "area_km2": 0.43,
+      "ground_truth_volume_m3": 13800000.0,
+      "huggel_ape": 0.2373716806517297,
+      "regression_ape": 0.3865277743345661
+    },
+    {
+      "lake_name": "Ripimo",
+      "lake_type": "supraglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 1993,
+      "area_km2": 0.02,
+      "ground_truth_volume_m3": 180000.0,
+      "huggel_ape": 0.2526492786641281,
+      "regression_ape": 0.3026863996821884
+    },
+    {
+      "lake_name": "Rolpa Tsho ",
+      "lake_type": "proglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 1994,
+      "area_km2": 1.39,
+      "ground_truth_volume_m3": 76600000.0,
+      "huggel_ape": 0.27217226533570943,
+      "regression_ape": 0.45245483418922133
+    },
+    {
+      "lake_name": "Rolpa Tsho ",
+      "lake_type": "proglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2002,
+      "area_km2": 1.76,
+      "ground_truth_volume_m3": 97700000.0,
+      "huggel_ape": 0.20198275486933903,
+      "regression_ape": 0.40683458928896055
+    },
+    {
+      "lake_name": "Rolpa Tsho ",
+      "lake_type": "proglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2009,
+      "area_km2": 1.54,
+      "ground_truth_volume_m3": 85900000.0,
+      "huggel_ape": 0.24922963793389405,
+      "regression_ape": 0.43813952032992115
+    },
+    {
+      "lake_name": "Rurichinchey 1",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2012,
+      "area_km2": 0.12,
+      "ground_truth_volume_m3": 560000.0,
+      "huggel_ape": 2.064515786601448,
+      "regression_ape": 1.6350951765193233
+    },
+    {
+      "lake_name": "Rusgo",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2013,
+      "area_km2": 0.17,
+      "ground_truth_volume_m3": 6830000.0,
+      "huggel_ape": 0.5878260380081788,
+      "regression_ape": 0.6537285366519694
+    },
+    {
+      "lake_name": "Rutu",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2012,
+      "area_km2": 0.76,
+      "ground_truth_volume_m3": 28290000.0,
+      "huggel_ape": 0.16432673864508948,
+      "regression_ape": 0.3461243659103684
+    },
+    {
+      "lake_name": "Sacaracocha",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2013,
+      "area_km2": 0.23,
+      "ground_truth_volume_m3": 5760000.0,
+      "huggel_ape": 0.24902390836632596,
+      "regression_ape": 0.3771087759924891
+    },
+    {
+      "lake_name": "Safuna Alta",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2010,
+      "area_km2": 0.33,
+      "ground_truth_volume_m3": 15520000.0,
+      "huggel_ape": 0.5344675799955126,
+      "regression_ape": 0.6213471254126757
+    },
+    {
+      "lake_name": "Safuna Baja",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2010,
+      "area_km2": 0.15,
+      "ground_truth_volume_m3": 690000.0,
+      "huggel_ape": 2.415151133853079,
+      "regression_ape": 1.9062814867736981
+    },
+    {
+      "lake_name": "Sarca 1",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2012,
+      "area_km2": 0.28,
+      "ground_truth_volume_m3": 8420000.0,
+      "huggel_ape": 0.3205886303269258,
+      "regression_ape": 0.4420712773629763
+    },
+    {
+      "lake_name": "Shallap",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2004,
+      "area_km2": 0.16,
+      "ground_truth_volume_m3": 3470000.0,
+      "huggel_ape": 0.25568227746017447,
+      "regression_ape": 0.3716354077242771
+    },
+    {
+      "lake_name": "Small Tourist Lake",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2012,
+      "area_km2": 0.00499,
+      "ground_truth_volume_m3": 8500.0,
+      "huggel_ape": 1.200975908742882,
+      "regression_ape": 1.2146693694945905
+    },
+    {
+      "lake_name": "Sotbulak",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2018,
+      "area_km2": 0.0784,
+      "ground_truth_volume_m3": 1199000.0,
+      "huggel_ape": 0.21830509501609782,
+      "regression_ape": 0.31678692223791943
+    },
+    {
+      "lake_name": "South Lhonak lake",
+      "lake_type": "proglacial",
+      "mountain": "Eastern Himalaya",
+      "survey_year": 2016,
+      "area_km2": 1.31,
+      "ground_truth_volume_m3": 65800000.0,
+      "huggel_ape": 0.2211569356905171,
+      "regression_ape": 0.4071655736208511
+    },
+    {
+      "lake_name": "Spillway Lake",
+      "lake_type": "supraglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2009,
+      "area_km2": 0.3,
+      "ground_truth_volume_m3": 2200000.0,
+      "huggel_ape": 1.8681374579683692,
+      "regression_ape": 1.3602237116256377
+    },
+    {
+      "lake_name": "Surcocha",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2013,
+      "area_km2": 0.18,
+      "ground_truth_volume_m3": 4330000.0,
+      "huggel_ape": 0.2948399941515697,
+      "regression_ape": 0.4082001529866155
+    },
+    {
+      "lake_name": "Talongco",
+      "lake_type": "periglacial",
+      "mountain": "SE Tibet",
+      "survey_year": 2020,
+      "area_km2": 0.12,
+      "ground_truth_volume_m3": 1670000.0,
+      "huggel_ape": 0.02762206017773105,
+      "regression_ape": 0.11938256430082611
+    },
+    {
+      "lake_name": "Tam Pokhari ",
+      "lake_type": "periglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": null,
+      "area_km2": 0.47,
+      "ground_truth_volume_m3": 21250000.0,
+      "huggel_ape": 0.43801404615959244,
+      "regression_ape": 0.5505263332930235
+    },
+    {
+      "lake_name": "Taraco",
+      "lake_type": "periglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2020,
+      "area_km2": 0.25,
+      "ground_truth_volume_m3": 2640000.0,
+      "huggel_ape": 0.8445998320180492,
+      "regression_ape": 0.5286856466721043
+    },
+    {
+      "lake_name": "Tararhua",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2008,
+      "area_km2": 0.36,
+      "ground_truth_volume_m3": 4240000.0,
+      "huggel_ape": 0.9282943835104003,
+      "regression_ape": 0.5706846191720787
+    },
+    {
+      "lake_name": "Taskol",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2018,
+      "area_km2": 0.186,
+      "ground_truth_volume_m3": 3393000.0,
+      "huggel_ape": 0.057183068014979015,
+      "regression_ape": 0.20925000618528583
+    },
+    {
+      "lake_name": "Tasman",
+      "lake_type": "proglacial",
+      "mountain": "Southern Alps",
+      "survey_year": 1993,
+      "area_km2": 1.95,
+      "ground_truth_volume_m3": 139000000.0,
+      "huggel_ape": 0.3511299605030695,
+      "regression_ape": 0.5191539890526565
+    },
+    {
+      "lake_name": "Tasman",
+      "lake_type": "proglacial",
+      "mountain": "Southern Alps",
+      "survey_year": 2008,
+      "area_km2": 5.96,
+      "ground_truth_volume_m3": 510000000.0,
+      "huggel_ape": 0.13485660138588326,
+      "regression_ape": 0.39422310105721925
+    },
+    {
+      "lake_name": "Taullicocha",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2007,
+      "area_km2": 0.13,
+      "ground_truth_volume_m3": 2430000.0,
+      "huggel_ape": 0.20870108665950124,
+      "regression_ape": 0.3250744250825449
+    },
+    {
+      "lake_name": "Thayer Lake",
+      "lake_type": "proglacial",
+      "mountain": "Three Sisters",
+      "survey_year": 1991,
+      "area_km2": 0.04,
+      "ground_truth_volume_m3": 360000.0,
+      "huggel_ape": 0.0005944420671627288,
+      "regression_ape": 0.09587618935659169
+    },
+    {
+      "lake_name": "Thulagi lake",
+      "lake_type": "proglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 1995,
+      "area_km2": 0.76,
+      "ground_truth_volume_m3": 31800000.0,
+      "huggel_ape": 0.25656614579464093,
+      "regression_ape": 0.42137233059423046
+    },
+    {
+      "lake_name": "Thulagi lake",
+      "lake_type": "proglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2009,
+      "area_km2": 0.94,
+      "ground_truth_volume_m3": 35400000.0,
+      "huggel_ape": 0.0966734867935273,
+      "regression_ape": 0.30434918200623823
+    },
+    {
+      "lake_name": "Thulagi lake",
+      "lake_type": "proglacial",
+      "mountain": "Central Himalaya",
+      "survey_year": 2017,
+      "area_km2": 0.9,
+      "ground_truth_volume_m3": 36100000.0,
+      "huggel_ape": 0.1672689790872888,
+      "regression_ape": 0.35732049543182276
+    },
+    {
+      "lake_name": "Tintacocha 1",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2009,
+      "area_km2": 0.07,
+      "ground_truth_volume_m3": 150000.0,
+      "huggel_ape": 4.318955967938695,
+      "regression_ape": 3.7030506568735824
+    },
+    {
+      "lake_name": "Tintacocha 2",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2009,
+      "area_km2": 0.19,
+      "ground_truth_volume_m3": 5070000.0,
+      "huggel_ape": 0.34966931378284405,
+      "regression_ape": 0.4557987515742648
+    },
+    {
+      "lake_name": "Tocllacocha Chica",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2012,
+      "area_km2": 0.1,
+      "ground_truth_volume_m3": 930000.0,
+      "huggel_ape": 0.42413247769605245,
+      "regression_ape": 0.23246505894306146
+    },
+    {
+      "lake_name": "Tocllacocha Grande",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2012,
+      "area_km2": 0.2,
+      "ground_truth_volume_m3": 5710000.0,
+      "huggel_ape": 0.3789009644170588,
+      "regression_ape": 0.4816410913838038
+    },
+    {
+      "lake_name": "Torococha",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2015,
+      "area_km2": 0.29,
+      "ground_truth_volume_m3": 8660000.0,
+      "huggel_ape": 0.3056427055050448,
+      "regression_ape": 0.43073312563085736
+    },
+    {
+      "lake_name": "Tullparaju",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2011,
+      "area_km2": 0.46,
+      "ground_truth_volume_m3": 12470000.0,
+      "huggel_ape": 0.07114961672213597,
+      "regression_ape": 0.25463848585600757
+    },
+    {
+      "lake_name": "Tulsequah",
+      "lake_type": "ice-dammed",
+      "mountain": "British Columbia",
+      "survey_year": 1958,
+      "area_km2": 3.86,
+      "ground_truth_volume_m3": 229000000.0,
+      "huggel_ape": 0.03929399246444205,
+      "regression_ape": 0.24869647394341635
+    },
+    {
+      "lake_name": "Tumagara\u00f1on",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2009,
+      "area_km2": 0.06,
+      "ground_truth_volume_m3": 1180000.0,
+      "huggel_ape": 0.4568694160862847,
+      "regression_ape": 0.5197124264195643
+    },
+    {
+      "lake_name": "Tumarina",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2009,
+      "area_km2": 0.11,
+      "ground_truth_volume_m3": 320000.0,
+      "huggel_ape": 3.7391708611971657,
+      "regression_ape": 3.0977737189282
+    },
+    {
+      "lake_name": "Tutapac",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2015,
+      "area_km2": 0.03,
+      "ground_truth_volume_m3": 200000.0,
+      "huggel_ape": 0.19672026844889887,
+      "regression_ape": 0.09725371144895922
+    },
+    {
+      "lake_name": "Ventanilla",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2008,
+      "area_km2": 0.55,
+      "ground_truth_volume_m3": 19010000.0,
+      "huggel_ape": 0.21457159366819817,
+      "regression_ape": 0.37572918155780716
+    },
+    {
+      "lake_name": "Vitus Lake",
+      "lake_type": "proglacial",
+      "mountain": "Alaska",
+      "survey_year": 1995,
+      "area_km2": 58.4,
+      "ground_truth_volume_m3": 2600000000.0,
+      "huggel_ape": 3.346429574100715,
+      "regression_ape": 2.558386736446757
+    },
+    {
+      "lake_name": "Vitus Lake",
+      "lake_type": "proglacial",
+      "mountain": "Alaska",
+      "survey_year": 1999,
+      "area_km2": 80.6,
+      "ground_truth_volume_m3": 4400000000.0,
+      "huggel_ape": 3.0595954513047694,
+      "regression_ape": 2.3100275232219665
+    },
+    {
+      "lake_name": "Vitus Lake",
+      "lake_type": "proglacial",
+      "mountain": "Alaska",
+      "survey_year": 2000,
+      "area_km2": 89.0,
+      "ground_truth_volume_m3": 4900000000.0,
+      "huggel_ape": 3.196821119284007,
+      "regression_ape": 2.4176230313107907
+    },
+    {
+      "lake_name": "Vitus Lake",
+      "lake_type": "proglacial",
+      "mountain": "Alaska",
+      "survey_year": 2001,
+      "area_km2": 96.2,
+      "ground_truth_volume_m3": 5400000000.0,
+      "huggel_ape": 3.2533523054231064,
+      "regression_ape": 2.460248425604788
+    },
+    {
+      "lake_name": "Vitus Lake",
+      "lake_type": "proglacial",
+      "mountain": "Alaska",
+      "survey_year": 2002,
+      "area_km2": 105.8,
+      "ground_truth_volume_m3": 6200000000.0,
+      "huggel_ape": 3.240682749604864,
+      "regression_ape": 2.4457887152637428
+    },
+    {
+      "lake_name": "Vitus Lake",
+      "lake_type": "proglacial",
+      "mountain": "Alaska",
+      "survey_year": 2003,
+      "area_km2": 108.8,
+      "ground_truth_volume_m3": 6400000000.0,
+      "huggel_ape": 3.274674255440953,
+      "regression_ape": 2.4721792116232066
+    },
+    {
+      "lake_name": "Vitus Lake",
+      "lake_type": "proglacial",
+      "mountain": "Alaska",
+      "survey_year": 2004,
+      "area_km2": 114.0,
+      "ground_truth_volume_m3": 6900000000.0,
+      "huggel_ape": 3.2368788150633145,
+      "regression_ape": 2.4394454139477926
+    },
+    {
+      "lake_name": "Yanacocha",
+      "lake_type": "extraglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2007,
+      "area_km2": 0.19,
+      "ground_truth_volume_m3": 410000.0,
+      "huggel_ape": 7.0418940954170255,
+      "regression_ape": 5.786196215257526
+    },
+    {
+      "lake_name": "Yanaraju",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2005,
+      "area_km2": 0.23,
+      "ground_truth_volume_m3": 7640000.0,
+      "huggel_ape": 0.43381907227618294,
+      "regression_ape": 0.5308497617792368
+    },
+    {
+      "lake_name": "Yuraccocha",
+      "lake_type": "periglacial",
+      "mountain": "Cordillera Blanca",
+      "survey_year": 2011,
+      "area_km2": 0.29,
+      "ground_truth_volume_m3": 8180000.0,
+      "huggel_ape": 0.2648980231874924,
+      "regression_ape": 0.39719946036979553
+    },
+    {
+      "lake_name": "\u2116  9 ",
+      "lake_type": "extraglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2017,
+      "area_km2": 0.0682,
+      "ground_truth_volume_m3": 418000.0,
+      "huggel_ape": 0.839351174235843,
+      "regression_ape": 0.6229085517320033
+    },
+    {
+      "lake_name": "\u2116 1 ",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2017,
+      "area_km2": 0.0718,
+      "ground_truth_volume_m3": 832000.0,
+      "huggel_ape": 0.005824976392192884,
+      "regression_ape": 0.12398689293427029
+    },
+    {
+      "lake_name": "\u2116 1 ",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2018,
+      "area_km2": 0.0587,
+      "ground_truth_volume_m3": 544900.0,
+      "huggel_ape": 0.14012186162175286,
+      "regression_ape": 0.014436422311863891
+    },
+    {
+      "lake_name": "\u2116 1 ",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2010,
+      "area_km2": 0.0071,
+      "ground_truth_volume_m3": 32000.0,
+      "huggel_ape": 0.03501297377296282,
+      "regression_ape": 0.04916157798843005
+    },
+    {
+      "lake_name": "\u2116 1 ",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2014,
+      "area_km2": 0.00624,
+      "ground_truth_volume_m3": 29400.0,
+      "huggel_ape": 0.12573456019898077,
+      "regression_ape": 0.13316376179909195
+    },
+    {
+      "lake_name": "\u2116 1 ",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2018,
+      "area_km2": 0.0196,
+      "ground_truth_volume_m3": 82500.0,
+      "huggel_ape": 0.5844380674521028,
+      "regression_ape": 0.48648060390824616
+    },
+    {
+      "lake_name": "\u2116 1 ",
+      "lake_type": "extraglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2011,
+      "area_km2": 0.09445,
+      "ground_truth_volume_m3": 490110.0,
+      "huggel_ape": 1.4917344914914077,
+      "regression_ape": 1.1666950154983544
+    },
+    {
+      "lake_name": "\u2116 10 ",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2013,
+      "area_km2": 0.01725,
+      "ground_truth_volume_m3": 73300.0,
+      "huggel_ape": 0.48732772945446196,
+      "regression_ape": 0.4064893422720439
+    },
+    {
+      "lake_name": "\u2116 10 ",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2017,
+      "area_km2": 0.0203,
+      "ground_truth_volume_m3": 101700.0,
+      "huggel_ape": 0.3510277088239738,
+      "regression_ape": 0.267454638564836
+    },
+    {
+      "lake_name": "\u2116 10 ",
+      "lake_type": "extraglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2017,
+      "area_km2": 0.0624,
+      "ground_truth_volume_m3": 375000.0,
+      "huggel_ape": 0.8070050800960477,
+      "regression_ape": 0.6045444719484349
+    },
+    {
+      "lake_name": "\u2116 11 ",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2013,
+      "area_km2": 0.0134,
+      "ground_truth_volume_m3": 43300.0,
+      "huggel_ape": 0.7585768890267193,
+      "regression_ape": 0.6869270971413377
+    },
+    {
+      "lake_name": "\u2116 11 ",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2017,
+      "area_km2": 0.0098,
+      "ground_truth_volume_m3": 25400.0,
+      "huggel_ape": 0.921904821235084,
+      "regression_ape": 0.8725215139686417
+    },
+    {
+      "lake_name": "\u2116 13 ",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2018,
+      "area_km2": 0.0681,
+      "ground_truth_volume_m3": 346000.0,
+      "huggel_ape": 1.2174778300898046,
+      "regression_ape": 0.9578535971884257
+    },
+    {
+      "lake_name": "\u2116 13-bis  ",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2011,
+      "area_km2": 0.0305,
+      "ground_truth_volume_m3": 180000.0,
+      "huggel_ape": 0.36129078892922034,
+      "regression_ape": 0.25647580068341225
+    },
+    {
+      "lake_name": "\u2116 13-bis  ",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2013,
+      "area_km2": 0.032,
+      "ground_truth_volume_m3": 217000.0,
+      "huggel_ape": 0.20890374967857872,
+      "regression_ape": 0.1131777664680405
+    },
+    {
+      "lake_name": "\u2116 13-bis  ",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2014,
+      "area_km2": 0.0361,
+      "ground_truth_volume_m3": 246500.0,
+      "huggel_ape": 0.26308957185997095,
+      "regression_ape": 0.15616396582518863
+    },
+    {
+      "lake_name": "\u2116 13-bis  ",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2015,
+      "area_km2": 0.043,
+      "ground_truth_volume_m3": 305000.0,
+      "huggel_ape": 0.3088569255798324,
+      "regression_ape": 0.18774555549953653
+    },
+    {
+      "lake_name": "\u2116 13-bis  ",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2017,
+      "area_km2": 0.0372,
+      "ground_truth_volume_m3": 182300.0,
+      "huggel_ape": 0.7823302916151585,
+      "regression_ape": 0.6290305759211582
+    },
+    {
+      "lake_name": "\u2116 13-bis  ",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2019,
+      "area_km2": 0.043,
+      "ground_truth_volume_m3": 145600.0,
+      "huggel_ape": 1.741767598226984,
+      "regression_ape": 1.4880658957922983
+    },
+    {
+      "lake_name": "\u2116 13\u0430 ",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2011,
+      "area_km2": 0.0051,
+      "ground_truth_volume_m3": 5650.0,
+      "huggel_ape": 2.4154042280563774,
+      "regression_ape": 2.445834985964474
+    },
+    {
+      "lake_name": "\u2116 14 ",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2011,
+      "area_km2": 0.0025,
+      "ground_truth_volume_m3": 8700.0,
+      "huggel_ape": 0.19464596487327052,
+      "regression_ape": 0.16617570613860572
+    },
+    {
+      "lake_name": "\u2116 14 ",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2017,
+      "area_km2": 0.0079,
+      "ground_truth_volume_m3": 22000.0,
+      "huggel_ape": 0.6335737842551145,
+      "regression_ape": 0.5994656386776147
+    },
+    {
+      "lake_name": "\u2116 15 ",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2017,
+      "area_km2": 0.002,
+      "ground_truth_volume_m3": 2900.0,
+      "huggel_ape": 0.7595392749670891,
+      "regression_ape": 0.8518112512776299
+    },
+    {
+      "lake_name": "\u2116 18 ",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2018,
+      "area_km2": 0.0677,
+      "ground_truth_volume_m3": 740000.0,
+      "huggel_ape": 0.028177552003810825,
+      "regression_ape": 0.09418080233995287
+    },
+    {
+      "lake_name": "\u2116 19 ",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2014,
+      "area_km2": 0.029,
+      "ground_truth_volume_m3": 150000.0,
+      "huggel_ape": 0.5205812649747056,
+      "regression_ape": 0.39785939858617103
+    },
+    {
+      "lake_name": "\u2116 2 ",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2017,
+      "area_km2": 0.0664,
+      "ground_truth_volume_m3": 619000.0,
+      "huggel_ape": 0.1957586496196332,
+      "regression_ape": 0.05891347932181549
+    },
+    {
+      "lake_name": "\u2116 2  ",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2018,
+      "area_km2": 0.0634,
+      "ground_truth_volume_m3": 193400.0,
+      "huggel_ape": 2.583816007860088,
+      "regression_ape": 2.180810611863866
+    },
+    {
+      "lake_name": "\u2116 20 ",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2014,
+      "area_km2": 0.0135,
+      "ground_truth_volume_m3": 40000.0,
+      "huggel_ape": 0.9238784633537878,
+      "regression_ape": 0.8387759000470938
+    },
+    {
+      "lake_name": "\u2116 22 ",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2018,
+      "area_km2": 0.0124,
+      "ground_truth_volume_m3": 77700.0,
+      "huggel_ape": 0.12226273891193154,
+      "regression_ape": 0.1613653983914795
+    },
+    {
+      "lake_name": "\u2116 23 ",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2018,
+      "area_km2": 0.0126,
+      "ground_truth_volume_m3": 102000.0,
+      "huggel_ape": 0.3159943136657968,
+      "regression_ape": 0.3479118545149356
+    },
+    {
+      "lake_name": "\u2116 3  ",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2018,
+      "area_km2": 0.0575,
+      "ground_truth_volume_m3": 572000.0,
+      "huggel_ape": 0.05469118881880422,
+      "regression_ape": 0.0623660802637706
+    },
+    {
+      "lake_name": "\u2116 3 ",
+      "lake_type": "extraglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2011,
+      "area_km2": 0.004275,
+      "ground_truth_volume_m3": 11720.0,
+      "huggel_ape": 0.2813446289979932,
+      "regression_ape": 0.29278293592064286
+    },
+    {
+      "lake_name": "\u2116 37 ",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2018,
+      "area_km2": 0.0234,
+      "ground_truth_volume_m3": 141800.0,
+      "huggel_ape": 0.18580381116769593,
+      "regression_ape": 0.10040262967837055
+    },
+    {
+      "lake_name": "\u2116 38 ",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2018,
+      "area_km2": 0.0236,
+      "ground_truth_volume_m3": 113700.0,
+      "huggel_ape": 0.4968587859886119,
+      "regression_ape": 0.38991361009152076
+    },
+    {
+      "lake_name": "\u2116 39 ",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2018,
+      "area_km2": 0.0177,
+      "ground_truth_volume_m3": 80900.0,
+      "huggel_ape": 0.3978315198064021,
+      "regression_ape": 0.3159758561342894
+    },
+    {
+      "lake_name": "\u2116 4 ",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2013,
+      "area_km2": 0.0137,
+      "ground_truth_volume_m3": 66000.0,
+      "huggel_ape": 0.19060946209817484,
+      "regression_ape": 0.13453743820297567
+    },
+    {
+      "lake_name": "\u2116 4  ",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2018,
+      "area_km2": 0.175,
+      "ground_truth_volume_m3": 1255000.0,
+      "huggel_ape": 1.3374734176557161,
+      "regression_ape": 0.9709991054935774
+    },
+    {
+      "lake_name": "\u2116 4 ",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2011,
+      "area_km2": 0.048,
+      "ground_truth_volume_m3": 570500.0,
+      "huggel_ape": 0.18187156212789404,
+      "regression_ape": 0.2659412981785379
+    },
+    {
+      "lake_name": "\u2116 49 ",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2018,
+      "area_km2": 0.0317,
+      "ground_truth_volume_m3": 297500.0,
+      "huggel_ape": 0.12993523610012064,
+      "regression_ape": 0.20538404735747778
+    },
+    {
+      "lake_name": "\u2116 5 ",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2017,
+      "area_km2": 0.0965,
+      "ground_truth_volume_m3": 1102900.0,
+      "huggel_ape": 0.14159094369604877,
+      "regression_ape": 0.007785582361828437
+    },
+    {
+      "lake_name": "\u2116 5 ",
+      "lake_type": "extraglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2011,
+      "area_km2": 0.00645,
+      "ground_truth_volume_m3": 9680.0,
+      "huggel_ape": 1.7831866750286915,
+      "regression_ape": 1.7687950240838162
+    },
+    {
+      "lake_name": "\u2116 50 ",
+      "lake_type": "extraglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2018,
+      "area_km2": 0.0435,
+      "ground_truth_volume_m3": 163000.0,
+      "huggel_ape": 1.4896538502183525,
+      "regression_ape": 1.247802589931204
+    },
+    {
+      "lake_name": " \u2116 6 ",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2017,
+      "area_km2": 0.0151,
+      "ground_truth_volume_m3": 68000.0,
+      "huggel_ape": 0.32693811421576047,
+      "regression_ape": 0.25866308165704044
+    },
+    {
+      "lake_name": "\u2116 6 (Manshuk) ",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2010,
+      "area_km2": 0.02517,
+      "ground_truth_volume_m3": 241630.0,
+      "huggel_ape": 0.22814177803568986,
+      "regression_ape": 0.2906588383821855
+    },
+    {
+      "lake_name": "\u2116 6 (Manshuk) ",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2011,
+      "area_km2": 0.0246,
+      "ground_truth_volume_m3": 221000.0,
+      "huggel_ape": 0.1831170100150905,
+      "regression_ape": 0.2484718815519354
+    },
+    {
+      "lake_name": "\u2116 6 (Manshuk) ",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2012,
+      "area_km2": 0.0234,
+      "ground_truth_volume_m3": 201000.0,
+      "huggel_ape": 0.16344785858915778,
+      "regression_ape": 0.22856449412110677
+    },
+    {
+      "lake_name": "\u2116 6 (Manshuk) ",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2013,
+      "area_km2": 0.0212,
+      "ground_truth_volume_m3": 183500.0,
+      "huggel_ape": 0.2036196620190814,
+      "regression_ape": 0.2621920494583381
+    },
+    {
+      "lake_name": "\u2116 6 (Manshuk) ",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2017,
+      "area_km2": 0.0201,
+      "ground_truth_volume_m3": 143600.0,
+      "huggel_ape": 0.05654650644307719,
+      "regression_ape": 0.12374336540899357
+    },
+    {
+      "lake_name": "\u2116 6-bis ",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2016,
+      "area_km2": 0.017,
+      "ground_truth_volume_m3": 143000.0,
+      "huggel_ape": 0.25326721527106,
+      "regression_ape": 0.29784324978793264
+    },
+    {
+      "lake_name": "\u2116 7 ",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2019,
+      "area_km2": 0.0212,
+      "ground_truth_volume_m3": 146700.0,
+      "huggel_ape": 0.0038459985037589393,
+      "regression_ape": 0.07188953287786788
+    },
+    {
+      "lake_name": "\u2116 8 ",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2015,
+      "area_km2": 0.0387,
+      "ground_truth_volume_m3": 228500.0,
+      "huggel_ape": 0.5041266848481384,
+      "regression_ape": 0.36582860775004955
+    },
+    {
+      "lake_name": "\u2116 8 ",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2017,
+      "area_km2": 0.02,
+      "ground_truth_volume_m3": 95300.0,
+      "huggel_ape": 0.41157533935421764,
+      "regression_ape": 0.3237704757598227
+    },
+    {
+      "lake_name": "\u2116 8 ",
+      "lake_type": "extraglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2019,
+      "area_km2": 0.0253,
+      "ground_truth_volume_m3": 146200.0,
+      "huggel_ape": 0.28505059566743385,
+      "regression_ape": 0.19136383730996523
+    },
+    {
+      "lake_name": "\u2116 8 (Toguzak) ",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2013,
+      "area_km2": 0.05296,
+      "ground_truth_volume_m3": 206000.0,
+      "huggel_ape": 1.605530692654105,
+      "regression_ape": 1.3301500618885596
+    },
+    {
+      "lake_name": "\u2116 9 ",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2007,
+      "area_km2": 0.00426,
+      "ground_truth_volume_m3": 10700.0,
+      "huggel_ape": 0.3964989128244164,
+      "regression_ape": 0.4256822555723237
+    },
+    {
+      "lake_name": "\u2116 9 ",
+      "lake_type": "proglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2009,
+      "area_km2": 0.0061,
+      "ground_truth_volume_m3": 21120.0,
+      "huggel_ape": 0.1784010504876321,
+      "regression_ape": 0.18127050185181157
+    },
+    {
+      "lake_name": "\u2116 9 ",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2013,
+      "area_km2": 0.0115,
+      "ground_truth_volume_m3": 28200.0,
+      "huggel_ape": 1.1728805983473354,
+      "regression_ape": 1.1090860500440334
+    },
+    {
+      "lake_name": "\u2116 9 ",
+      "lake_type": "periglacial",
+      "mountain": "Tian Shan",
+      "survey_year": 2017,
+      "area_km2": 0.01,
+      "ground_truth_volume_m3": 30700.0,
+      "huggel_ape": 0.6364206974637255,
+      "regression_ape": 0.5997011552444895
+    }
+  ]
+}

@@ -387,7 +387,7 @@ class TestVolumeValidation:
         """At least 5 surveyed lakes match entries in the global compilation."""
         records = load_all_surveyed_lakes()
         entries = load_global_compilation()
-        comparisons = validate_volumes(records, entries)
+        comparisons = validate_volumes(records, entries, lake_types={"proglacial"})
         assert len(comparisons) >= 5, (
             f"Only {len(comparisons)} lakes matched to global compilation"
         )
@@ -396,7 +396,7 @@ class TestVolumeValidation:
         """Matched lakes have < 5% depth discrepancy (same source data)."""
         records = load_all_surveyed_lakes()
         entries = load_global_compilation()
-        comparisons = validate_volumes(records, entries)
+        comparisons = validate_volumes(records, entries, lake_types={"proglacial"})
         for c in comparisons:
             assert c["discrepancy_pct"] < 5.0, (
                 f"{c['lake_name']}: {c['discrepancy_pct']}% discrepancy"
@@ -409,6 +409,139 @@ class TestVolumeValidation:
         assert len(imja_entries) >= 3, (
             f"Imja has {len(imja_entries)} entries, expected >= 3"
         )
+
+
+# --------------------------------------------------------------------------- #
+# Global compilation loader (multi-sheet)
+# --------------------------------------------------------------------------- #
+
+
+class TestSurveyYearParsing:
+    """_parse_survey_year handles annotated values like '<2014'."""
+
+    def test_parse_int_and_float(self):
+        from siren.ml.bathymetry_dataset import _parse_survey_year
+
+        assert _parse_survey_year(2014) == 2014
+        assert _parse_survey_year(2009.0) == 2009
+
+    def test_parse_annotated_strings(self):
+        from siren.ml.bathymetry_dataset import _parse_survey_year
+
+        assert _parse_survey_year("<2014") == 2014
+        assert _parse_survey_year("c.2009") == 2009
+
+    def test_parse_empty_and_missing(self):
+        from siren.ml.bathymetry_dataset import _parse_survey_year
+
+        assert _parse_survey_year(None) is None
+        assert _parse_survey_year(float("nan")) is None
+        assert _parse_survey_year("unknown") is None
+
+
+@skip_global
+class TestGlobalCompilationMultiSheet:
+    """The loader reads all five lake-type worksheets."""
+
+    def test_all_sheets_loaded(self):
+        entries = load_global_compilation()
+        assert len(entries) == 323
+
+    def test_lake_types_present(self):
+        entries = load_global_compilation()
+        types = {e.lake_type for e in entries}
+        assert types == {
+            "proglacial", "periglacial", "extraglacial",
+            "supraglacial", "ice-dammed",
+        }
+
+    def test_imja_still_present(self):
+        entries = load_global_compilation()
+        imja = [e for e in entries if "imja" in e.name.lower()]
+        assert len(imja) >= 3
+
+
+class TestMetadataLooBenchmark:
+    """run_metadata_loo_benchmark on synthetic compilation entries."""
+
+    def _entry(self, name, area, volume, mtype="proglacial",
+               mountain="Central Himalaya", year=2010):
+        return GlobalCompilationEntry(
+            name=name, mountain=mountain, country="Nepal",
+            lon="86E", lat="27N", survey_year=year,
+            area_km2=area, volume_mcm=volume, max_depth_m=None,
+            source="synthetic", lake_type=mtype,
+        )
+
+    def test_grouped_loo_no_cross_year_leakage(self):
+        """All rows of one lake are held out together."""
+        from siren.ml.bathymetry_benchmark import run_metadata_loo_benchmark
+
+        # Lake A surveyed twice; lakes B, C once each. Volumes follow a
+        # clean power law so a fit on the others predicts well.
+        entries = [
+            self._entry("Alpha", 0.5, 10.0, year=2000),
+            self._entry("Alpha", 0.6, 15.0, year=2010),
+            self._entry("Beta", 1.0, 40.0),
+            self._entry("Gamma", 0.2, 2.0),
+        ]
+        r = run_metadata_loo_benchmark(entries)
+        assert r["n_entries_evaluable"] == 4
+        assert r["n_unique_lakes"] == 3
+        assert len(r["folds"]) == 4
+        # Both Alpha folds must be evaluated, never trained on each other
+        alpha_folds = [f for f in r["folds"] if f["lake_name"] == "Alpha"]
+        assert len(alpha_folds) == 2
+
+    def test_missing_volume_excluded(self):
+        from siren.ml.bathymetry_benchmark import run_metadata_loo_benchmark
+
+        entries = [
+            self._entry("Alpha", 0.5, 10.0),
+            self._entry("NoVol", 0.5, None),
+            self._entry("Beta", 1.0, 40.0),
+            self._entry("Gamma", 0.2, 2.0),
+        ]
+        r = run_metadata_loo_benchmark(entries)
+        assert r["n_entries_evaluable"] == 3
+        assert all(f["lake_name"] != "NoVol" for f in r["folds"])
+
+    def test_per_type_and_himalaya_breakdown(self):
+        from siren.ml.bathymetry_benchmark import run_metadata_loo_benchmark
+
+        entries = [
+            self._entry("A", 0.5, 10.0, mtype="proglacial"),
+            self._entry("B", 1.0, 40.0, mtype="proglacial"),
+            self._entry("C", 0.2, 2.0, mtype="proglacial"),
+            self._entry("D", 0.5, 10.0, mtype="supraglacial",
+                        mountain="Cordillera Blanca"),
+            self._entry("E", 1.0, 40.0, mtype="supraglacial",
+                        mountain="Cordillera Blanca"),
+            self._entry("F", 0.2, 2.0, mtype="supraglacial",
+                        mountain="Cordillera Blanca"),
+        ]
+        r = run_metadata_loo_benchmark(entries)
+        assert set(r["by_lake_type"]) == {"proglacial", "supraglacial"}
+        assert r["by_lake_type"]["proglacial"]["n_entries"] == 3
+        # Himalaya subset contains only the proglacial (Himalaya) lakes
+        assert r["himalaya_subset"]["n_entries"] == 3
+
+    def test_report_keys_and_gate_flags(self):
+        from siren.ml.bathymetry_benchmark import run_metadata_loo_benchmark
+
+        entries = [
+            self._entry("A", 0.5, 10.0),
+            self._entry("B", 1.0, 40.0),
+            self._entry("C", 0.2, 2.0),
+        ]
+        r = run_metadata_loo_benchmark(entries)
+        for key in (
+            "n_entries_total", "n_entries_evaluable", "n_unique_lakes",
+            "overall", "himalaya_subset", "by_lake_type",
+            "huggel_passes_gate", "regression_passes_gate", "folds",
+        ):
+            assert key in r
+        assert isinstance(r["huggel_passes_gate"], bool)
 
 
 # --------------------------------------------------------------------------- #

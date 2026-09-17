@@ -520,6 +520,10 @@ def main(argv: list[str] | None = None) -> int:
                              "--pretrain-synthetic)")
     parser.add_argument("--benchmark", action="store_true",
                         help="Run the LOO volume estimation benchmark (Huggel vs regression)")
+    parser.add_argument("--benchmark-metadata", action="store_true",
+                        help="Run the grouped-LOO volume benchmark over the "
+                             "global compilation metadata (~300 published "
+                             "area/volume entries, grouped by lake)")
     parser.add_argument("--train-real", action="store_true",
                         help="Run LOO training and evaluation with the neural model on real surveyed data")
     parser.add_argument("--data-dir", type=str, default=None,
@@ -549,6 +553,17 @@ def main(argv: list[str] | None = None) -> int:
         with open(report_path, "w") as f:
             json.dump(result, f, indent=2)
         logger.info("Benchmark report saved: %s", report_path)
+        return 0
+
+    if args.benchmark_metadata:
+        from siren.ml.bathymetry_benchmark import run_metadata_loo_benchmark
+
+        result = run_metadata_loo_benchmark()
+        CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
+        report_path = CHECKPOINT_DIR / "bathymetry_metadata_loo.json"
+        with open(report_path, "w") as f:
+            json.dump(result, f, indent=2)
+        logger.info("Metadata benchmark report saved: %s", report_path)
         return 0
 
     if args.train_real:
@@ -622,7 +637,7 @@ def main(argv: list[str] | None = None) -> int:
     else:
         parser.error(
             "Must specify --synthetic, --pretrain-synthetic, --benchmark, "
-            "--train-real, or --data-dir"
+            "--benchmark-metadata, --train-real, or --data-dir"
         )
 
     # Save checkpoint
