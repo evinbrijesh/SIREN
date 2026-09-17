@@ -68,6 +68,7 @@ pytest                             # 782 tests
 
 # frontend
 cd frontend && npm install && npm run dev   # port 5175, proxies /api → 8010
+cd frontend && npm test                      # vitest + jsdom (human-gate/dispatch/sim tests)
 ```
 
 ---
