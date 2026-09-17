@@ -1,0 +1,63 @@
+{
+  "experiment": "weak-label domain adaptation on Imja descending pair",
+  "labels": {
+    "positives": "verified lake masks + SCL water (independent optical)",
+    "negatives": "SCL clear-land + snow/ice off-lake (independent optical)",
+    "ignore": "outside AOI, SCL cloud/shadow, glacier is negative off-lake",
+    "chips": 49,
+    "train_chips": 42,
+    "val_chips": 7,
+    "pos_pixel_frac": 0.05082
+  },
+  "training": {
+    "epochs": 12,
+    "lr": 0.0001,
+    "pos_weight": 3.0,
+    "loss_history": [
+      2.9429,
+      2.7366,
+      2.6578,
+      2.5636,
+      2.4102,
+      2.3225,
+      2.2104,
+      2.0268,
+      2.0143,
+      1.9085,
+      1.8516,
+      1.7827
+    ]
+  },
+  "val_weaklabel_metrics": {
+    "iou": 0.0648,
+    "precision": 0.0789,
+    "recall": 0.2656,
+    "f1": 0.1217,
+    "tp": 592,
+    "fp": 6911,
+    "fn": 1637,
+    "tn": 32321
+  },
+  "full_scene_before": {
+    "raw_px": 61179,
+    "water_extent_px": 729386,
+    "gated_px": 1296,
+    "on_glacier_px": 30151,
+    "rule_overlap_px": 23,
+    "rule_overlap_pct": 9.1
+  },
+  "full_scene_after": {
+    "raw_px": 147073,
+    "water_extent_px": 342221,
+    "gated_px": 4354,
+    "on_glacier_px": 27575,
+    "rule_overlap_px": 12,
+    "rule_overlap_pct": 4.8
+  },
+  "checkpoint_out": "/home/e0kt/Documents/01_projects/2026/hackathons/hack_26/project/models/checkpoints/water_resunet_6ch_imja_weaklabel.pt",
+  "limitations": [
+    "Single scene pair \u2014 risk of memorising the label layout rather than learning a transferable Himalayan water signature.",
+    "Lake positives derive from the same scenario masks the rule path uses \u2014 overlap gains over the lake are circular by construction; the honest metrics are raw_px / on_glacier_px spread, driven by independent SCL negatives.",
+    "SCL at 20 m resampled to ~90 m SAR pitch is noisy at water edges; the Nov scene's lake is frozen (SCL snow/ice), so the in-lake positives lean on the verified footprints."
+  ]
+}
