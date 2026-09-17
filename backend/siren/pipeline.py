@@ -64,7 +64,8 @@ RGI_GLACIER_SHP_PATH = (
         / "RGI2000-v7.0-G-15_south_asia_east.shp"
     )
 )
-BASELINE_WATER_MASK_PATH = PROCESSED_DIR / "baseline_water_mask.tif"
+# NOTE: data/processed/baseline_water_mask.tif covers the Rolwaling
+# valley (~30 km west of the AOI) — it is not a valid Imja lake reference.
 # Terrain gate for the ML shadow mask (ADR-010 display hygiene — shapes
 # what the reviewer sees, never the load-bearing rule mask or the score).
 # Water surfaces are flat: >15° at ~90 m pitch cannot be lake. RGI glacier
@@ -443,16 +444,26 @@ def _try_ml_evidence_layer(
                     glac_g = sar_grid_polygon_mask(
                         RGI_GLACIER_SHP_PATH, lon_g, lat_g
                     )
-                    lake_vic = np.zeros(ml_mask.shape, dtype=bool)
-                    if BASELINE_WATER_MASK_PATH.exists():
+                    # Known-water vicinity: union of the per-observation
+                    # scenario masks (georeferenced to the Imja lake area).
+                    # baseline_water_mask.tif covers the Rolwaling valley
+                    # ~30 km west of the AOI — it must not be used here.
+                    lake_union = np.zeros(ml_mask.shape, dtype=bool)
+                    for obs_mask_path in sorted(
+                        PROCESSED_DIR.glob("obs-*_expansion_mask.tif")
+                    ):
+                        lake_union |= (
+                            sar_grid_sample(str(obs_mask_path), lon_g, lat_g)
+                            > 0
+                        )
+                    if lake_union.any():
                         from scipy.ndimage import binary_dilation
 
-                        bw = sar_grid_sample(
-                            str(BASELINE_WATER_MASK_PATH), lon_g, lat_g
-                        ) > 0
                         lake_vic = binary_dilation(
-                            bw, iterations=ML_LAKE_VICINITY_DILATION_PX
+                            lake_union, iterations=ML_LAKE_VICINITY_DILATION_PX
                         )
+                    else:
+                        lake_vic = np.zeros(ml_mask.shape, dtype=bool)
                     glac_gate = glac_g & ~lake_vic
                     gate_stats["ml_shadow_px_glacier"] = int(
                         (ml_mask & glac_gate).sum()

@@ -1,0 +1,205 @@
+{
+  "s2_scene": "S2B_MSIL2A_20260526T044659_N0512_R076_T45RVL_20260526T083736.zip",
+  "aoi_bounds": [
+    86.65,
+    27.65,
+    87.0,
+    27.98
+  ],
+  "grid_shape": [
+    1216,
+    1149
+  ],
+  "populations": {
+    "lake": {
+      "n_px": 2847,
+      "ndwi": {
+        "n": 2847,
+        "mean": 0.0478,
+        "std": 0.0825,
+        "p05": -0.1112,
+        "p50": 0.037,
+        "p95": 0.1626
+      },
+      "mndwi": {
+        "n": 2847,
+        "mean": 0.058,
+        "std": 0.2379,
+        "p05": -0.3488,
+        "p50": 0.022,
+        "p95": 0.4273
+      },
+      "cloud_frac": 0.6312,
+      "scl_hist": {
+        "bare_soil": 0.1907,
+        "water": 0.027,
+        "unclassified": 0.0028,
+        "cloud_med": 0.2634,
+        "cloud_high": 0.3678,
+        "snow_ice": 0.1482
+      }
+    },
+    "glacier": {
+      "n_px": 269437,
+      "ndwi": {
+        "n": 269437,
+        "mean": 0.0478,
+        "std": 0.0343,
+        "p05": -0.0117,
+        "p50": 0.0522,
+        "p95": 0.089
+      },
+      "mndwi": {
+        "n": 269437,
+        "mean": 0.3351,
+        "std": 0.2558,
+        "p05": -0.0656,
+        "p50": 0.3034,
+        "p95": 0.716
+      },
+      "cloud_frac": 0.5423,
+      "scl_hist": {
+        "dark_pixels": 0.0013,
+        "bare_soil": 0.0762,
+        "water": 0.0006,
+        "unclassified": 0.001,
+        "cloud_med": 0.1426,
+        "cloud_high": 0.3998,
+        "snow_ice": 0.3786
+      }
+    },
+    "sar_det": {
+      "n_px": 129,
+      "ndwi": {
+        "n": 129,
+        "mean": 0.0329,
+        "std": 0.0971,
+        "p05": -0.1533,
+        "p50": 0.0394,
+        "p95": 0.1585
+      },
+      "mndwi": {
+        "n": 129,
+        "mean": 0.1594,
+        "std": 0.2744,
+        "p05": -0.2561,
+        "p50": 0.1297,
+        "p95": 0.6765
+      },
+      "cloud_frac": 0.4419,
+      "scl_hist": {
+        "dark_pixels": 0.0078,
+        "vegetation": 0.0078,
+        "bare_soil": 0.1705,
+        "water": 0.0233,
+        "unclassified": 0.0233,
+        "cloud_med": 0.1628,
+        "cloud_high": 0.2791,
+        "snow_ice": 0.3256
+      }
+    },
+    "background": {
+      "n_px": 1123319,
+      "ndwi": {
+        "n": 1123319,
+        "mean": -0.0776,
+        "std": 0.1469,
+        "p05": -0.3831,
+        "p50": -0.0118,
+        "p95": 0.0635
+      },
+      "mndwi": {
+        "n": 1123319,
+        "mean": -0.0495,
+        "std": 0.2605,
+        "p05": -0.3918,
+        "p50": -0.0624,
+        "p95": 0.4421
+      },
+      "cloud_frac": 0.4441,
+      "scl_hist": {
+        "dark_pixels": 0.0156,
+        "cloud_shadow": 0.0016,
+        "vegetation": 0.1319,
+        "bare_soil": 0.2756,
+        "water": 0.0011,
+        "unclassified": 0.0048,
+        "cloud_med": 0.1167,
+        "cloud_high": 0.3258,
+        "snow_ice": 0.1269
+      }
+    }
+  },
+  "scl_aoi_histogram": {
+    "dark_pixels": {
+      "px": 17853,
+      "frac": 0.0128
+    },
+    "cloud_shadow": {
+      "px": 1752,
+      "frac": 0.0013
+    },
+    "vegetation": {
+      "px": 148221,
+      "frac": 0.1063
+    },
+    "bare_soil": {
+      "px": 330631,
+      "frac": 0.237
+    },
+    "water": {
+      "px": 1476,
+      "frac": 0.0011
+    },
+    "unclassified": {
+      "px": 5610,
+      "frac": 0.004
+    },
+    "cloud_med": {
+      "px": 170131,
+      "frac": 0.122
+    },
+    "cloud_high": {
+      "px": 474501,
+      "frac": 0.3402
+    },
+    "snow_ice": {
+      "px": 244645,
+      "frac": 0.1754
+    }
+  },
+  "clear_frac_aoi": 0.5366,
+  "lake_vs_glacier_separability": {
+    "ndwi": {
+      "fisher_ratio": 0.001,
+      "auc_lake_gt_glacier": 0.5426,
+      "lake_mean": 0.0432,
+      "glacier_mean": 0.0386,
+      "best_threshold": {
+        "threshold": 0.14800068736076355,
+        "direction": "gt",
+        "f1": 0.3059,
+        "precision": 0.2827,
+        "recall": 0.3333
+      },
+      "frac_lake_gt_0": 0.629,
+      "frac_glacier_gt_0": 0.85
+    },
+    "mndwi": {
+      "fisher_ratio": 0.781,
+      "auc_lake_gt_glacier": 0.1797,
+      "lake_mean": 0.0626,
+      "glacier_mean": 0.4435,
+      "best_threshold": {
+        "threshold": -0.2820594608783722,
+        "direction": "lt",
+        "f1": 0.3546,
+        "precision": 0.5708,
+        "recall": 0.2571
+      },
+      "frac_lake_gt_0": 0.543,
+      "frac_glacier_gt_0": 0.853
+    }
+  },
+  "note": "MNDWI>0 is the classic open-water test; on debris-covered glacier ice it typically fails \u2014 that's exactly what this diagnostic measures."
+}
