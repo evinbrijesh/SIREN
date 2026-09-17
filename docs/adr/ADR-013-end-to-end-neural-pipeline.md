@@ -1,10 +1,12 @@
 # ADR-013 — End-to-End Neural Pipeline
 
-**Status:** ACCEPTED · **Date:** 2026-09-14 · **Supersedes:** ADR-002 (deterministic-first ML) in the research path · **Amends:** ADR-012 (FNO input contract) · **Companions:** [PRD v5.0 §9.7](../spec/PRD.md), [ADR-011.1](ADR-011.1-real-data-sar-gate-calibration.md), [ADR-010](ADR-010-ml-evidence-isolation-and-retraining-path.md), [ADR-013-addendum (FNO dual-contract)](ADR-013-addendum-fno-dual-contract.md)
+**Status:** ACCEPTED — elevated to target architecture by PRD v5.1 (2026-09-17): the end-to-end neural pipeline is now the declared primary direction, not merely a research track; promotion remains component-wise and gate-gated per PRD §9.8/§17.2 · **Date:** 2026-09-14 · **Supersedes:** ADR-002 (deterministic-first ML) — as of PRD v5.1, supersession extends to the operational target; deterministic modules remain interim primary + permanent fallback/cross-check until each component's gate passes · **Amends:** ADR-012 (FNO input contract) · **Companions:** [PRD v5.1 §9.7–§9.8](../spec/PRD.md), [ADR-011.1](ADR-011.1-real-data-sar-gate-calibration.md), [ADR-010](ADR-010-ml-evidence-isolation-and-retraining-path.md), [ADR-013-addendum (FNO dual-contract)](ADR-013-addendum-fno-dual-contract.md)
 
 ---
 
-## Implementation Status (as of 2026-09-14)
+## Implementation Status (as of 2026-09-17, post-v5.1)
+
+> **⚠ STATUS:** No neural module has passed its promotion gate. No neural module is load-bearing. The deterministic/empirical baseline (Huggel formula, calibrated 2-channel FNO, NDWI, D8 corridor) remains the active primary path — now framed as *interim* pending §9.8 promotions. Updates since 2026-09-14: **adapter segmentation** evaluated on independent S1A held-out pairs (glacier FPs −77% Nov / −70% Jan; Imja recall 41% Nov, 0% Jan-frozen; inventory recall 16.3% v1 vs 24.7% stratified-v2 which collapsed Imja to 4.2%); **deterministic thermal-state gate** implemented (`detect/thermal_state.py`, ERA5-Land + lapse rate) to label frozen observations where SAR is physically invalid; **E1 conformal gate PASSED** on the Kuro Siwo test split (coverage 0.8885 vs nominal 0.90) — deployment-domain calibration still required. See PRD §9.8 for the measured distance-to-gate table.
 
 > **⚠ SCAFFOLD STATUS:** E0–E3 represent **interfaces and tensor-flow tests only**. No neural module has passed its promotion gate. No neural module is load-bearing. The deterministic/empirical baseline (Huggel formula, calibrated 2-channel FNO, NDWI, D8 corridor) remains the active primary path.
 

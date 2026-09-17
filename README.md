@@ -1,6 +1,6 @@
 # SIREN — Satellite-Informed Risk & Emergency Network
 
-**An audited satellite monitoring pipeline for glacial lake hazards — deterministic hydrological baselines + shadow-track deep learning, strict spatial gating, and split-conformal uncertainty bounds. Human-in-the-loop by design.**
+**An audited satellite monitoring pipeline for glacial lake hazards — DL-primary target architecture (PRD v5.1): trained segmentation, neural bathymetry, and latent-conditioned hydrodynamics promoted component-wise through held-out real-data gates, with deterministic baselines kept as permanent labeled fallback/cross-check. Human-in-the-loop by design.**
 
 > What changed? How serious is it? Who and what are in the path? What should responders do right now?
 
@@ -12,7 +12,7 @@ SIREN does **not** predict floods. It monitors a glacial basin for observable ch
 
 SIREN fuses Sentinel-1 SAR and Sentinel-2 optical imagery with rainfall, terrain, river, population, and infrastructure data to model hazard progression and downstream exposure. It surfaces evidence to an authorized emergency coordinator through an explainable review console and — only after human confirmation — dispatches a geofenced, bandwidth-light alert alongside a disease-prevention action sheet.
 
-The ML layer runs in **shadow mode**: a gate-passed 6-channel SAR segmenter produces supplementary evidence that is terrain-gated, uncertainty-quantified, and split into persistent water extent vs. differential change — but never touches the hazard score, corridor, or dispatch. Every experimental claim in this repo is backed by a measured number, including the negative results.
+The architecture is **DL-primary by declaration (PRD v5.1), deterministic-interim in operation**: a gate-passed 6-channel SAR segmenter and its high-altitude adapter currently run as shadow evidence — terrain-gated, uncertainty-quantified, and split into persistent water extent vs. differential change — while the deterministic path still drives the hazard score, corridor, and dispatch. Each neural component promotes to primary only after passing its held-out real-data gate (PRD §9.8); the deterministic modules then remain as permanent labeled cross-check and regression harness. Every experimental claim in this repo is backed by a measured number, including the negative results.
 
 The offline demo runs a retrospective "what-if" prevention scenario for the **Dudh Koshi / Imja glacial basin, Nepal**:
 

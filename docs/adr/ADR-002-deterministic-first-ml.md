@@ -1,6 +1,6 @@
 # ADR-002 — Deterministic-First (No Trained ML in the Critical Path)
 
-**Status:** Accepted + Implemented-as-optional-layer · **Date:** 2026-09-04 · **Applies to:** change detection, risk fusion
+**Status:** SUPERSEDED as the target architecture by PRD v5.1 (DL-primary, 2026-09-17); deterministic modules remain the interim operational path and permanent fallback/cross-check until each neural component passes its §9.8/§17.2 promotion gate · **Date:** 2026-09-04 · **Applies to:** change detection, risk fusion
 
 ## Context
 

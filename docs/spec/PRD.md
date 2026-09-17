@@ -6,16 +6,16 @@
 
 | | |
 |---|---|
-| **Version** | 5.0 — End-to-end neural pipeline: latent-conditioned FNO coupling, neural bathymetry inversion, multi-modal sensor fusion, Bayesian uncertainty estimation. Supersedes v4.7 shadow-mode architecture. |
+| **Version** | 5.1 — **DL-primary architecture declaration.** The neural pipeline (§9.7) is the intended load-bearing analytical spine; deterministic modules are demoted to labeled fallback, independent cross-check, and regression harness. Adds the promotion pathway (§9.8) — the concrete plan for moving each neural component from shadow to primary. Supersedes v4.7 shadow-mode architecture and the deterministic-first posture of ADR-002 for the operational path, not only the research path. |
 | **Target track** | Originally Track 7 — *Living with Uncertainties, Building with Resilience* (>.hack();'26); now an ongoing personal research project |
 | **Track areas** | Area ii: Communication Systems During Disasters for Effective Response · Area iii: Curbing Diseases That Arise During Disasters |
 | **Geography** | Existing Dudh Koshi / Imja demo; one research pilot basin and hazard type to be confirmed after forecasting-data feasibility review. South Lhonak is a candidate retrospective case, not proof of generalization. |
-| **Origin** | >.hack();'26 hackathon MVP; now an ongoing portfolio-quality ML research application |
-| **Status** | Active development — transition from hybrid shadow architecture to end-to-end differentiable neural pipeline. Deterministic baseline retained as labeled fallback and regression target; ML components promoted from shadow to primary analytical path per ADR-013. |
+| **Origin** | >.hack();'26 hackathon MVP; now an ongoing portfolio-quality ML/DL research application |
+| **Status** | Active development — **DL-primary target**: trained segmentation, neural bathymetry, latent-conditioned FNO, and learned risk fusion form the intended analytical spine. Each component is promoted from shadow to primary only when its gate passes on held-out real data (§9.8, §17.2). Until a component's gate passes, the deterministic module runs as the interim operational path — labeled fallback, never deleted. |
 
 ### Document authority and implementation status
 
-This revision (v5.0) defines the architectural transition from a hybrid shadow system to an end-to-end differentiable neural pipeline, per ADR-013. The four-step blueprint (§9.7) eliminates the empirical and deterministic safety nets that constrained the v4.7 shadow architecture: the Huggel area-volume power law is replaced by neural bathymetry inversion (§9.7.1), single-modality SAR segmentation is replaced by multi-modal sensor fusion (§9.7.2), the scalar V_breach injection into the FNO is replaced by latent spatial conditioning from the segmentation bottleneck (§9.7.3), and hardcoded threshold gates are augmented by Bayesian epistemic uncertainty estimation (§9.7.4). The deterministic baseline (NDWI, SAR backscatter ratio, D8 corridor) remains as a labeled fallback and regression target, not as a co-equal analytical path.
+This revision (v5.1) declares the **DL-primary architecture**: the end-to-end differentiable neural pipeline defined by ADR-013/§9.7 is the intended load-bearing analytical spine, not a research adjunct. The four-step blueprint (§9.7) eliminates the empirical and deterministic safety nets that constrained the v4.7 shadow architecture: the Huggel area-volume power law is replaced by neural bathymetry inversion (§9.7.1), single-modality SAR segmentation is replaced by multi-modal sensor fusion (§9.7.2), the scalar V_breach injection into the FNO is replaced by latent spatial conditioning from the segmentation bottleneck (§9.7.3), and hardcoded threshold gates are augmented by Bayesian epistemic uncertainty estimation (§9.7.4). The deterministic modules (NDWI, SAR backscatter ratio, D8 corridor, Huggel formula, five-factor risk fusion, thermal-state gate) are retained permanently as labeled fallback, independent cross-check, and regression harness — in a DL-primary system they serve as the sanity-check and degrade-path, not the primary analytics. §9.8 defines the promotion pathway and the current measured distance to each gate.
 
 Existing ADR safety gates (ADR-010, ADR-011, ADR-011.1, ADR-012), dependency approval requirements, and the frozen demo remain in force. This PRD is not an operational deployment approval and does not silently amend API contracts, scoring weights, or ADR-012's restrictions on flood-depth and arrival-time use. The human gate (Hard Rule 3) and explainability requirement (Hard Rule 5) are preserved through the transition.
 
@@ -117,7 +117,7 @@ The primary MVP user is an **authorized emergency coordinator**. The public aler
 
 ## 6. Core Product Workflow
 
-The existing ingestion → detection → exposure → review → dispatch structure is retained. DL research inference replaces the primary research mask source (§6.3); forecasting and candidate routing extend the flow through §7.9–§7.12. The existing deterministic operational/demo path is not replaced by this document.
+The existing ingestion → detection → exposure → review → dispatch structure is retained. Under the v5.1 DL-primary declaration, the trained neural segmenter is the intended primary mask source once its §9.8/§17.2 gate passes on deployment-domain held-out data; until then the deterministic mask runs as the labeled interim path with the neural output shown as shadow evidence. Forecasting and candidate routing extend the flow through §7.9–§7.12.
 
 ```text
 [6.1 Ingestion] → [6.2 Quality gate] → [6.3 Detection / research DL]
@@ -205,11 +205,13 @@ Reuse the existing local-first stack for a reproducible single-basin ML research
 
 ---
 
-## 9. Hybrid AI & Computational Architecture
+## 9. DL-Primary AI & Computational Architecture
 
-SIREN is a hybrid pipeline — deterministic physical modeling plus deep-learning vision — deliberately avoiding a single black-box model so every score stays explainable.
+SIREN's target architecture is **DL-primary**: trained neural components — segmentation, bathymetry inversion, latent-conditioned hydrodynamic surrogate, uncertainty estimation, learned risk fusion — form the analytical spine from raw satellite bytes to decision support. Deterministic geospatial and empirical modules (NDWI/backscatter baselines, D8 corridor, Huggel volume, five-factor scoring, thermal-state gate) are retained as labeled fallback, independent cross-check, and regression harness — the sanity layer that keeps a neural primary honest — never silently deleted.
 
-The diagram below is the target research architecture, not a claim of completed wiring. Dashed paths are data-gated extensions; operational promotion remains subject to ADR acceptance.
+Explainability does not come from avoiding learned components; it comes from per-component provenance, measured gate evidence, uncertainty quantification, and a deterministic cross-check that can flag disagreement between the neural output and the physical baseline.
+
+The diagram below is the target architecture, not a claim of completed wiring. Dashed paths are data-gated extensions; promotion remains subject to the §9.8 pathway and §17.2 gates.
 
 ```mermaid
 flowchart TD
@@ -257,7 +259,7 @@ Confidence multiplier = (1.0 − cloud_fraction) × sensor-freshness weight. For
 
 **Historical audit (2026-09-07, not current qualification):** the post-build `ml/` layer contained a Siamese U-Net (ResNet-34 encoder) trained on synthetic bi-temporal Sen1Floods11 pairs, a five-class changed-crop classifier internally named "SegFormer" (not the SegFormer architecture), and a ConvLSTM trend classifier trained on synthetic water-mask progressions. The audit found train/inference input mismatches, threshold-generated labels, no held-out evaluation, and integration paths that can suppress rule-based evidence. No existing checkpoint is qualified for live hazard assessment — see `docs/reference/DL_MODEL_AUDIT.md`.
 
-**Next implementation:** establish a reproducible U-Net/ResUNet baseline using real calibrated Sen1Floods11 VV/VH and original labels. Compare SAR-only against terrain-aware input where co-registration and coverage are valid. Use separate dataset adapters with explicit normalization and target semantics; water extent and new-flood/change labels are not interchangeable. Compare early-fusion and shared-encoder paired models only after S1GFloods qualification (§11.1). A missing pre-event image must fail closed, never invoke label-derived differences. Six channels are not mandatory; the available measurements determine the contract.
+**Current implementation (2026-09-17):** the reproducible baseline exists — a 6-channel WaterResUNet trained on real Kuro Siwo data (ADR-011.1 gate-passed: pooled IoU 0.6147, P 0.8710 on its own test set) and wired into the runtime ML evidence layer. It is out-of-distribution on Himalayan terrain (~729k false water px on the Imja scene), so a high-altitude adapter was fine-tuned on 697 verified lake-inventory chips (frozen encoder): in-scene glacier FPs −92%, held-out on independent S1A pairs −77% (Nov) / −70% (Jan), Imja recall 41% under November freeze-up. The runtime decomposes neural output into persistent extent / expansion / drainage (`predict_state_and_change`) and terrain-gates every displayed layer. A deterministic thermal-state gate (`detect/thermal_state.py`, ERA5-Land + lapse rate) labels frozen observations where SAR water detection is physically invalid. All of this remains shadow evidence pending the §9.8 promotion gate — the ADR-011.1 test-set pass does not qualify deployment-domain performance.
 
 **Inference acceptance:** the selected checkpoint must load through the same preprocessing contract used during evaluation. Research-mode area and exposure results must derive from the model mask, not a hidden scenario mask; show the baseline separately. Probability maps must not be described as calibrated uncertainty unless calibration is evaluated. Permanent water, radar shadow, snow/ice, dry soil, empty-water chips, and invalid pixels require explicit error analysis. General flood-benchmark scores do not establish Himalayan GLOF warning performance.
 
@@ -390,6 +392,32 @@ flowchart LR
 - **Safety:** when showing predictions to evaluators or operators, display a statistically rigorous, distribution-free 90% confidence corridor on the downstream flood wave arrival time, not just a binary flood boundary. This demonstrates how modern ML systems handle safety without hardcoded heuristic rules.
 - **Conformal calibration:** calibrate the uncertainty estimates on a held-out calibration set using split conformal prediction to guarantee distribution-free coverage of the 90% confidence interval.
 - **Gate:** the uncertainty-calibrated predictions must achieve empirical coverage within ±5% of the nominal 90% level on a held-out calibration set. Until this gate passes, uncertainty maps are displayed as informational only, not as calibrated safety bounds.
+
+### 9.8 Promotion pathway — how neural components leave shadow mode
+
+Under the DL-primary declaration, "shadow" is a qualification stage, not a permanent posture. A component is promoted to primary when **all** of the following hold, and demoted back to shadow automatically on regression:
+
+1. **Gate pass on held-out real data** — the component's §17.2 gate evaluated on data it did not train on (independent season/satellite/geometry where applicable).
+2. **Domain coverage** — the evaluation set covers the deployment domain's failure modes: high-altitude terrain, glacier/snow confusors, frozen-surface state (via the deterministic thermal gate), and seasonal spread.
+3. **Cross-check agreement** — on the live deployment scene, the neural output is compared against the deterministic fallback each run; persistent material disagreement (to be bounded per-component) is surfaced as a reason, not silently resolved.
+4. **Provenance + rollback** — the runtime records model version, contract, and gate evidence; the deterministic fallback remains callable with a one-line config change.
+5. **Uncertainty contract** — where the component emits probability/coverage, the calibration gate (§9.7.4) applies to the promoted operating point.
+
+**Current measured distance to each gate (2026-09-17):**
+
+| Component | Gate (§17.2) | Measured status | Gap to promotion |
+|---|---|---|---|
+| SAR segmentation (Kuro Siwo 6ch) | Event-held-out IoU > 0.60 AND P ≥ 0.84 on real SAR (ADR-011.1) | Gate-passed on Kuro Siwo test set (IoU 0.6147, P 0.8710) **but** OOD on deployment domain: ~729k false water px on Imja scene | Needs deployment-domain qualification: IoU ≥ 0.60 + glacier-FP bound on ≥2 independent Imja pairs |
+| High-altitude adapter | Same + domain coverage | Held-out (S1A, Nov+Jan): glacier FPs −77%/−70%; Imja recall 41% (Nov), 0% (Jan, frozen); inventory recall 27.8%→16.3%; stratified variant trades Imja recall for breadth (24.7% inventory / 4.2% Imja) | Closest to gate. Needs: (a) unfrozen-season held-out pair for a clean recall number, (b) IoU ≥ 0.60 vs independent labels (optical/manual), (c) tarn recall resolution (likely a 90 m resolution floor — needs finer SAR, not more training) |
+| Neural bathymetry (E2) | < 15% MAPE held-out | Evaluated: 676% MAPE (19 lakes); Huggel 75.6% also fails | Needs ≥64 surveyed lakes (global compilation) or synthetic-basin transfer learning; or simpler terrain-feature regression head |
+| Multi-modal fusion (E3) | Event-held-out IoU > 0.75, P ≥ 0.85 | Scaffold only; one real S1+S2 pair | Needs multi-event paired training + eval set (dozens of pairs); GPU for production width |
+| Latent-conditioned FNO (E0) | ADR-012 MAPE ≤ 20% on ≥2/3 events | Scaffold; scalar FNO eval is synthetic-corridor (semi-circular) | Needs 500+ GeoClaw real-terrain sims (South Lhonak replay validates the solver first) + retrain + held-out events |
+| Learned risk fusion | Brier < 0.15 vs five-factor baseline on held-out cases | Not started; prior XGBoost disqualified (label-conditioned features) | Needs honest event/non-event dataset with real features, spatial/temporal separation |
+| MC Dropout + conformal (E1) | Coverage within ±5% of nominal 90% | Implemented; calibration evaluated on Kuro Siwo chips | Needs conformal calibration on deployment-domain held-out scenes |
+
+**Promotion order (dependency-respecting):** segmentation adapter → uncertainty calibration → bathymetry (data-limited) → FNO latent (GeoClaw-limited) → fusion (data-limited) → learned risk fusion (last — it consumes all upstream outputs).
+
+**What never gets promoted away:** the human confirmation gate, ≥3-reason explainability, ≤250-byte payload, SHA-256 audit lineage, deterministic quality/thermal gates, and the deterministic cross-check itself. These are invariants of the architecture, not stages of it.
 
 ---
 
@@ -581,7 +609,7 @@ All model outputs are advisory. The system displays uncertainty, data freshness,
 
 ## 15. Active Implementation Plan
 
-The v5.0 plan supersedes the v4.7 phase schedule. P0–P2 from v4.7 are substantially complete (real-data Kuro Siwo 6-channel model trained, ADR-011.1 gate passed, shadow-mode validation on Imja Tsho passing). The v5.0 phases below implement the four-step end-to-end neural pipeline (§9.7) while preserving the deterministic baseline as a labeled fallback. Execute in dependency order; keep data-blocked capabilities visible rather than fabricating a passing result or silently dropping them.
+The v5.1 plan supersedes the v4.7 phase schedule. P0–P2 from v4.7 are substantially complete (real-data Kuro Siwo 6-channel model trained, ADR-011.1 gate passed, shadow-mode validation on Imja Tsho passing). The E-phases below implement the four-step end-to-end neural pipeline (§9.7); the P-phase is the promotion program (§9.8) that moves each component from shadow to primary. Execute in dependency order; keep data-blocked capabilities visible rather than fabricating a passing result or silently dropping them.
 
 | Phase | Work | Exit criteria / blocker |
 |---|---|---|
@@ -591,6 +619,7 @@ The v5.0 plan supersedes the v4.7 phase schedule. P0–P2 from v4.7 are substant
 | E3 — Multi-modal fusion (§9.7.2) | Build cross-attention transformer fusing SAR (6ch) + Sentinel-2 optical (NDWI, MNDWI, cloud mask); cloud-gated attention mask handles variable optical availability; train on real paired SAR+optical data | Event-held-out IoU > 0.75 AND precision ≥ 0.85 on real paired data; SAR-only model remains as cloud-blocked fallback |
 | E4 — End-to-end integration | Wire segmentation bottleneck → latent-conditioned FNO → uncertainty wrapper → exposure/review/dispatch chain; display uncertainty corridor on flood arrival; audit log records method provenance (neural vs fallback) at each stage | Full click-chain: SAR+optical → segmentation+uncertainty → latent-conditioned FNO → exposure → review with ≥3 reasons → confirmed ≤250-byte dispatch → SHA-256 audit lineage |
 | E5 — Reproducible release | Verify local deployment, offline inference/review chain, model cards for all neural components, experiment table, test coverage and limitations; refresh conflicting implementation docs after verified changes | Repeatable demo and evaluation commands, honest measured results, traceable model/data versions; résumé claims match demonstrated capabilities |
+| P1 — Promotion program (§9.8) | Per component: deployment-domain held-out eval → gate pass → cross-check harness live → flip runtime flag → record promotion in registry/audit. Order: adapter segmentation → uncertainty calibration → bathymetry → FNO latent → fusion → learned risk fusion | A component is primary only while its gate holds on held-out real data AND the deterministic cross-check is live. Current: no component promoted; adapter is closest (needs unfrozen-season held-out pair + independent-label IoU ≥ 0.60 + glacier-FP bound) |
 
 **Dependency order:** E0 (latent conditioning) and E1 (Bayesian uncertainty) are independent and can proceed in parallel. E2 (neural bathymetry) depends on external dataset availability (Millan/Farinotti). E3 (multi-modal fusion) depends on Sentinel-2 data availability. E4 (integration) depends on E0–E3. E5 depends on E4.
 
@@ -638,6 +667,8 @@ The new research demonstration must:
 Create immutable dataset/split manifests before model selection. Use event/location grouping and chronological separation where appropriate; no adjacent-chip leakage or preprocessing/calibration fit on held-out data. The previously inspected Pakistan/Somalia results are development evidence if they guide new choices, not an untouched final benchmark. Report uncertainty across independent events where sample counts permit; disclose small-sample limitations. Never tune feature distributions or labels to achieve a desired metric.
 
 ### 17.2 Acceptance and promotion
+
+Under the v5.1 DL-primary declaration, the gates below are the promotion criteria of §9.8 — passing one moves a component from shadow to primary analytical path with the deterministic module demoted to labeled cross-check for that stage. Failing or regressing a gate demotes back automatically. Gate evidence is recorded in the model registry and audit lineage at promotion time.
 
 - **Research DL milestone:** real-data training, a reproducible evaluation report, explicit limitations, and model-derived geospatial output in the research app. A disappointing metric may be reported honestly; it is not an operational gate pass.
 - **Operational segmentation gate:** retain ADR-011's event-held-out IoU > 0.65 requirement plus the relevant evaluation/acceptance process. ADR-011.1 calibrates a provisional gate (IoU > 0.60 AND precision ≥ 0.84) for real-data SAR-only models; the original 0.65 gate applies to any model trained on synthetic or label-derived features. A revised channel/target contract must be reviewed explicitly; a generic benchmark pass alone is insufficient for basin deployment.

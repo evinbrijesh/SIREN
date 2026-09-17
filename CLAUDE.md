@@ -1,8 +1,8 @@
 # CLAUDE.md — SIREN
 
-Companion to `AGENTS.md` (hard rules + data contracts) and `docs/spec/PRD.md` (v5.0 spec). Read all three before writing code.
+Companion to `AGENTS.md` (hard rules + data contracts) and `docs/spec/PRD.md` (v5.1 spec). Read all three before writing code.
 
-**SIREN** — Satellite-Informed Risk & Emergency Network. Satellite-assisted early warning and disaster-response platform for Himalayan glacial lake outburst flood (GLOF) events. Transitioning from hybrid shadow to end-to-end neural pipeline (ADR-013, PRD v5.0).
+**SIREN** — Satellite-Informed Risk & Emergency Network. Satellite-assisted early warning and disaster-response platform for Himalayan glacial lake outburst flood (GLOF) events. DL-primary target architecture: trained neural components (segmentation, bathymetry, latent-conditioned FNO, learned risk fusion) form the intended analytical spine; deterministic modules are the interim primary path and permanent fallback/cross-check, promoted component-wise through the §9.8/§17.2 gates (ADR-013, PRD v5.1).
 
 ---
 
@@ -65,7 +65,7 @@ docs/
 - **Logging:** use Python `logging`; log run_id/observation_id on every pipeline step for lineage.
 - **Reproducibility:** no unseeded randomness. Seed any RNG explicitly.
 - **Payload size:** the ≤250-byte alert constraint is enforced by a unit test, not by hope.
-- **Neural fallback provenance (v5.0):** the deterministic/empirical baseline (Huggel, scalar FNO, NDWI, D8 corridor) is the load-bearing primary path. Neural modules (E0–E3) are experimental research scaffolds gated behind ADR-013 promotion criteria — no neural module is load-bearing until its gate is evaluated on real held-out data. Every neural component records its method (neural vs fallback) in the result provenance. The deterministic baseline must never be silently removed or bypassed.
+- **Neural promotion + fallback provenance (v5.1):** the target architecture is neural-primary (PRD §9.8 promotion pathway); deterministic modules are the interim primary path and permanent labeled fallback/cross-check. No neural module is load-bearing until its §9.8/§17.2 gate is evaluated on held-out real deployment-domain data; promotion is component-wise and reversible. Every component — neural or deterministic — records its method (primary vs fallback) in the result provenance. The deterministic baseline must never be silently removed or bypassed, before or after promotion.
 
 ## Known Gotchas
 
@@ -121,4 +121,4 @@ docs/
 
 Offline, in one click-chain: baseline loads → 3 observations process → elevated/critical review card with ≥3 evidence reasons → Confirm produces a ≤250-byte simulated dispatch → audit log reconstructs the full lineage with SHA-256 hash chain. If a change breaks this chain, fix it before anything else.
 
-**v5.0 extension:** the click-chain should also display the neural method provenance (neural vs fallback) at each stage and the uncertainty map alongside the water mask. **Note:** the neural modules (E0–E3) are experimental research scaffolds — the deterministic baseline remains the load-bearing path until ADR-013 gates are evaluated on real held-out data.
+**v5.1 extension:** the click-chain should also display the method provenance (neural-primary vs deterministic-fallback) at each stage and the uncertainty map alongside the water mask. **Note:** neural modules promote to primary only through the §9.8/§17.2 gates on held-out real data — until then the deterministic baseline remains the load-bearing path and every neural output is labeled shadow evidence.

@@ -5,7 +5,7 @@ This file tracks the portfolio-grade improvement roadmap agreed 2026-03-15.
 
 ## Scope
 
-- System scope (unchanged): Imja / Dudh Koshi AOI, deterministic pipeline, human gate, ≤250B dispatch, SHA-256 audit, offline runtime.
+- System scope (unchanged): Imja / Dudh Koshi AOI, human gate, ≤250B dispatch, SHA-256 audit, offline runtime. Architecture direction (updated 2026-09-17, PRD v5.1): DL-primary target — neural components promote to primary through §9.8/§17.2 held-out gates; deterministic modules are the interim primary path and permanent fallback/cross-check.
 - Training-data scope (widens): the ML shadow model needs high-altitude training data. `data/datasets/glacial_lake_2022-2024/` already contains 31,698 verified glacial lake polygons (67–104°E), incl. 21,003 lakes at 4500–6000 m and Imja Tsho itself (GL_27.89829_86.92818, 1.74 km²).
 
 ## Ordered tasks
@@ -24,6 +24,6 @@ This file tracks the portfolio-grade improvement roadmap agreed 2026-03-15.
 
 ## Rules carried forward
 
-- Deterministic masks/scores stay authoritative; neural stays shadow-only.
+- Neural promotion is gate-gated and component-wise (PRD §9.8): deterministic masks/scores stay authoritative until a component passes its held-out real-data gate, then it becomes primary with the deterministic module demoted to labeled cross-check — never silently, always reversible.
 - Human confirmation stays mandatory; offline runtime stays network-free.
 - DoD click-chain must keep working end-to-end.

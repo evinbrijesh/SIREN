@@ -1,6 +1,6 @@
 # SIREN — Build Roadmap
 
-**Companion to:** `docs/spec/PRD.md` (v5.0) · **Window:** 36-hour initial build + ongoing development
+**Companion to:** `docs/spec/PRD.md` (v5.1 — DL-primary declaration; promotion pathway §9.8) · **Window:** 36-hour initial build + ongoing development
 **Principle:** A complete evidence→review→dispatch loop with a rule-based change mask beats a sophisticated model that doesn't finish.
 
 > **Build status:** Phases 0–6 complete. DoD chain verified end-to-end (782 tests passing). Phase 7 (rehearsal) was completed during the initial build; ongoing development follows the Live Service Transition Roadmap below.
