@@ -283,7 +283,16 @@ The shadow evidence is decomposed into **persistent water extent (t1)**, **expan
 
 ### High-altitude adapter (experiment, shadow-only)
 
-A decoder fine-tune on 697 verified Himalayan lake-inventory chips (`ml/lake_adapter_finetune.py` — frozen encoder, north–south spatial split) reduces glacier false positives by **92%** (115,100 → 8,738 water-extent px on glacier) while retaining 71–87% recall on Imja itself. The checkpoint (`water_resunet_6ch_himalayan_adapter.pt`) is **not** wired into runtime — it is an experiment pending the ADR-013 gate on held-out real data. See `models/checkpoints/lake_adapter_report.json` and `docs/reference/CASE_STUDY.md`.
+A decoder fine-tune on 697 verified Himalayan lake-inventory chips (`ml/lake_adapter_finetune.py` — frozen encoder, north–south spatial split) reduces glacier false positives by **92%** (115,100 → 8,738 water-extent px on glacier) while retaining 71–87% recall on Imja itself. The checkpoint (`water_resunet_6ch_himalayan_adapter.pt`) is **not** wired into runtime — it is an experiment pending the ADR-013 gate. See `models/checkpoints/lake_adapter_report.json` and `docs/reference/CASE_STUDY.md`.
+
+**Held-out evaluation (`ml/heldout_eval.py`)** — the July-pair result was in-scene (train + eval on the same acquisition), so the adapter was re-tested on two independent S1A descending pairs it never trained on:
+
+| Pair | Conditions | Glacier extent FPs (base → adapter) | Imja recall t1 (base → adapter) |
+|---|---|---|---|
+| 2025-11-09 / 11-21 | shoulder season, open water | 40,788 → 9,207 (**−77%**) | 4.8% → **41.3%** |
+| 2026-01-08 / 01-20 | deep winter, Imja frozen | 27,484 → 8,221 (**−70%**) | 0% → 0% (frozen lake is not liquid water — expected) |
+
+The false-positive suppression **generalises** across season and sensor. Two honest caveats: inventory-wide recall over all 720 in-swath lakes *drops* (27.8% → 16.3% — the adapter is more selective, favouring large Imja-like lakes over tiny tarns), and winter recall collapses for both models (frozen surface is not water at C-band — physics, not failure). Report: `models/checkpoints/heldout_eval_report.json`.
 
 ### Dual-split evaluation (Sen1Floods11)
 

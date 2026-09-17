@@ -1,0 +1,96 @@
+{
+ "experiment": "held-out adapter evaluation on independent S1A pairs",
+ "independence": "Different season, different satellite (S1A vs S1D), same descending track. Neither pair contributed training chips.",
+ "threshold": 0.3,
+ "pairs": [
+  {
+   "pair": "shoulder",
+   "t0": "20251109",
+   "t1": "20251121",
+   "grid_shape": [
+    2,
+    1674,
+    2553
+   ],
+   "checkpoints": {
+    "kuro_siwo_base": {
+     "expansion_px": 147369,
+     "water_extent_px": 754282,
+     "water_extent_on_glacier_px": 40788,
+     "expansion_on_glacier_px": 12015,
+     "gated_expansion_px": 8783,
+     "rule_overlap_px": 8,
+     "rule_overlap_pct": 3.2,
+     "inventory_lakes_in_swath": 720,
+     "inventory_recall_t1": 0.2775,
+     "inventory_recall_t0": 0.2155,
+     "imja_recall_t1": 0.0479,
+     "imja_recall_t0": 0.0
+    },
+    "himalayan_adapter": {
+     "expansion_px": 21086,
+     "water_extent_px": 109238,
+     "water_extent_on_glacier_px": 9207,
+     "expansion_on_glacier_px": 2799,
+     "gated_expansion_px": 1353,
+     "rule_overlap_px": 28,
+     "rule_overlap_pct": 11.1,
+     "inventory_lakes_in_swath": 720,
+     "inventory_recall_t1": 0.1634,
+     "inventory_recall_t0": 0.1684,
+     "imja_recall_t1": 0.4132,
+     "imja_recall_t0": 0.2575
+    }
+   }
+  },
+  {
+   "pair": "winter",
+   "t0": "20260108",
+   "t1": "20260120",
+   "grid_shape": [
+    2,
+    1674,
+    2553
+   ],
+   "checkpoints": {
+    "kuro_siwo_base": {
+     "expansion_px": 44671,
+     "water_extent_px": 599953,
+     "water_extent_on_glacier_px": 27484,
+     "expansion_on_glacier_px": 1818,
+     "gated_expansion_px": 1845,
+     "rule_overlap_px": 0,
+     "rule_overlap_pct": 0.0,
+     "inventory_lakes_in_swath": 720,
+     "inventory_recall_t1": 0.0735,
+     "inventory_recall_t0": 0.0863,
+     "imja_recall_t1": 0.0,
+     "imja_recall_t0": 0.0
+    },
+    "himalayan_adapter": {
+     "expansion_px": 11884,
+     "water_extent_px": 103123,
+     "water_extent_on_glacier_px": 8221,
+     "expansion_on_glacier_px": 739,
+     "gated_expansion_px": 355,
+     "rule_overlap_px": 2,
+     "rule_overlap_pct": 0.8,
+     "inventory_lakes_in_swath": 720,
+     "inventory_recall_t1": 0.0769,
+     "inventory_recall_t0": 0.046,
+     "imja_recall_t1": 0.0,
+     "imja_recall_t0": 0.0
+    }
+   }
+  }
+ ],
+ "interpretation": {
+  "shoulder": "Lakes largely open water \u2014 inventory/imja recall is meaningful; glacier FPs measure domain-shift suppression.",
+  "winter": "Imja frozen \u2014 recall expected to collapse (frozen lake is not liquid water); honest metric is whether glacier/snow FPs stay suppressed vs the base model."
+ },
+ "limitations": [
+  "Inventory polygons are 2022\u20132024 median outlines \u2014 recall against them is weak-positive agreement, not truth.",
+  "Scenario rule masks encode a simulated July event; rule_overlap on winter pairs is for continuity, not truth.",
+  "Frozen-lake recall collapse is expected physics (C-band sees ice surface, not water), not necessarily model failure."
+ ]
+}

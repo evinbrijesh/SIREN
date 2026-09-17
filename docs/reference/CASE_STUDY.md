@@ -97,13 +97,25 @@ Three layered responses, all measured:
 |---|---|---|
 | Terrain gate | AOI clip + DEM slope >15° + RGI glacier exclusion (exempting known-lake vicinity) | 61k raw → 132 gated expansion px |
 | MC Dropout + conformal | T=20 stochastic passes → per-pixel σ²; split-conformal quantile calibrated on held-out chips | Uncertainty concentrated exactly on glacier/snow confusion regions |
-| High-altitude adapter | Decoder fine-tune on 697 verified lake-inventory chips, encoder frozen | Glacier water-extent FPs **−92%** (115,100 → 8,738); Imja recall 71–87% |
+| High-altitude adapter | Decoder fine-tune on 697 verified lake-inventory chips, encoder frozen | Glacier water-extent FPs **−92%** in-scene (115,100 → 8,738); **−77%/−70%** on held-out Nov/Jan S1A pairs; Imja recall 71–87% (in-scene), 41% held-out shoulder |
 
 The adapter is the real fix — it teaches the model that "high-altitude
 water" is a thing, using the 31,698-polygon glacial lake inventory
 already on disk (a single descending swath covers 1,395 of those lakes).
 Labels are weak (median-outlined polygons, monsoon season only), so the
 checkpoint stays an experiment, not an operational weight.
+
+**Held-out test (`ml/heldout_eval.py`).** The in-scene −92% figure was
+circular — same acquisition for train and eval. On two independent S1A
+descending pairs (Nov 2025 shoulder, Jan 2026 winter — different
+season, different satellite, zero training chips), suppression holds:
+glacier extent FPs fall 77% (40,788 → 9,207) in shoulder and 70%
+(27,484 → 8,221) in deep winter, and Imja recall jumps 4.8% → 41.3%
+in shoulder season. Two honest caveats: inventory-wide recall over all
+720 in-swath lakes *degrades* (27.8% → 16.3% — the adapter favours
+large Imja-like lakes over tiny tarns), and winter recall collapses to
+0% for **both** models — a frozen lake is not liquid water at C-band,
+which is physics, not failure.
 
 ## 4. The state/change discovery — a metric that fights itself
 
@@ -136,6 +148,7 @@ measured).
 | Neural bathymetry (E2) vs Huggel | 676% MAPE vs 75.6% on 20 surveyed lakes (LOO) | Huggel stays load-bearing; neural needs more sonar surveys |
 | S2 optical separability (E3) | NDWI/MNDWI cannot separate frozen lake from glacier; July pair 73% cloud | Fusion not justified on current data |
 | Weak-label SAR adaptation (single-scene) | Glacier FPs −62% but expansion overlap degraded | Single-scene labels insufficient → motivated the lake-inventory approach |
+| Adapter inventory-wide recall (held-out) | 27.8% → 16.3% over 720 swath lakes; winter recall 0% for all models | Adapter is selective (large lakes > tarns); frozen-lake invisibility is a sensor limitation — needs optical confirmation in winter |
 | FNO surrogate on real terrain | Eval uses synthetic corridor + wave-speed clipped to documented range | Semi-circular; real hydrodynamics (GeoClaw) deferred |
 
 ## 7. What holds up
@@ -150,15 +163,16 @@ measured).
   it reach a decision.
 - **Domain adaptation is feasible from on-disk data** — the lake
   inventory converts the missing-label problem into a solved one
-  (697 chips → −92% glacier FPs), pending a proper held-out gate.
+  (697 chips → −92% glacier FPs in-scene, −77%/−70% held-out).
 
 ## 8. What it would take to go further
 
-- **Held-out evaluation for the adapter** — a second independent scene
-  pair (different season, different basin) so the ADR-013 gate is real,
-  not circular.
-- **Seasonal coverage** — winter/shoulder-season granules so frozen
-  lakes join the training distribution.
+- ~~Held-out evaluation for the adapter~~ — **done** (`heldout_eval.py`,
+  Nov + Jan S1A pairs): FP suppression generalises; remaining gate
+  question is the tarn-vs-large-lake recall trade-off.
+- **Frozen-lake handling** — winter recall is 0% for every model
+  (physics); a production system needs an optical or rule-based
+  "frozen" state, or explicit seasonal suppression of the water layer.
 - **Real hydrodynamics** — GeoClaw/Clawpack on the South Lhonak, Dig
   Tsho, and Imja corridors to replace the synthetic-corridor FNO eval;
   the post-event Pléiades DEM is a ready-made validation target.
