@@ -42,9 +42,7 @@ DATA_DIR = REPO_ROOT / "data"
 DEFAULT_S2 = DATA_DIR / "raw" / "S2B_MSIL2A_20260705T044659_N0512_R076_T45RVL_20260705T083506.zip"
 AOI_PATH = DATA_DIR / "assets" / "dudh_koshi_aoi.geojson"
 # Lake reference: union of the per-observation scenario masks (EPSG:4326,
-# georeferenced to the Imja lake area). NOTE: baseline_water_mask.tif
-# covers the Rolwaling valley ~30 km west of the AOI and cannot serve as
-# the Imja lake reference.
+# georeferenced to the Imja lake area).
 EXPANSION_MASK_GLOB = "obs-*_expansion_mask.tif"
 RGI_SHP_PATH = (
     "/vsizip/"

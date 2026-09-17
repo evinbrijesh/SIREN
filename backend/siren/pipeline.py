@@ -64,8 +64,9 @@ RGI_GLACIER_SHP_PATH = (
         / "RGI2000-v7.0-G-15_south_asia_east.shp"
     )
 )
-# NOTE: data/processed/baseline_water_mask.tif covers the Rolwaling
-# valley (~30 km west of the AOI) — it is not a valid Imja lake reference.
+# NOTE: baseline_water_mask.tif was regenerated 2026-09-17 with a
+# corrected window transform; it now covers the AOI (was previously
+# stamped ~65 km west in the Rolwaling valley by a full-tile profile bug).
 # Terrain gate for the ML shadow mask (ADR-010 display hygiene — shapes
 # what the reviewer sees, never the load-bearing rule mask or the score).
 # Water surfaces are flat: >15° at ~90 m pitch cannot be lake. RGI glacier
@@ -446,8 +447,6 @@ def _try_ml_evidence_layer(
                     )
                     # Known-water vicinity: union of the per-observation
                     # scenario masks (georeferenced to the Imja lake area).
-                    # baseline_water_mask.tif covers the Rolwaling valley
-                    # ~30 km west of the AOI — it must not be used here.
                     lake_union = np.zeros(ml_mask.shape, dtype=bool)
                     for obs_mask_path in sorted(
                         PROCESSED_DIR.glob("obs-*_expansion_mask.tif")

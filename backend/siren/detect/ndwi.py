@@ -47,7 +47,16 @@ def read_s2_band(s2_zip: str, granule: str, band: str, resolution: str = "R10m")
     )
     with rasterio.open(f"/vsizip/{inner}") as src:
         win = from_bounds(*AOI_BOUNDS_UTM, transform=src.transform)
-        return src.read(1, window=win), src.profile
+        array = src.read(1, window=win)
+        profile = dict(src.profile)
+        # The profile must describe the WINDOW, not the full tile —
+        # stamping a windowed array with the tile's origin misplaces the
+        # output ~65 km west (this is why the old baseline_water_mask.tif
+        # sits in the Rolwaling valley instead of the AOI).
+        profile["transform"] = src.window_transform(win)
+        profile["width"] = int(round(win.width))
+        profile["height"] = int(round(win.height))
+        return array, profile
 
 
 def ndwi(green: np.ndarray, nir: np.ndarray) -> np.ndarray:
