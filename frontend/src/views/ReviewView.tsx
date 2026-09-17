@@ -412,9 +412,19 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
                   />
                   <div className="relative z-10 flex items-center justify-between px-space-8 py-space-4 bg-surface-panel border-b border-border-subtle">
                     <span className="text-body-sm text-text-dim">After</span>
-                    {maskLayer !== "deterministic" && (
-                      <span className="text-caption text-status-warn border border-status-warn px-space-2 py-space-1">SHADOW</span>
-                    )}
+                    <div className="flex items-center gap-space-2">
+                      {(run.change_stats_json?.lake_thermal_state as string) === "frozen_surface" && (
+                        <span
+                          className="text-caption text-status-warn border border-status-warn px-space-2 py-space-1"
+                          title={run.change_stats_json?.frozen_state_note as string}
+                        >
+                          FROZEN
+                        </span>
+                      )}
+                      {maskLayer !== "deterministic" && (
+                        <span className="text-caption text-status-warn border border-status-warn px-space-2 py-space-1">SHADOW</span>
+                      )}
+                    </div>
                   </div>
                   <div className="relative z-10 flex flex-col px-space-8 py-space-4 mt-auto bg-surface-panel border-t border-border-subtle">
                     <span className="data-val text-headline-md text-text-primary">{areaAfter.toFixed(2)} km²</span>
@@ -554,7 +564,9 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
                       −{(mlEvidence.ml_drainage_km2 ?? 0).toFixed(3)} km²
                     </span>
                     <span className="text-caption text-text-dim block">
-                      {(mlEvidence.ml_drainage_px ?? 0).toLocaleString()} px
+                      {(run.change_stats_json?.ml_drainage_not_hydrological as boolean)
+                        ? "frozen — not hydrological"
+                        : `${(mlEvidence.ml_drainage_px ?? 0).toLocaleString()} px`}
                     </span>
                   </div>
                 </div>

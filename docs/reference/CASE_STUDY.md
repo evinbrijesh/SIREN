@@ -107,15 +107,43 @@ checkpoint stays an experiment, not an operational weight.
 
 **Held-out test (`ml/heldout_eval.py`).** The in-scene −92% figure was
 circular — same acquisition for train and eval. On two independent S1A
-descending pairs (Nov 2025 shoulder, Jan 2026 winter — different
+descending pairs (Nov 2025 freeze-up, Jan 2026 winter — different
 season, different satellite, zero training chips), suppression holds:
-glacier extent FPs fall 77% (40,788 → 9,207) in shoulder and 70%
+glacier extent FPs fall 77% (40,788 → 9,207) in November and 70%
 (27,484 → 8,221) in deep winter, and Imja recall jumps 4.8% → 41.3%
-in shoulder season. Two honest caveats: inventory-wide recall over all
-720 in-swath lakes *degrades* (27.8% → 16.3% — the adapter favours
-large Imja-like lakes over tiny tarns), and winter recall collapses to
-0% for **both** models — a frozen lake is not liquid water at C-band,
-which is physics, not failure.
+in November — notable because ERA5-Land shows the lake was already in
+freeze-up (−8/−10°C sustained), so the adapter partially detects Imja
+*through* early ice cover. Two honest caveats: inventory-wide recall
+over all 720 in-swath lakes *degrades* (27.8% → 16.3% — the adapter
+favours large Imja-like lakes over tiny tarns), and winter recall
+collapses to 0% for **both** models — a frozen lake is not liquid
+water at C-band, which is physics, not failure.
+
+**Stratified re-training (area-balanced sampling).** To test whether
+the tarn regression was a training artifact, a second variant balanced
+each epoch across micro (<0.05 km²) / medium (0.05–0.5) / large (>0.5)
+area bins. Held-out result: aggregate inventory recall recovers
+(16.3% → 24.7%) and glacier suppression *improves* (77% → 87%
+shoulder, 70% → 87% winter glacier-extent FPs) — but Imja recall
+collapses (41.3% → 4.2%), and micro-tarn recall does not move
+(~2–5% under every model). Conclusion: micro-tarns sit at the ~90 m
+resolution floor (0.02–0.05 km² ≈ 2–6 px) — undetectable regardless
+of training. The v1 adapter remains the better deployment candidate
+for the Imja mission; stratification trades target recall for
+breadth. Checkpoints: `..._adapter.pt` (v1), `..._adapter_stratified.pt`.
+
+**Deterministic thermal-state gate.** The 0% winter blind spot is not
+fixable by training — C-band cannot see liquid water under ice — so
+the pipeline now *knows when not to trust SAR at all*:
+`detect/thermal_state.py` classifies each observation as LIQUID /
+FREEZE_TRANSITION / FROZEN_SURFACE from a committed ERA5-Land daily
+series (5085 m grid cell ≈ lake elevation, lapse-rate corrected,
+7-day trailing mean). On FROZEN_SURFACE the pipeline flags SAR change
+layers unreliable, marks drainage non-hydrological, and suppresses
+the shadow breach-volume/hydro trigger regardless of P_breach — a
+frozen lake cannot release a GLOF. Demo dates classify LIQUID
+(+3°C), both held-out pairs FROZEN — matching the observed recall
+collapse and confirming the gate would have labelled it correctly.
 
 ## 4. The state/change discovery — a metric that fights itself
 
@@ -170,9 +198,10 @@ measured).
 - ~~Held-out evaluation for the adapter~~ — **done** (`heldout_eval.py`,
   Nov + Jan S1A pairs): FP suppression generalises; remaining gate
   question is the tarn-vs-large-lake recall trade-off.
-- **Frozen-lake handling** — winter recall is 0% for every model
-  (physics); a production system needs an optical or rule-based
-  "frozen" state, or explicit seasonal suppression of the water layer.
+- ~~Frozen-lake handling~~ — **done** (`detect/thermal_state.py`):
+  deterministic LIQUID/FREEZE_TRANSITION/FROZEN_SURFACE gate from a
+  committed ERA5-Land series; frozen state flags SAR layers unreliable
+  and suppresses the breach-volume trigger.
 - **Real hydrodynamics** — GeoClaw/Clawpack on the South Lhonak, Dig
   Tsho, and Imja corridors to replace the synthetic-corridor FNO eval;
   the post-event Pléiades DEM is a ready-made validation target.

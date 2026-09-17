@@ -289,10 +289,16 @@ A decoder fine-tune on 697 verified Himalayan lake-inventory chips (`ml/lake_ada
 
 | Pair | Conditions | Glacier extent FPs (base → adapter) | Imja recall t1 (base → adapter) |
 |---|---|---|---|
-| 2025-11-09 / 11-21 | shoulder season, open water | 40,788 → 9,207 (**−77%**) | 4.8% → **41.3%** |
+| 2025-11-09 / 11-21 | shoulder season, freeze-up (−8/−10°C at lake) | 40,788 → 9,207 (**−77%**) | 4.8% → **41.3%** |
 | 2026-01-08 / 01-20 | deep winter, Imja frozen | 27,484 → 8,221 (**−70%**) | 0% → 0% (frozen lake is not liquid water — expected) |
 
-The false-positive suppression **generalises** across season and sensor. Two honest caveats: inventory-wide recall over all 720 in-swath lakes *drops* (27.8% → 16.3% — the adapter is more selective, favouring large Imja-like lakes over tiny tarns), and winter recall collapses for both models (frozen surface is not water at C-band — physics, not failure). Report: `models/checkpoints/heldout_eval_report.json`.
+The false-positive suppression **generalises** across season and sensor. Honest caveats: inventory-wide recall over all 720 in-swath lakes *drops* (27.8% → 16.3% — the adapter is more selective, favouring large Imja-like lakes over tiny tarns), and winter recall collapses for both models (frozen surface is not water at C-band — physics, not failure). Report: `models/checkpoints/heldout_eval_report.json`.
+
+A stratified re-training variant (`--stratified`, balanced sampling across micro/medium/large area bins) recovers aggregate inventory recall (16.3% → 24.7%) and improves glacier suppression further (−87%), **but at the cost of the deployment target** — Imja recall falls 41.3% → 4.2%. Micro-tarn recall does not recover under any variant (~2–5%): a 0.02–0.05 km² tarn is 2–6 px at ~90 m pitch — a resolution floor, not a training problem. Checkpoint `water_resunet_6ch_himalayan_adapter_stratified.pt`; per-bin recall is in the held-out report.
+
+### Deterministic thermal-state gate
+
+The held-out winter result (0% recall for every model) is a sensor limitation, so the pipeline now gates interpretation deterministically: `detect/thermal_state.py` classifies the lake as `LIQUID` / `FREEZE_TRANSITION` / `FROZEN_SURFACE` from a committed ERA5-Land daily series (`data/assets/lake_thermal_series.json`, ~5085 m grid cell + lapse-rate correction to 5010 m, trailing 7-day mean). When `FROZEN_SURFACE`: SAR change layers are flagged unreliable, drainage stats are marked non-hydrological, and the shadow breach-volume/hydro trigger is suppressed regardless of P_breach — a frozen lake cannot release a GLOF. The review card shows a FROZEN badge and the score reasons carry the gate note.
 
 ### Dual-split evaluation (Sen1Floods11)
 

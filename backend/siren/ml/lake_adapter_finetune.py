@@ -74,6 +74,45 @@ def _spatial_split(chips_meta: list[dict], val_frac: float = 0.2) -> np.ndarray:
     return val
 
 
+# Lake-area bins (km²) for stratified training — the held-out eval showed
+# the adapter favours large Imja-like lakes over micro-tarns (inventory
+# recall 27.8% → 16.3%). Bin edges follow the proposal: micro tarns
+# <0.05, medium proglacial 0.05–0.5, large moraine-dammed >0.5.
+AREA_BINS_KM2 = (0.05, 0.5)
+AREA_BIN_NAMES = ("micro", "medium", "large")
+
+
+def _area_bins(manifest: list[dict]) -> np.ndarray:
+    """Map each chip to its area bin index (background chips -> medium)."""
+    out = np.ones(len(manifest), dtype=np.int64)
+    for i, m in enumerate(manifest):
+        if m["kind"] != "lake":
+            continue
+        a = float(m.get("lake_area_km2") or 0.0)
+        out[i] = 0 if a < AREA_BINS_KM2[0] else (1 if a < AREA_BINS_KM2[1] else 2)
+    return out
+
+
+def _stratified_epoch_indices(
+    bins: np.ndarray, train_idx: np.ndarray, rng: np.random.Generator
+) -> np.ndarray:
+    """Balanced index list: each area bin contributes max-bin-count
+    samples (with replacement for smaller bins)."""
+    parts = []
+    counts = []
+    for b in range(len(AREA_BIN_NAMES)):
+        sel = train_idx[bins[train_idx] == b]
+        counts.append(len(sel))
+        parts.append(sel)
+    target = max(counts)
+    idx = np.concatenate([
+        rng.choice(p, size=target, replace=True) if len(p) else p
+        for p in parts
+    ])
+    rng.shuffle(idx)
+    return idx
+
+
 def run_finetune(
     chips_dir: Path | str = CHIPS_DIR,
     epochs: int = 15,
@@ -83,6 +122,10 @@ def run_finetune(
     pos_weight_cap: float = 15.0,
     seed: int = 42,
     evaluate: bool = True,
+    stratified: bool = False,
+    loss_weight: str | None = None,
+    out_ckpt: Path | str = OUT_CKPT,
+    report_out: Path | str = REPORT_OUT,
 ) -> dict:
     import torch
 
@@ -141,16 +184,43 @@ def run_finetune(
     opt = torch.optim.Adam(
         [p for p in model.parameters() if p.requires_grad], lr=lr
     )
-    xt = torch.from_numpy(x[tr])
-    yt = torch.from_numpy(y[tr].astype(np.float32))[:, None]
-    vt = torch.from_numpy(v[tr])[:, None]
+
+    # Area-bin structure for stratified sampling / loss weighting.
+    bins = _area_bins(manifest)
+    train_idx = np.where(tr)[0]
+    rng = np.random.default_rng(seed)
+    if stratified:
+        counts = {
+            AREA_BIN_NAMES[b]: int((bins[train_idx] == b).sum())
+            for b in range(len(AREA_BIN_NAMES))
+        }
+        logger.info("stratified sampling over area bins: %s", counts)
+
+    # Per-chip loss weight w_i = 1/sqrt(area_km2) folded into the valid
+    # mask (background chips get weight 1).
+    chip_w = np.ones(len(x), dtype=np.float32)
+    if loss_weight == "invsqrt":
+        for i, m in enumerate(manifest):
+            if m["kind"] == "lake":
+                chip_w[i] = 1.0 / np.sqrt(
+                    max(float(m.get("lake_area_km2") or 0.0), 1e-3)
+                )
+        chip_w /= chip_w[train_idx].mean()  # normalise around 1.0
+        logger.info("invsqrt chip weights: %s", np.round(chip_w, 3)[:10])
+
+    xt = torch.from_numpy(x)
+    yt = torch.from_numpy(y.astype(np.float32))[:, None]
+    vt = torch.from_numpy((v * chip_w[:, None, None]).astype(np.float32))[:, None]
 
     model.train()
     history = []
     for ep in range(epochs):
-        perm = torch.randperm(len(xt))
+        if stratified:
+            perm = _stratified_epoch_indices(bins, train_idx, rng)
+        else:
+            perm = train_idx[rng.permutation(len(train_idx))]
         ep_loss = 0.0
-        for i in range(0, len(xt), batch_size):
+        for i in range(0, len(perm), batch_size):
             j = perm[i:i + batch_size]
             logits = model(xt[j])
             loss = bce_loss(logits, yt[j], vt[j], pos_weight) + dice_loss(
@@ -160,12 +230,13 @@ def run_finetune(
             loss.backward()
             opt.step()
             ep_loss += float(loss)
-        history.append(round(ep_loss / max(len(xt) // batch_size, 1), 4))
+        history.append(round(ep_loss / max(len(perm) // batch_size, 1), 4))
         logger.info("epoch %d  loss=%.4f", ep, history[-1])
 
     # ---- weak-label val IoU (sanity only — labels are polygons, not truth)
     model.eval()
     tp = fp = fn = tn = 0
+    bin_counts = {b: [0, 0, 0, 0] for b in range(len(AREA_BIN_NAMES))}
     va_idx = np.where(va)[0]
     with torch.no_grad():
         for i in range(0, len(va_idx), batch_size):
@@ -176,12 +247,32 @@ def run_finetune(
                 p.astype(np.uint8), y[j], v[j].astype(np.uint8)
             )
             tp += c[0]; fp += c[1]; fn += c[2]; tn += c[3]
+            # per-bin confusion for the stratification diagnostic
+            for b in range(len(AREA_BIN_NAMES)):
+                jb = j[bins[j] == b]
+                if len(jb) == 0:
+                    continue
+                pb = (torch.sigmoid(model(torch.from_numpy(x[jb])))[:, 0]
+                      .numpy() >= threshold)
+                cb = water_confusion_counts(
+                    pb.astype(np.uint8), y[jb], v[jb].astype(np.uint8)
+                )
+                for k in range(4):
+                    bin_counts[b][k] += cb[k]
     val_metrics = metrics_from_counts(tp, fp, fn, tn)
+    val_by_bin = {
+        AREA_BIN_NAMES[b]: {
+            "chips": int(((bins == b) & va).sum()),
+            **metrics_from_counts(*bin_counts[b]),
+        }
+        for b in range(len(AREA_BIN_NAMES))
+    }
 
     after = _full_scene_eval(model, threshold) if evaluate else None
 
-    OUT_CKPT.parent.mkdir(parents=True, exist_ok=True)
-    torch.save(model.state_dict(), OUT_CKPT)
+    out_ckpt = Path(out_ckpt)
+    out_ckpt.parent.mkdir(parents=True, exist_ok=True)
+    torch.save(model.state_dict(), out_ckpt)
 
     report = {
         "experiment": "high-altitude decoder fine-tune on Himalayan lake chips",
@@ -200,11 +291,15 @@ def run_finetune(
             "total_params": n_total,
             "pos_weight": float(pos_weight),
             "loss_history": history,
+            "stratified": stratified,
+            "loss_weight": loss_weight,
+            "area_bins_km2": list(AREA_BINS_KM2),
         },
         "val_weaklabel_metrics": val_metrics,
+        "val_metrics_by_area_bin": val_by_bin,
         "full_scene_before": before,
         "full_scene_after": after,
-        "checkpoint_out": str(OUT_CKPT),
+        "checkpoint_out": str(out_ckpt),
         "limitations": [
             "Weak polygon labels — shoreline errors of ~1 px at 90 m pitch; "
             "median-outlined inventory, not per-pixel scene-date water.",
@@ -216,7 +311,7 @@ def run_finetune(
             "on held-out real data.",
         ],
     }
-    REPORT_OUT.write_text(json.dumps(report, indent=1))
+    Path(report_out).write_text(json.dumps(report, indent=1))
     return report
 
 
@@ -251,6 +346,12 @@ def main() -> None:
     ap.add_argument("--lr", type=float, default=5e-5)
     ap.add_argument("--batch-size", type=int, default=8)
     ap.add_argument("--pos-weight-cap", type=float, default=15.0)
+    ap.add_argument("--stratified", action="store_true",
+                    help="balanced per-epoch sampling across lake-area bins")
+    ap.add_argument("--loss-weight", choices=["invsqrt"], default=None,
+                    help="per-chip loss weight w_i = 1/sqrt(area_km2)")
+    ap.add_argument("--out-ckpt", default=str(OUT_CKPT))
+    ap.add_argument("--report-out", default=str(REPORT_OUT))
     ap.add_argument("--no-eval", action="store_true", help="skip full-scene eval")
     args = ap.parse_args()
     logging.basicConfig(level=logging.INFO)
@@ -258,6 +359,8 @@ def main() -> None:
         chips_dir=args.chips, epochs=args.epochs, lr=args.lr,
         batch_size=args.batch_size, pos_weight_cap=args.pos_weight_cap,
         evaluate=not args.no_eval,
+        stratified=args.stratified, loss_weight=args.loss_weight,
+        out_ckpt=args.out_ckpt, report_out=args.report_out,
     )
     print(json.dumps(report, indent=1))
 

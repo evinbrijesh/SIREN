@@ -92,7 +92,22 @@ def attach_shadow_evidence(
     p_breach = sus.get("p_breach") if isinstance(sus, dict) else None
     sus_available = isinstance(sus, dict) and sus.get("is_available", False) is True
 
-    if not sus_available or p_breach is None:
+    # Thermal-state gate (deterministic): a frozen lake surface cannot
+    # release a GLOF and SAR change over it measures ice, not water — so
+    # the volume-inversion / hydro trigger is suspended regardless of
+    # P_breach. The state is written by run_pipeline before this call.
+    frozen = change_stats.get("lake_thermal_state") == "frozen_surface"
+
+    if frozen:
+        shadow["hydro_surrogate"] = {
+            "is_triggered": False,
+            "is_available": True,
+            "reason": (
+                "lake thermal state FROZEN_SURFACE — breach-volume and "
+                "hydro trigger suppressed (frozen-state gate)"
+            ),
+        }
+    elif not sus_available or p_breach is None:
         shadow["hydro_surrogate"] = {
             "is_triggered": False,
             "is_available": False,

@@ -68,13 +68,20 @@ PAIRS = {
     "winter": ("20260108", "20260120"),
 }
 
-CKPTS = {
-    "kuro_siwo_base": CHECKPOINT_DIR
-    / "water_resunet_kuro_siwo_full"
-    / "water_resunet_6ch_kuro_siwo_v1.pt",
-    "himalayan_adapter": CHECKPOINT_DIR
-    / "water_resunet_6ch_himalayan_adapter.pt",
-}
+def _checkpoints() -> dict[str, Path]:
+    """Base model + every Himalayan adapter variant on disk — re-running
+    the eval after a new fine-tune compares all of them automatically."""
+    ckpts = {
+        "kuro_siwo_base": CHECKPOINT_DIR
+        / "water_resunet_kuro_siwo_full"
+        / "water_resunet_6ch_kuro_siwo_v1.pt",
+    }
+    for p in sorted(
+        CHECKPOINT_DIR.glob("water_resunet_6ch_himalayan_adapter*.pt")
+    ):
+        name = p.stem.replace("water_resunet_6ch_", "")
+        ckpts[name] = p
+    return ckpts
 
 REPORT_OUT = CHECKPOINT_DIR / "heldout_eval_report.json"
 
@@ -138,6 +145,21 @@ def _scene_masks(sar_path: Path) -> dict:
     positions, _, _ = lake_grid_positions(lakes, str(sar_path))
     inventory = rasterize_lake_labels(lakes, positions, str(sar_path)) > 0
 
+    # Per-area-bin inventory rasters — the tarn-vs-large-lake recall
+    # split the stratified-retraining experiment is designed to move.
+    from siren.ml.lake_adapter_finetune import AREA_BINS_KM2, AREA_BIN_NAMES
+    pos_idx = np.array([p[0] for p in positions], dtype=np.int64)
+    areas = lakes["area_km2"].astype(float).to_numpy()[pos_idx]
+    inventory_bins = {}
+    for b, name in enumerate(AREA_BIN_NAMES):
+        lo = 0.0 if b == 0 else AREA_BINS_KM2[b - 1]
+        hi = AREA_BINS_KM2[b] if b < len(AREA_BINS_KM2) else np.inf
+        sel = [p for p, a in zip(positions, areas) if lo <= a < hi]
+        inventory_bins[name] = (
+            rasterize_lake_labels(lakes, sel, str(sar_path)) > 0
+            if sel else np.zeros(aoi.shape, dtype=bool)
+        )
+
     # Imja-specific raster: nearest centroid to the published position.
     d2 = (lakes["Longitude"].astype(float) - IMJA_LON) ** 2 + (
         lakes["Latitude"].astype(float) - IMJA_LAT
@@ -153,6 +175,7 @@ def _scene_masks(sar_path: Path) -> dict:
     return {
         "lon": lon, "lat": lat, "aoi": aoi, "glac": glac,
         "lake_vic": lake_vic, "inventory": inventory, "imja": imja,
+        "inventory_bins": inventory_bins,
         "n_inventory_lakes": len(positions),
     }
 
@@ -235,6 +258,10 @@ def evaluate_checkpoint(
         "inventory_recall_t0": _recall(
             p_t0, masks["inventory"], threshold
         ),
+        "inventory_recall_t1_by_bin": {
+            name: _recall(p_t1, m, threshold)
+            for name, m in masks["inventory_bins"].items()
+        },
         "imja_recall_t1": _recall(p_t1, masks["imja"], threshold),
         "imja_recall_t0": _recall(p_t0, masks["imja"], threshold),
     }
@@ -263,7 +290,7 @@ def evaluate_pair(pair_name: str, threshold: float = 0.30) -> dict:
     )
 
     results = {}
-    for name, ckpt in CKPTS.items():
+    for name, ckpt in _checkpoints().items():
         logger.info("  evaluating %s ...", name)
         results[name] = evaluate_checkpoint(
             ckpt, pre_db, post_db, masks, threshold

@@ -1,0 +1,112 @@
+{
+ "experiment": "high-altitude decoder fine-tune on Himalayan lake chips",
+ "labels": {
+  "positives": "verified lake inventory polygons (weak, 2022\u20132024 median outlines)",
+  "negatives": "all non-polygon pixels incl. glacier/moraine/slope",
+  "chips": 710,
+  "train_chips": 571,
+  "val_chips": 139,
+  "pos_pixel_frac": 0.01297
+ },
+ "training": {
+  "epochs": 15,
+  "lr": 5e-05,
+  "frozen_tensors": 28,
+  "trainable_params": 6720897,
+  "total_params": 7938177,
+  "pos_weight": 5.0,
+  "loss_history": [
+   1.6144,
+   1.3791,
+   1.3023,
+   1.2647,
+   1.2197,
+   1.1936,
+   1.1614,
+   1.1026,
+   1.0741,
+   1.0329,
+   0.987,
+   0.9479,
+   0.9389,
+   0.9107,
+   0.8959
+  ],
+  "stratified": true,
+  "loss_weight": null,
+  "area_bins_km2": [
+   0.05,
+   0.5
+  ]
+ },
+ "val_weaklabel_metrics": {
+  "iou": 0.0524,
+  "precision": 0.079,
+  "recall": 0.1345,
+  "f1": 0.0995,
+  "tp": 1804,
+  "fp": 21029,
+  "fn": 11611,
+  "tn": 1246580
+ },
+ "val_metrics_by_area_bin": {
+  "micro": {
+   "chips": 77,
+   "iou": 0.0394,
+   "precision": 0.0622,
+   "recall": 0.0969,
+   "f1": 0.0758,
+   "tp": 610,
+   "fp": 9196,
+   "fn": 5682,
+   "tn": 694144
+  },
+  "medium": {
+   "chips": 57,
+   "iou": 0.042,
+   "precision": 0.062,
+   "recall": 0.1149,
+   "f1": 0.0805,
+   "tp": 684,
+   "fp": 10346,
+   "fn": 5270,
+   "tn": 509012
+  },
+  "large": {
+   "chips": 5,
+   "iou": 0.192,
+   "precision": 0.2554,
+   "recall": 0.4363,
+   "f1": 0.3222,
+   "tp": 510,
+   "fp": 1487,
+   "fn": 659,
+   "tn": 43424
+  }
+ },
+ "full_scene_before": {
+  "raw_px": 61179,
+  "water_extent_px": 729386,
+  "water_extent_on_glacier_px": 115100,
+  "gated_px": 1296,
+  "on_glacier_px": 30151,
+  "rule_overlap_px": 23,
+  "rule_overlap_pct": 9.1
+ },
+ "full_scene_after": {
+  "raw_px": 27537,
+  "water_extent_px": 83046,
+  "water_extent_on_glacier_px": 6771,
+  "gated_px": 878,
+  "on_glacier_px": 2868,
+  "rule_overlap_px": 8,
+  "rule_overlap_pct": 3.2
+ },
+ "checkpoint_out": "../models/checkpoints/water_resunet_6ch_himalayan_adapter_stratified.pt",
+ "limitations": [
+  "Weak polygon labels \u2014 shoreline errors of ~1 px at 90 m pitch; median-outlined inventory, not per-pixel scene-date water.",
+  "Single monsoon-season pair \u2014 frozen/winter lakes untrained.",
+  "Polygon-overlap gains are partly circular (labels derive from the same inventory); honest metrics are glacier/steep false-positive rates on the full scene.",
+  "Shadow-only \u2014 not wired into runtime pending ADR-013 gate on held-out real data."
+ ]
+}

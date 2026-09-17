@@ -949,6 +949,30 @@ def run_pipeline(
     change_stats["rainfall_24h_mm"] = rainfall_24h
     change_stats["rainfall_7d_mm"] = rainfall_7d
 
+    # 6a. Lake thermal state (deterministic seasonal gate). A frozen lake
+    # surface is not liquid water at C-band — SAR change stats over a
+    # frozen lake measure ice, so the state annotates interpretation and
+    # suppresses the shadow hydro/volume trigger (attach_shadow_evidence
+    # reads lake_thermal_state from change_stats).
+    try:
+        from siren.detect.thermal_state import estimate_thermal_state
+        thermal = estimate_thermal_state(obs_config["acquired_at"][:10])
+    except Exception as exc:  # noqa: BLE001 — gate must never break the run
+        logger.warning(f"Thermal-state estimation failed: {exc}")
+        thermal = {"state": "unknown", "lake_temp_c": None}
+    change_stats["lake_thermal_state"] = thermal["state"]
+    change_stats["lake_temp_c_7d_mean"] = thermal.get("lake_temp_c")
+    change_stats["thermal_method"] = thermal.get("method")
+    frozen = thermal["state"] == "frozen_surface"
+    if frozen:
+        change_stats["sar_change_reliable"] = False
+        change_stats["ml_drainage_not_hydrological"] = True
+        change_stats["frozen_state_note"] = (
+            "Lake surface frozen (7-day lake temp "
+            f"{thermal.get('lake_temp_c')}°C) — SAR change layers measure "
+            "ice, not water; drainage stats are not hydrological."
+        )
+
     change_polygon = _change_polygon_from_mask(str(mask_path))
 
     # Try the full corridor pipeline; fall back to a simple corridor if
@@ -1075,6 +1099,12 @@ def run_pipeline(
         population_density_per_km2=200.0,  # demo basin average
         temp_index=temp_index,
     )
+
+    if frozen:
+        score["reasons"].append(
+            "Lake thermal state: FROZEN_SURFACE — SAR change layers "
+            "measure ice, not water; breach-volume trigger suppressed"
+        )
 
     # 7b. Attach shadow evidence (V3 §3.6, §6 — ADR-010 §3: not load-bearing)
     # The deterministic 5-factor hazard score remains authoritative. Shadow
