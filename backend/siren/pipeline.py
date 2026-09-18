@@ -531,6 +531,15 @@ def _try_ml_evidence_layer(
                 gate_stats["ml_rule_overlap_pct"] = (
                     round(overlap_px / rule_px * 100, 1) if rule_px else 0.0
                 )
+
+                # §9.8.3 cross-check: neural-vs-deterministic agreement
+                # verdict — runs every run in shadow mode too so
+                # disagreement evidence accumulates before promotion.
+                from siren.ml.cross_check import evaluate_overlap
+
+                gate_stats["cross_check"] = evaluate_overlap(
+                    ml_mask, rule_on_sar
+                )
         except Exception as exc:
             logger.warning(f"Shadow-mask terrain gating failed: {exc}")
 
@@ -854,7 +863,7 @@ def run_pipeline(
             "ml_shadow_px_raw", "ml_shadow_px_gated",
             "ml_shadow_px_outside_aoi", "ml_shadow_px_steep",
             "ml_shadow_px_glacier", "ml_terrain_gate",
-            "ml_rule_overlap_px", "ml_rule_overlap_pct",
+            "ml_rule_overlap_px", "ml_rule_overlap_pct", "cross_check",
             "ml_water_extent_px", "ml_water_extent_km2",
             "ml_expansion_km2", "ml_drainage_px", "ml_drainage_km2",
             "ml_sar_grid_bounds",
@@ -1105,6 +1114,17 @@ def run_pipeline(
             "Lake thermal state: FROZEN_SURFACE — SAR change layers "
             "measure ice, not water; breach-volume trigger suppressed"
         )
+
+    # §9.8.3 neural/deterministic cross-check: material disagreement is
+    # surfaced as a review reason — never silently resolved. Fires in
+    # shadow mode too (accumulates disagreement evidence pre-promotion).
+    _cc = change_stats.get("cross_check")
+    if (
+        isinstance(_cc, dict)
+        and _cc.get("material_disagreement")
+        and _cc.get("reason")
+    ):
+        score["reasons"].append(_cc["reason"])
 
     # 7b. Attach shadow evidence (V3 §3.6, §6 — ADR-010 §3: not load-bearing)
     # The deterministic 5-factor hazard score remains authoritative. Shadow
