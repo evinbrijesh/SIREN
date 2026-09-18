@@ -1,0 +1,217 @@
+{
+ "experiment": "S1 swath footprint verification at Imja Tsho",
+ "imja_lonlat": [
+  86.9282,
+  27.8983
+ ],
+ "method": "GCP-grid geolocation (annotation), boundary transformed through GCPTransformer; Imja point-tested against the swath polygon. swath_lon_at_imja_lat is the min/max GCP longitude within \u00b10.05\u00b0 of Imja latitude.",
+ "scenes": [
+  {
+   "scene": "S1A_IW_GRDH_1SDV_20251109T001125_20251109T001150_061793_07B95E_0D3F.SAFE.zip",
+   "date": "20251109",
+   "satellite": "S1A",
+   "pass": "Descending",
+   "relative_orbit": 121,
+   "grid_hw": [
+    16747,
+    25537
+   ],
+   "n_gcps": 210,
+   "covers_imja": true,
+   "imja_pixel_rc": [
+    9557.0,
+    9355.0
+   ],
+   "swath_lon_at_imja_lat": [
+    85.2983,
+    87.8772
+   ],
+   "aoi_overlap_frac": 1.0
+  },
+  {
+   "scene": "S1A_IW_GRDH_1SDV_20251121T001124_20251121T001149_061968_07C02A_9397.SAFE.zip",
+   "date": "20251121",
+   "satellite": "S1A",
+   "pass": "Descending",
+   "relative_orbit": 121,
+   "grid_hw": [
+    16746,
+    25538
+   ],
+   "n_gcps": 210,
+   "covers_imja": true,
+   "imja_pixel_rc": [
+    9554.0,
+    9336.0
+   ],
+   "swath_lon_at_imja_lat": [
+    85.2966,
+    87.8753
+   ],
+   "aoi_overlap_frac": 1.0
+  },
+  {
+   "scene": "S1A_IW_GRDH_1SDV_20260108T001119_20260108T001144_062668_07DB61_0DCB.SAFE.zip",
+   "date": "20260108",
+   "satellite": "S1A",
+   "pass": "Descending",
+   "relative_orbit": 121,
+   "grid_hw": [
+    16747,
+    25536
+   ],
+   "n_gcps": 210,
+   "covers_imja": true,
+   "imja_pixel_rc": [
+    9558.0,
+    9349.0
+   ],
+   "swath_lon_at_imja_lat": [
+    85.2978,
+    87.8766
+   ],
+   "aoi_overlap_frac": 1.0
+  },
+  {
+   "scene": "S1A_IW_GRDH_1SDV_20260120T001118_20260120T001143_062843_07E222_6911.SAFE.zip",
+   "date": "20260120",
+   "satellite": "S1A",
+   "pass": "Descending",
+   "relative_orbit": 121,
+   "grid_hw": [
+    16747,
+    25535
+   ],
+   "n_gcps": 210,
+   "covers_imja": true,
+   "imja_pixel_rc": [
+    9558.0,
+    9346.0
+   ],
+   "swath_lon_at_imja_lat": [
+    85.2976,
+    87.8763
+   ],
+   "aoi_overlap_frac": 1.0
+  },
+  {
+   "scene": "S1D_IW_GRDH_1SDV_20260702T001034_20260702T001059_003487_0062AB_5083.SAFE.zip",
+   "date": "20260702",
+   "satellite": "S1D",
+   "pass": "Descending",
+   "relative_orbit": 121,
+   "grid_hw": [
+    16747,
+    25533
+   ],
+   "n_gcps": 210,
+   "covers_imja": true,
+   "imja_pixel_rc": [
+    9385.0,
+    9354.0
+   ],
+   "swath_lon_at_imja_lat": [
+    85.3042,
+    87.8736
+   ],
+   "aoi_overlap_frac": 1.0
+  },
+  {
+   "scene": "S1D_IW_GRDH_1SDV_20260714T001035_20260714T001100_003662_00689F_377F.SAFE.zip",
+   "date": "20260714",
+   "satellite": "S1D",
+   "pass": "Descending",
+   "relative_orbit": 121,
+   "grid_hw": [
+    16747,
+    25533
+   ],
+   "n_gcps": 210,
+   "covers_imja": true,
+   "imja_pixel_rc": [
+    9385.0,
+    9356.0
+   ],
+   "swath_lon_at_imja_lat": [
+    85.3044,
+    87.8738
+   ],
+   "aoi_overlap_frac": 1.0
+  },
+  {
+   "scene": "S1D_IW_GRDH_1SDV_20260723T122115_20260723T122140_003801_006D5D_D3B2.SAFE.zip",
+   "date": "20260723",
+   "satellite": "S1D",
+   "pass": "Ascending",
+   "relative_orbit": 85,
+   "grid_hw": [
+    16732,
+    25762
+   ],
+   "n_gcps": 210,
+   "covers_imja": false,
+   "imja_pixel_rc": [
+    15246.0,
+    26803.0
+   ],
+   "swath_lon_at_imja_lat": [
+    85.7439,
+    86.6851
+   ],
+   "aoi_overlap_frac": 0.5171
+  },
+  {
+   "scene": "S1D_IW_GRDH_1SDV_20260804T122115_20260804T122140_003976_00737A_CDD6.SAFE.zip",
+   "date": "20260804",
+   "satellite": "S1D",
+   "pass": "Ascending",
+   "relative_orbit": 85,
+   "grid_hw": [
+    16732,
+    25763
+   ],
+   "n_gcps": 210,
+   "covers_imja": false,
+   "imja_pixel_rc": [
+    15246.0,
+    26799.0
+   ],
+   "swath_lon_at_imja_lat": [
+    85.7444,
+    86.6855
+   ],
+   "aoi_overlap_frac": 0.5187
+  },
+  {
+   "scene": "S1D_IW_GRDH_1SDV_20260811T121312_20260811T121337_004078_0076F9_4AFA.SAFE.zip",
+   "date": "20260811",
+   "satellite": "S1D",
+   "pass": "Ascending",
+   "relative_orbit": 12,
+   "grid_hw": [
+    16731,
+    25754
+   ],
+   "n_gcps": 210,
+   "covers_imja": true,
+   "imja_pixel_rc": [
+    11867.0,
+    6662.0
+   ],
+   "swath_lon_at_imja_lat": [
+    86.6529,
+    88.9052
+   ],
+   "aoi_overlap_frac": 1.0
+  }
+ ],
+ "imja_covering_dates": [
+  "20251109",
+  "20251121",
+  "20260108",
+  "20260120",
+  "20260702",
+  "20260714",
+  "20260811"
+ ]
+}
