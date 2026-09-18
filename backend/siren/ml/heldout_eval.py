@@ -21,6 +21,12 @@ adapter on INDEPENDENT descending pairs:
 Both pairs are Sentinel-1A (the July pair was S1D), so this also tests
 cross-sensor generalisation.
 
+A third pair — ``monsoon_asc`` (2026-08-11/2026-09-16, S1D relative
+orbit 12, ascending) — adds the missing domain-coverage axis: different
+pass geometry *and* unfrozen-season liquid water. All prior eval pairs
+share the orbit-121 descending footprint; the orbit-85 ascending scenes
+were verified to miss Imja entirely (``ingest/swath_coverage.py``).
+
 Metrics per pair per checkpoint (same machinery as
 ``sar_domain_adapt.evaluate_scene``, extended with inventory recall):
   - expansion/water-extent pixel counts, terrain-gated counts
@@ -31,7 +37,7 @@ Metrics per pair per checkpoint (same machinery as
     masks encode a simulated July event, not winter truth)
 
 Usage:
-    python -m siren.ml.heldout_eval [--pair shoulder|winter|both]
+    python -m siren.ml.heldout_eval [--pair shoulder|winter|monsoon_asc|both]
 """
 
 from __future__ import annotations
@@ -39,6 +45,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import re
 from pathlib import Path
 
 import numpy as np
@@ -66,6 +73,18 @@ RGI_SHP = (
 PAIRS = {
     "shoulder": ("20251109", "20251121"),
     "winter": ("20260108", "20260120"),
+    # Orbit-12 ascending pair (different pass geometry AND unfrozen
+    # season — the strongest domain-coverage eval on disk). Verified
+    # to cover Imja by ingest/swath_coverage.py; the orbit-85 ascending
+    # scenes miss the lake entirely.
+    "monsoon_asc": ("20260811", "20260916"),
+    # Unfrozen-season pair on the ro-121 descending deployment track —
+    # the clean liquid-water recall number the §9.8 gate needs. Both
+    # dates post-date the adapter's July training pair (held-out).
+    "unfrozen_desc": ("20260819", "20260912"),
+    # Second unfrozen ro-121 pair — the gate wants ≥2 independent
+    # Imja pairs. Immediately post-training dates, still monsoon.
+    "unfrozen_desc2": ("20260726", "20260807"),
 }
 
 def _checkpoints() -> dict[str, Path]:
@@ -90,24 +109,130 @@ REPORT_OUT = CHECKPOINT_DIR / "heldout_eval_report.json"
 # in-swath lakes.
 IMJA_LON, IMJA_LAT = 86.9282, 27.8983
 
+# Paired S2 scenes per SAR acquisition date — independent optical labels
+# for the §9.8 IoU gate. Only dates with a usable (or least-cloudy) S2
+# scene on disk are mapped; dates without a pair report inventory IoU
+# only. SCL class 6 = water; SCL_CLEAR classes are valid non-water;
+# everything else (cloud/shadow/nodata) is masked out of the IoU.
+S2_LABEL_SCENES = {
+    # shoulder t1: same-day+1 clear scene (AOI clear frac ~0.84)
+    "20251121": RAW_DIR
+    / "S2C_MSIL2A_20251122T045131_N0511_R076_T45RVL_20251122T083010.SAFE.zip",
+    # unfrozen_desc2 t1: 4-day-offset scene (t1=08-07, S2=08-11,
+    # tile cloud 34.7%) — closest clear monsoon acquisition
+    "20260807": RAW_DIR
+    / "S2A_MSIL2A_20260811T045241_N0512_R076_T45RVL_20260811T100012.SAFE.zip",
+    # monsoon_asc t0: same-day scene (tile cloud 34.7%)
+    "20260811": RAW_DIR
+    / "S2A_MSIL2A_20260811T045241_N0512_R076_T45RVL_20260811T100012.SAFE.zip",
+    # unfrozen_desc t0: 5-day-offset scene (t0=08-19, S2=08-24,
+    # tile cloud 71%) — clearest RVL acquisition in the window
+    "20260819": RAW_DIR
+    / "S2B_MSIL2A_20260824T044659_N0512_R076_T45RVL_20260824T083447.SAFE.zip",
+    # unfrozen_desc t1: 4-day-offset scene (t1=09-12, S2=09-08,
+    # tile cloud 66%)
+    "20260912": RAW_DIR
+    / "S2C_MSIL2A_20260908T044701_N0512_R076_T45RVL_20260908T094920.SAFE.zip",
+}
+SCL_WATER = 6
+SCL_CLEAR = {4, 5, 6, 7, 11}
+LABEL_NODATA = 255
+
 
 def _find_safe(date_str: str) -> Path:
-    hits = sorted(RAW_DIR.glob(f"S1*_IW_GRDH_*_{date_str}T00*.SAFE.zip"))
+    # Any acquisition time — descending scenes are ~T00:10 UTC, the
+    # orbit-12 ascending scenes ~T12:13 UTC.
+    hits = sorted(RAW_DIR.glob(f"S1*_IW_GRDH_*_{date_str}T*.SAFE.zip"))
     if not hits:
         raise FileNotFoundError(
-            f"no descending S1 SAFE archive for {date_str} in {RAW_DIR}"
+            f"no S1 SAFE archive for {date_str} in {RAW_DIR}"
         )
     return hits[0]
 
 
-def calibrated_cache(date_str: str) -> Path:
+def calibrated_cache(date_str: str, tag: str = "desc") -> Path:
     """Calibrate a SAFE archive to the (2, H, W) sigma0-dB cache used by
     the July pair — same function, same GCP persistence."""
     from siren.preprocess.sar_calibrate import extract_and_cache_vv_vh_db
 
-    cache = PROCESSED_DIR / f"imja_desc_{date_str}_sar_vv_vh_db.tif"
+    cache = PROCESSED_DIR / f"imja_{tag}_{date_str}_sar_vv_vh_db.tif"
     extract_and_cache_vv_vh_db(str(_find_safe(date_str)), cache)
     return cache
+
+
+def s2_label_raster(s2_path: Path) -> Path:
+    """Build (cached) SCL water-label GeoTIFF over the AOI at ~20 m.
+
+    Band values: 1 = water (SCL 6), 0 = valid non-water (SCL_CLEAR),
+    255 = unlabelled (cloud/shadow/nodata — masked out of the IoU).
+    """
+    from rasterio.transform import from_bounds
+
+    from siren.ml.s2_spectral_eval import _aoi_bounds, _read_scl_on_grid
+
+    m = re.search(r"_(\d{8})T", s2_path.name)
+    cache = PROCESSED_DIR / f"s2_water_label_{m.group(1)}.tif"
+    if cache.exists():
+        return cache
+
+    west, south, east, north = _aoi_bounds()
+    cell = 0.0002  # ~22 m in degrees — near SCL's native 20 m
+    w = int(np.ceil((east - west) / cell))
+    h = int(np.ceil((north - south) / cell))
+    scl = _read_scl_on_grid(s2_path, (h, w), (west, south, east, north))
+    label = np.full((h, w), LABEL_NODATA, dtype=np.uint8)
+    label[np.isin(scl, list(SCL_CLEAR))] = 0
+    label[scl == SCL_WATER] = 1
+    with rasterio.open(
+        cache, "w", driver="GTiff", height=h, width=w, count=1,
+        dtype="uint8", crs="EPSG:4326",
+        transform=from_bounds(west, south, east, north, w, h),
+        nodata=LABEL_NODATA,
+    ) as dst:
+        dst.write(label, 1)
+    logger.info("built S2 label raster %s (water px=%d)", cache,
+                int((label == 1).sum()))
+    return cache
+
+
+def _optical_labels(date_str: str, masks: dict):
+    """SCL water labels sampled onto the SAR grid for one scene date.
+
+    Returns (water, valid, coverage) or None when no paired S2 exists.
+    """
+    s2 = S2_LABEL_SCENES.get(date_str)
+    if s2 is None or not s2.exists():
+        return None
+    from siren.detect.sar import sar_grid_sample
+
+    lbl = sar_grid_sample(
+        str(s2_label_raster(s2)), masks["lon"], masks["lat"],
+        fill=float(LABEL_NODATA),
+    )
+    valid = lbl < LABEL_NODATA
+    coverage = float(valid[masks["aoi"]].mean()) if masks["aoi"].any() else 0.0
+    return lbl == 1, valid, round(coverage, 4)
+
+
+def _iou(pred: np.ndarray, label: np.ndarray, region: np.ndarray) -> float | None:
+    """IoU of pred vs label restricted to region pixels."""
+    reg = region.astype(bool)
+    union = int(((pred | label) & reg).sum())
+    if union == 0:
+        return None
+    return round(int((pred & label & reg).sum()) / union, 4)
+
+
+def _precision(
+    pred: np.ndarray, label: np.ndarray, region: np.ndarray
+) -> float | None:
+    """Precision of pred vs label restricted to region pixels — the
+    §17.2 P ≥ 0.84 gate metric. None when pred is empty in-region."""
+    reg = region.astype(bool)
+    n_pred = int((pred & reg).sum())
+    if n_pred == 0:
+        return None
+    return round(int((pred & label & reg).sum()) / n_pred, 4)
 
 
 def _scene_masks(sar_path: Path) -> dict:
@@ -209,8 +334,10 @@ def evaluate_checkpoint(
     post_db: np.ndarray,
     masks: dict,
     threshold: float = 0.30,
+    labels: dict | None = None,
 ) -> dict:
     import torch
+    from scipy.ndimage import binary_dilation
 
     from siren.detect.sar import sar_grid_sample
     from siren.ml.engine import _detect_architecture
@@ -225,10 +352,16 @@ def evaluate_checkpoint(
     p_t1 = _prob_map(model, pre_db, post_db)
     p_t0 = _prob_map(model, pre_db, pre_db)
     water_t1 = p_t1 >= threshold
-    expansion = water_t1 & (p_t0 < threshold)
+    water_t0 = p_t0 >= threshold
+    expansion = water_t1 & ~water_t0
 
     aoi, glac, lake_vic = masks["aoi"], masks["glac"], masks["lake_vic"]
     gated = expansion & aoi & ~(glac & ~lake_vic)
+
+    # Imja-scoped IoU: evaluated inside a ~10-px (~900 m) ROI around the
+    # inventory polygon so scene-wide FPs don't swamp the lake measure.
+    imja = masks["imja"]
+    imja_roi = binary_dilation(imja, iterations=10) if imja.any() else imja
 
     rule_path = PROCESSED_DIR / "obs-003_expansion_mask.tif"
     rule = (
@@ -239,7 +372,7 @@ def evaluate_checkpoint(
     rule_px = int(rule.sum())
     overlap = int((gated & rule).sum())
 
-    return {
+    out = {
         "expansion_px": int(expansion.sum()),
         "water_extent_px": int(water_t1.sum()),
         "water_extent_on_glacier_px": int(
@@ -264,13 +397,60 @@ def evaluate_checkpoint(
         },
         "imja_recall_t1": _recall(p_t1, masks["imja"], threshold),
         "imja_recall_t0": _recall(p_t0, masks["imja"], threshold),
+        # §9.8 IoU gate metrics — vs independent labels
+        "inventory_iou_t1": _iou(water_t1, masks["inventory"], aoi),
+        "inventory_iou_t0": _iou(water_t0, masks["inventory"], aoi),
+        "imja_iou_t1": _iou(water_t1, imja, imja_roi),
+        "imja_iou_t0": _iou(water_t0, imja, imja_roi),
+        # §17.2 P ≥ 0.84 gate metrics — precision vs the same labels
+        "inventory_precision_t1": _precision(
+            water_t1, masks["inventory"], aoi
+        ),
+        "inventory_precision_t0": _precision(
+            water_t0, masks["inventory"], aoi
+        ),
+        "imja_precision_t1": _precision(water_t1, imja, imja_roi),
+        "imja_precision_t0": _precision(water_t0, imja, imja_roi),
     }
+    for key, pred in (("t1", water_t1), ("t0", water_t0)):
+        lab = (labels or {}).get(key)
+        if lab is None:
+            out[f"optical_iou_{key}"] = None
+            out[f"optical_precision_{key}"] = None
+            out[f"optical_label_coverage_{key}"] = None
+            out[f"imja_optical_iou_{key}"] = None
+            out[f"imja_optical_precision_{key}"] = None
+            out[f"imja_optical_label_coverage_{key}"] = None
+        else:
+            water_l, valid_l, cov = lab
+            out[f"optical_iou_{key}"] = _iou(pred, water_l, aoi & valid_l)
+            out[f"optical_precision_{key}"] = _precision(
+                pred, water_l, aoi & valid_l
+            )
+            # Imja-scoped optical metrics — the gate's fair comparison
+            # scope (matches imja_iou); AOI-wide numbers include
+            # terrain-gate-able scene FPs.
+            imja_scope = imja_roi & valid_l
+            out[f"imja_optical_iou_{key}"] = _iou(
+                pred, water_l, imja_scope
+            )
+            out[f"imja_optical_precision_{key}"] = _precision(
+                pred, water_l, imja_scope
+            )
+            out[f"imja_optical_label_coverage_{key}"] = (
+                round(float(valid_l[imja_roi].mean()), 4)
+                if imja_roi.any()
+                else None
+            )
+            out[f"optical_label_coverage_{key}"] = cov
+    return out
 
 
 def evaluate_pair(pair_name: str, threshold: float = 0.30) -> dict:
     t0_str, t1_str = PAIRS[pair_name]
-    cache_t0 = calibrated_cache(t0_str)
-    cache_t1 = calibrated_cache(t1_str)
+    tag = "asc" if pair_name.endswith("_asc") else "desc"
+    cache_t0 = calibrated_cache(t0_str, tag)
+    cache_t1 = calibrated_cache(t1_str, tag)
 
     with rasterio.open(cache_t0) as d:
         pre_db = d.read().astype(np.float32)
@@ -289,17 +469,27 @@ def evaluate_pair(pair_name: str, threshold: float = 0.30) -> dict:
         int(masks["imja"].sum()),
     )
 
+    labels = {
+        "t0": _optical_labels(t0_str, masks),
+        "t1": _optical_labels(t1_str, masks),
+    }
+
     results = {}
     for name, ckpt in _checkpoints().items():
         logger.info("  evaluating %s ...", name)
         results[name] = evaluate_checkpoint(
-            ckpt, pre_db, post_db, masks, threshold
+            ckpt, pre_db, post_db, masks, threshold, labels
         )
     return {
         "pair": pair_name,
         "t0": t0_str,
         "t1": t1_str,
         "grid_shape": list(pre_db.shape),
+        "s2_label_scenes": {
+            d: S2_LABEL_SCENES[d].name
+            for d in (t0_str, t1_str)
+            if d in S2_LABEL_SCENES and S2_LABEL_SCENES[d].exists()
+        },
         "checkpoints": results,
     }
 
@@ -316,10 +506,14 @@ def main() -> None:
 
     names = list(PAIRS) if args.pair == "both" else [args.pair]
     report = {
-        "experiment": "held-out adapter evaluation on independent S1A pairs",
+        "experiment": "held-out adapter evaluation on independent S1 pairs",
         "independence": (
-            "Different season, different satellite (S1A vs S1D), same "
-            "descending track. Neither pair contributed training chips."
+            "shoulder/winter: S1A ro-121 descending (cross-sensor vs "
+            "S1D training pair). monsoon_asc: S1D ro-12 ascending "
+            "(different pass geometry — out of the ro-121 deployment "
+            "domain per ADR-014). unfrozen_desc: S1D ro-121 descending, "
+            "both dates after the adapter's July training pair. No pair "
+            "contributed training chips."
         ),
         "threshold": args.threshold,
         "pairs": [evaluate_pair(n, args.threshold) for n in names],
@@ -333,10 +527,34 @@ def main() -> None:
                 "is not liquid water); honest metric is whether glacier/"
                 "snow FPs stay suppressed vs the base model."
             ),
+            "monsoon_asc": (
+                "Unfrozen-season ascending pair on a different orbit "
+                "(ro=12 vs ro=121 descending) — clean liquid-water "
+                "recall plus the strongest geometry-shift test. Ascending "
+                "look direction flips layover/shadow vs all prior evals."
+            ),
+            "unfrozen_desc": (
+                "Unfrozen-season pair on the ro-121 deployment track — "
+                "the gate's clean liquid-water recall + IoU number. "
+                "Both dates post-date the adapter training pair."
+            ),
+            "unfrozen_desc2": (
+                "Second independent unfrozen pair on ro-121 — the "
+                "gate's ≥2-pair requirement. Immediately post-training "
+                "dates (12–24 days after the training pair)."
+            ),
         },
         "limitations": [
             "Inventory polygons are 2022–2024 median outlines — recall "
-            "against them is weak-positive agreement, not truth.",
+            "and IoU against them are weak-positive agreement, not "
+            "truth; seasonal outlines can differ from same-day extent.",
+            "Optical labels are SCL class 6 — ESA's own classifier, not "
+            "truth; frozen or debris-covered water can misclassify, and "
+            "cloud masks leave unlabelled gaps (masked out of the IoU).",
+            "Monsoon optical labels carry a 4–5 day temporal offset from "
+            "the SAR date (nearest clear T45RVL acquisition) — lake extent "
+            "can drift over the gap, so offset-label IoU is weaker "
+            "evidence than same-day labels.",
             "Scenario rule masks encode a simulated July event; "
             "rule_overlap on winter pairs is for continuity, not truth.",
             "Frozen-lake recall collapse is expected physics (C-band "
