@@ -1,0 +1,53 @@
+{
+  "status": "hindcast_scored",
+  "lake": "South Lhonak (Sikkim)",
+  "breach_date": "2023-10-03",
+  "weather_window": "2023-09-03 .. 2023-10-03",
+  "weather_source": "NASA POWER (MERRA-2, ~0.5deg)",
+  "icimod_match_km": 0.0,
+  "features": {
+    "precip_30d_mm": 83.17999999999999,
+    "precip_7d_mm": 18.810000000000002,
+    "max_daily_precip_mm": 10.69,
+    "heavy_rain_days": 0,
+    "api_30": 30.299155119190235,
+    "rain_anom_30d_mm": -18.024000000000015,
+    "mdd_30": 56.95605000000007,
+    "mdd_anom_30": 13.885035500000008,
+    "ft_cycles_14": 14,
+    "lake_elev_m": 5204.0,
+    "log_lake_area_km2": 0.9479356905579659,
+    "log_dist_glacier_m": 0.0,
+    "log_glacier_area_10km": 5.03956992273959
+  },
+  "p_dynamic_raw": 0.9833,
+  "p_dynamic": 1.0,
+  "warning_threshold": 0.65,
+  "would_warn": true,
+  "reasons": [
+    "log_lake_area_km2: +1.859 to log-odds",
+    "log_dist_glacier_m: +0.813 to log-odds",
+    "log_glacier_area_10km: +0.430 to log-odds",
+    "P_escalation=1.000"
+  ],
+  "feature_contributions": {
+    "precip_30d_mm": -0.13599568605422974,
+    "precip_7d_mm": 0.33653953671455383,
+    "max_daily_precip_mm": 0.08996860682964325,
+    "heavy_rain_days": 0.0,
+    "api_30": 0.020534561946988106,
+    "rain_anom_30d_mm": 0.2841651141643524,
+    "mdd_30": 0.10968005657196045,
+    "mdd_anom_30": 0.11120418459177017,
+    "ft_cycles_14": -0.006723267957568169,
+    "lake_elev_m": 0.15242590010166168,
+    "log_lake_area_km2": 1.8591439723968506,
+    "log_dist_glacier_m": 0.8134704232215881,
+    "log_glacier_area_10km": 0.42950230836868286
+  },
+  "caveats": [
+    "in-sample check \u2014 South Lhonak is in the HMAGLOFDB positive set and the saved checkpoint trains on all rows; out-of-fold behaviour is in the CV eval report",
+    "actual trigger was a glacier-flank collapse displacement wave \u2014 not observable by weather/morphology features",
+    "POWER ~0.5deg grid is coarse for a steep Himalayan valley"
+  ]
+}
