@@ -127,6 +127,20 @@ def attach_shadow_evidence(
             "reason": f"P_breach={p_breach:.3f} < 0.70 gate",
         }
 
+    # 4. Dynamic escalation (Tier-2 antecedent-trigger model): P(escalation |
+    # morphometrics + trailing-30d weather window). Fails closed when no
+    # valid checkpoint exists; degraded-mode flags record missing features.
+    try:
+        from siren.risk.dynamic_escalation import score_imja_observation
+
+        p_static = p_breach if isinstance(p_breach, (int, float)) else None
+        shadow["dynamic_escalation"] = score_imja_observation(
+            obs_config, change_stats, p_static=p_static,
+        )
+    except Exception as exc:
+        logger.warning("Dynamic escalation failed: %s", exc)
+        shadow["dynamic_escalation"] = {"is_available": False, "error": str(exc)}
+
     # Mark as shadow evidence (ADR-010 §3: not load-bearing)
     shadow["is_shadow"] = True
     shadow["gate_status"] = "shadow_only"
