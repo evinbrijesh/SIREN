@@ -320,3 +320,92 @@ Amended gate: v2 leads on paper (all 5 legs) but the change-recall
 evidence remains thin — 32 px Imja gold + a failed (invisible) probe.
 Promotion requires either ≥2 more verified-change lakes or an
 in-domain real event. Deterministic baseline stays load-bearing.
+
+## Δp expansion decision rule (implemented)
+
+The binary `water_t1 & ~water_t0` contract structurally misses
+sub-pixel growth — at ~90 m pitch a pixel going 30%→80% water IS
+expansion that neither extent mask can express. Added
+`expansion_dp = (p1 ≥ 0.5) & (p1 − p0 ≥ 0.2)` alongside the binary
+mask (`engine.predict_state_and_change` + `imja_gold_eval` scoring).
+
+vs gold change (desc): **v2 Δp → 15 exp px, 9 TP (28%), 3 FP** —
+best recall AND ≤5 FP bound held. labelrefined Δp 5/0/4, stratified
+2/0/2, adapter 0/0/0, base 71/47/6. desc2 auto: all ~0 (thin scope).
+
+Also reported: `dp_mass_px_equiv` — continuous new-water area
+estimate (v2 15.3 px-equiv vs gold 32; base 67 — overconfident).
+
+## SAR-visibility audit (`ml/sar_visibility_audit.py`)
+
+Per-lake water-darkness scoring on the calibrated desc caches (VV <
+−15 dB = water-dark, grounded on Imja −20.1 / non-water −11.6 /
+South Lhonak −6.9). ~600 in-swath lakes ≥3 px:
+
+- 09-12: **172 monitorable / 227 marginal / 206 invisible**
+- 08-07: 165 / 207 / 208
+- 07-14: 140 / 217 / 243
+
+Only ~28% of the monitored inventory is reliably SAR-visible —
+South Lhonak is the rule, not the exception, for steep tarns.
+Imja itself: monitorable (VV −20.4, dark 0.92). Caveat: shadow-dark
+terrain also reads dark — "monitorable" means water-detectable
+surface, not confirmed water. Report:
+`models/checkpoints/sar_visibility_audit.json`.
+
+## Amended-gate verdict (final, 2026-09-19)
+
+With the Δp rule, `labelrefined_v2` satisfies all five am1 legs
+(L1 3px ≤5, L2 28% ≥20% w/ contiguous component, L3 min P@2px 0.72,
+L4 −90%, L5 ✓). Promotion still owner-gated on: (a) verified change
+labels on ≥2 more monitorable lakes, (b) in-domain real-event
+corroboration. Everything else fails L2.
+
+## Corroborating-evidence scan (final, 2026-09-19)
+
+Attempted the am1 honesty condition "verified change on ≥2 more
+monitorable lakes":
+
+- The coherent label-change components found on both pairs sit at
+  **invisible-class tarns** (27.83–27.85°N: VV −5.8 to −7.2 dB,
+  dark frac 0–0.15) — optically real change that SAR fundamentally
+  cannot see. Not usable as model evidence.
+- Scanning every monitorable lake on both eval pairs: **no
+  monitorable non-Imja lake shows ≥3 px of label-change** — the
+  monitorable moraine-dammed lakes are simply quiet in this window.
+  Change concentrates at invisible steep tarns (melt ponds/drainage).
+- Cross-season probe (S1 11-21→09-12 vs S2 11-22→09-08, ~10-month
+  arc, same orbit): only 269 both-valid px in monitorable vicinity,
+  17 label-change px. v2 again leads: 7 TP binary (41%) / 5 TP Δp
+  (29%); base 5 TP at 188 FP; others ≤3 TP.
+
+**Conclusion: the verified-change evidence has hit the ceiling of
+the current data window.** Monitorable lakes are stable; the lakes
+that changed are SAR-invisible. Three independent change measures
+(Imja gold 28%, cross-season 29–41%, AOI SCL ~7%) consistently rank
+v2+Δp first — thin but directionally consistent.
+
+## Coverage honesty for the alert product
+
+The SAR monitorable set (28% of inventory) does include the
+highest-consequence moraine-dammed lakes (Imja 1.74 km² monitorable,
+VV −20.4). The invisible class is mostly smaller steep tarns —
+smaller-consequence but not zero (South Lhonak was 0.87 km² and
+deadly). Optical-only coverage for the invisible class is a separate
+capability question, not this component's gate.
+
+## Promotion procedure (documented, pending owner decision)
+
+When the owner accepts the thin-evidence caveat (or a future
+in-domain event at a monitorable lake corroborates):
+
+1. `pipeline.py`: primary expansion evidence =
+   `ml_state["expansion_dp"]` within lake-vicinity on ro-121 desc
+   unfrozen pairs; deterministic mask becomes labeled cross-check
+   (`cross_check.py` verdict → review reason on disagreement).
+2. `ml/registry.py`: record promotion — ckpt id, gate report refs
+   (`heldout_eval_report.json`, `imja_gold_eval_report.json`), legs
+   + numbers, scope (monitorable lakes, ro-121 desc, unfrozen).
+3. Audit lineage: gate evidence persisted at promotion time.
+4. Reversible: a regressing gate on new held-out data demotes back
+   automatically (spec §17.2).

@@ -496,6 +496,8 @@ class ChangeDetectionEngine:
           * ``water_t0``   — water extent at the baseline date
           * ``water_t1``   — water extent at the current date
           * ``expansion``  — new water: ``water_t1 & ~water_t0``
+          * ``expansion_dp`` — Δp expansion (ADR-014-am1 contract):
+            ``(p_t1 >= 0.5) & (p_t1 - p_t0 >= 0.2)``
           * ``drainage``   — receded water: ``water_t0 & ~water_t1``
 
         The state-vs-change split matters for persistent lakes: a correct
@@ -514,7 +516,7 @@ class ChangeDetectionEngine:
 
         Returns:
             Dict of binary masks (H, W) uint8: water_t0, water_t1,
-            expansion, drainage.
+            expansion, expansion_dp, drainage.
         """
         if not self.is_ready or self.model is None:
             raise RuntimeError(
@@ -539,11 +541,16 @@ class ChangeDetectionEngine:
         water_t1 = p_t1 >= tau
 
         # Deterministic change decomposition (Hard Rule 1 — set differences,
-        # not a learned change detector).
+        # not a learned change detector). ``expansion_dp`` adds the Δp
+        # variant evaluated under ADR-014-am1: confident post-prob AND a
+        # meaningful probability rise — catches sub-pixel footprint growth
+        # the binary extent difference structurally misses.
+        dp = p_t1 - p_t0
         return {
             "water_t0": water_t0.astype(np.uint8),
             "water_t1": water_t1.astype(np.uint8),
             "expansion": (water_t1 & ~water_t0).astype(np.uint8),
+            "expansion_dp": ((p_t1 >= 0.5) & (dp >= 0.2)).astype(np.uint8),
             "drainage": (water_t0 & ~water_t1).astype(np.uint8),
         }
 

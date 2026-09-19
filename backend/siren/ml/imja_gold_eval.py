@@ -78,6 +78,13 @@ AUTO_LABEL_SCENES = {
 }
 LABEL_NODATA = 255
 
+# Δp expansion decision rule: a pixel is expansion evidence when the
+# post-date probability is confident (>= DP_HI) AND it rose by >= DP_DELTA
+# vs the pre-date. Catches sub-pixel footprint growth the binary
+# extent difference structurally misses (ADR-014-am1 L2 evidence).
+DP_HI = 0.5
+DP_DELTA = 0.2
+
 
 def _auto_label_tif(sar_date: str) -> Path | None:
     """Build (cached) the auto-candidate label tif for a SAR date."""
@@ -249,10 +256,20 @@ def _score_change(p_t0, p_t1, tau, labs, imja_roi, tier):
     cscope = imja_roi & both_v
     lab_change = g1w & ~g0w
     exp = ((p_t1 >= tau) & ~(p_t0 >= tau)) & cscope
+    # Δp expansion variant — a pixel counts as expansion when the
+    # post-date probability is confident AND it rose meaningfully:
+    # catches sub-pixel growth (e.g. 30%→80% water within one ~90 m
+    # footprint) that the binary extent difference structurally misses.
+    dp = p_t1 - p_t0
+    exp_dp = ((p_t1 >= DP_HI) & (dp >= DP_DELTA)) & cscope
     return {
         "expansion_px_in_scope": int(exp.sum()),
         f"fp_vs_{tier}_t1": int((exp & ~g1w).sum()),
         f"tp_vs_{tier}_change": int((exp & lab_change).sum()),
+        "expansion_dp_px_in_scope": int(exp_dp.sum()),
+        f"fp_dp_vs_{tier}_t1": int((exp_dp & ~g1w).sum()),
+        f"tp_dp_vs_{tier}_change": int((exp_dp & lab_change).sum()),
+        "dp_mass_px_equiv": round(float(np.maximum(0, dp)[cscope].sum()), 1),
         f"{tier}_change_px": int((lab_change & cscope).sum()),
         "scope_valid_frac": (
             round(float(both_v[imja_roi].mean()), 4) if imja_roi.any() else None

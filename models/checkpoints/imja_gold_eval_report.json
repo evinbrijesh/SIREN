@@ -4,6 +4,10 @@
   "gold": "hand-verified NDWI>0.15 (tier 1)",
   "auto": "unverified inventory+200m NDWI (tier 2)"
  },
+ "change_methods": {
+  "binary": "expansion = (p1>=tau) & (p0<tau)",
+  "dp": "expansion = (p1>=0.5) & (p1-p0>=0.2) \u2014 sub-pixel growth"
+ },
  "pairs": [
   {
    "pair": "unfrozen_desc",
@@ -39,6 +43,10 @@
        "expansion_px_in_scope": 114,
        "fp_vs_gold_t1": 94,
        "tp_vs_gold_change": 6,
+       "expansion_dp_px_in_scope": 71,
+       "fp_dp_vs_gold_t1": 47,
+       "tp_dp_vs_gold_change": 6,
+       "dp_mass_px_equiv": 67.2,
        "gold_change_px": 32,
        "scope_valid_frac": 0.5563
       },
@@ -71,6 +79,10 @@
        "expansion_px_in_scope": 9,
        "fp_vs_gold_t1": 1,
        "tp_vs_gold_change": 6,
+       "expansion_dp_px_in_scope": 0,
+       "fp_dp_vs_gold_t1": 0,
+       "tp_dp_vs_gold_change": 0,
+       "dp_mass_px_equiv": 5.0,
        "gold_change_px": 32,
        "scope_valid_frac": 0.5563
       },
@@ -103,6 +115,10 @@
        "expansion_px_in_scope": 4,
        "fp_vs_gold_t1": 0,
        "tp_vs_gold_change": 3,
+       "expansion_dp_px_in_scope": 5,
+       "fp_dp_vs_gold_t1": 0,
+       "tp_dp_vs_gold_change": 4,
+       "dp_mass_px_equiv": 4.3,
        "gold_change_px": 32,
        "scope_valid_frac": 0.5563
       },
@@ -135,6 +151,10 @@
        "expansion_px_in_scope": 15,
        "fp_vs_gold_t1": 3,
        "tp_vs_gold_change": 8,
+       "expansion_dp_px_in_scope": 15,
+       "fp_dp_vs_gold_t1": 3,
+       "tp_dp_vs_gold_change": 9,
+       "dp_mass_px_equiv": 15.3,
        "gold_change_px": 32,
        "scope_valid_frac": 0.5563
       },
@@ -167,6 +187,10 @@
        "expansion_px_in_scope": 2,
        "fp_vs_gold_t1": 1,
        "tp_vs_gold_change": 1,
+       "expansion_dp_px_in_scope": 2,
+       "fp_dp_vs_gold_t1": 0,
+       "tp_dp_vs_gold_change": 2,
+       "dp_mass_px_equiv": 3.2,
        "gold_change_px": 32,
        "scope_valid_frac": 0.5563
       },
@@ -214,6 +238,10 @@
        "expansion_px_in_scope": 7,
        "fp_vs_auto_t1": 1,
        "tp_vs_auto_change": 1,
+       "expansion_dp_px_in_scope": 2,
+       "fp_dp_vs_auto_t1": 0,
+       "tp_dp_vs_auto_change": 0,
+       "dp_mass_px_equiv": 2.7,
        "auto_change_px": 24,
        "scope_valid_frac": 0.0955
       }
@@ -246,6 +274,10 @@
        "expansion_px_in_scope": 1,
        "fp_vs_auto_t1": 1,
        "tp_vs_auto_change": 0,
+       "expansion_dp_px_in_scope": 0,
+       "fp_dp_vs_auto_t1": 0,
+       "tp_dp_vs_auto_change": 0,
+       "dp_mass_px_equiv": 0.3,
        "auto_change_px": 24,
        "scope_valid_frac": 0.0955
       }
@@ -278,6 +310,10 @@
        "expansion_px_in_scope": 1,
        "fp_vs_auto_t1": 1,
        "tp_vs_auto_change": 0,
+       "expansion_dp_px_in_scope": 1,
+       "fp_dp_vs_auto_t1": 1,
+       "tp_dp_vs_auto_change": 0,
+       "dp_mass_px_equiv": 0.8,
        "auto_change_px": 24,
        "scope_valid_frac": 0.0955
       }
@@ -310,6 +346,10 @@
        "expansion_px_in_scope": 0,
        "fp_vs_auto_t1": 0,
        "tp_vs_auto_change": 0,
+       "expansion_dp_px_in_scope": 0,
+       "fp_dp_vs_auto_t1": 0,
+       "tp_dp_vs_auto_change": 0,
+       "dp_mass_px_equiv": 0.1,
        "auto_change_px": 24,
        "scope_valid_frac": 0.0955
       }
@@ -342,6 +382,10 @@
        "expansion_px_in_scope": 3,
        "fp_vs_auto_t1": 1,
        "tp_vs_auto_change": 2,
+       "expansion_dp_px_in_scope": 0,
+       "fp_dp_vs_auto_t1": 0,
+       "tp_dp_vs_auto_change": 0,
+       "dp_mass_px_equiv": 1.5,
        "auto_change_px": 24,
        "scope_valid_frac": 0.0955
       }

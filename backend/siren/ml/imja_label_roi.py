@@ -52,11 +52,15 @@ OUT_DIR = _REPO_ROOT / "data" / "processed"
 ROI_HALF_M = 1250.0   # ~2.5 km box — lake is ~1.1 km long
 
 
-def _roi_window_utm(band_meta: dict, half_m: float = ROI_HALF_M) -> Window:
-    """Pixel window for a half_m box around the Imja centroid in the
+def _roi_window_utm(
+    band_meta: dict,
+    half_m: float = ROI_HALF_M,
+    center: tuple[float, float] = (IMJA_LON, IMJA_LAT),
+) -> Window:
+    """Pixel window for a half_m box around a lon/lat centre in the
     band's native UTM grid."""
     xs, ys = warp_transform(
-        "EPSG:4326", band_meta["crs"], [IMJA_LON], [IMJA_LAT]
+        "EPSG:4326", band_meta["crs"], [center[0]], [center[1]]
     )
     cx, cy = xs[0], ys[0]
     win = from_bounds(
@@ -66,9 +70,13 @@ def _roi_window_utm(band_meta: dict, half_m: float = ROI_HALF_M) -> Window:
     return win.round_offsets().round_lengths()
 
 
-def extract_roi(s2_zip_path: Path | str, half_m: float = ROI_HALF_M) -> dict:
-    """Read B02/B03/B04 (10 m) + SCL (20 m, NN-resampled) over the Imja
-    ROI and compute 10 m NDWI.
+def extract_roi(
+    s2_zip_path: Path | str,
+    half_m: float = ROI_HALF_M,
+    center: tuple[float, float] = (IMJA_LON, IMJA_LAT),
+) -> dict:
+    """Read B02/B03/B04 (10 m) + SCL (20 m, NN-resampled) over the ROI
+    around ``center`` (default Imja) and compute 10 m NDWI.
 
     Returns dict: rgb (3,H,W uint8), ndwi (H,W float32), scl (H,W uint8
     on the 10 m grid), transform, crs.
@@ -86,9 +94,11 @@ def extract_roi(s2_zip_path: Path | str, half_m: float = ROI_HALF_M) -> dict:
             with z.open(p) as f:
                 ds = rasterio.open(f)
                 return ds, ds.read(1, window=_roi_window_utm(
-                    {"crs": ds.crs, "transform": ds.transform}, half_m
+                    {"crs": ds.crs, "transform": ds.transform}, half_m,
+                    center,
                 )), _roi_window_utm(
-                    {"crs": ds.crs, "transform": ds.transform}, half_m
+                    {"crs": ds.crs, "transform": ds.transform}, half_m,
+                    center,
                 )
 
         # 10 m bands share the grid — one window for all
@@ -103,7 +113,8 @@ def extract_roi(s2_zip_path: Path | str, half_m: float = ROI_HALF_M) -> dict:
                 ds = rasterio.open(f)
                 if ref_ds is None:
                     win = _roi_window_utm(
-                        {"crs": ds.crs, "transform": ds.transform}, half_m
+                        {"crs": ds.crs, "transform": ds.transform}, half_m,
+                        center,
                     )
                     ref_ds = ds
                     ref_transform = ds.window_transform(win)
@@ -247,10 +258,22 @@ def apply_edits(
     return out
 
 
+def lake_geom_near(lon: float, lat: float):
+    """Inventory polygon (EPSG:4326) of the lake whose centroid is
+    nearest to (lon, lat)."""
+    import geopandas as gpd
+
+    gdf = gpd.read_file(INVENTORY_SHP).to_crs("EPSG:4326")
+    d = (gdf["Longitude"] - lon) ** 2 + (gdf["Latitude"] - lat) ** 2
+    i = int(d.values.argmin())
+    return gdf.geometry.iloc[i], gdf.iloc[i]
+
+
 def auto_candidate_label(
     roi: dict,
     ndwi_threshold: float = 0.15,
     region_buffer_m: float = 200.0,
+    geom=None,
 ) -> np.ndarray:
     """Auto-generated label: NDWI water inside the inventory lake region
     (buffered ``region_buffer_m`` metres), unlabelled elsewhere.
@@ -262,12 +285,10 @@ def auto_candidate_label(
     """
     from rasterio.features import rasterize
     from shapely.ops import transform as shp_transform
-    import geopandas as gpd
     import pyproj
 
-    gdf = gpd.read_file(INVENTORY_SHP).to_crs("EPSG:4326")
-    d = (gdf["Longitude"] - IMJA_LON) ** 2 + (gdf["Latitude"] - IMJA_LAT) ** 2
-    geom = gdf.geometry.iloc[int(d.values.argmin())]
+    if geom is None:
+        geom, _ = lake_geom_near(IMJA_LON, IMJA_LAT)
 
     # Buffer + rasterize in the ROI's own CRS (UTM 45N).
     to_utm = pyproj.Transformer.from_crs(

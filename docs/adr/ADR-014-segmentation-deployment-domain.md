@@ -132,11 +132,25 @@ shoulder context, ascending-pair stress results.
 | L4 (glacier FP) | −93% ✅ | −94% ✅ | −93% ✅ | −90% ✅ |
 | L5 | ✅ | ✅ | ✅ | ✅ |
 
-**Verdict: `labelrefined_v2` is the first checkpoint to satisfy all
-five amended legs** — the others fail L2 (change recall < 20% vs the
-gold change). Promotion remains blocked, however, pending the two
-honesty conditions below — the gate legs are satisfied on thin
-evidence and must be corroborated before the runtime flag flips.
+### Δp expansion decision rule (2026-09-19)
+
+The binary `water_t1 & ~water_t0` contract structurally misses
+sub-pixel growth — at ~90 m pitch a pixel going 30%→80% water IS
+expansion neither extent mask can express. The amended gate therefore
+evaluates the operational product under the Δp decision rule:
+`expansion = (p1 ≥ 0.5) & (p1 − p0 ≥ 0.2)` — confident post-prob AND a
+meaningful rise. It is now emitted alongside the binary mask as
+`expansion_dp` in `predict_state_and_change` (shadow path unchanged).
+
+vs gold change (unfrozen_desc): **v2 Δp → 15 exp px, 9 TP (28%
+recall), 3 FP** — best on both L1 and L2. labelrefined 5/0/4,
+stratified 2/0/2, adapter 0/0/0, base 71/47/6.
+
+**Verdict: with the Δp rule, `labelrefined_v2` satisfies all five
+amended legs** (L1 3px, L2 28%, L3 min 0.72, L4 −90%, L5 ✓). The
+others fail L2. Promotion remains blocked pending the honesty
+conditions below — the legs are satisfied on thin verified truth and
+must be corroborated before the runtime flag flips.
 
 *Honesty notes / conditions on the L2 leg:* (a) the 20% bar is
 provisional pending the South Lhonak real-event probe — if the model
@@ -169,3 +183,40 @@ that **C-band SAR detection has a visibility floor**: steep-walled
 SAR water detector — relevant to coverage claims for the alert
 product. An inventory audit of which monitored lakes are SAR-visible
 is the follow-up.
+
+### SAR-visibility audit (2026-09-19, `ml/sar_visibility_audit.py`)
+
+Follow-up executed: every in-swath inventory lake ≥3 grid px scored
+for water-dark fraction (VV < −15 dB) on the calibrated desc caches.
+Result across ~600 lakes per date — **only ~28% monitorable**
+(172/227/206 monitorable/marginal/invisible on 09-12; similar on
+08-07 and 07-14). South Lhonak is the rule, not the exception, for
+steep high-altitude tarns. Imja itself: monitorable (VV −20.4, dark
+frac 0.92). Caveat: radar shadow also reads dark — "monitorable" means
+water-detectable surface, not confirmed water. Report:
+`models/checkpoints/sar_visibility_audit.json`. Consequence: the
+amended gate's verified-label requirement should target lakes in the
+monitorable class; invisible lakes are outside the detection contract
+entirely and need optical/other sensors for coverage.
+
+### Corroborating-evidence scan (2026-09-19) — data ceiling reached
+
+Attempted the am1 honesty condition (verified change on ≥2 more
+monitorable lakes):
+
+- All coherent label-change components on the eval pairs sit at
+  **invisible-class tarns** — optically real change SAR cannot see;
+  unusable as model evidence.
+- **No monitorable non-Imja lake changed** on either eval pair —
+  the monitorable moraine-dammed lakes are quiet in this window.
+- Cross-season probe (S1 11-21→09-12 vs S2 11-22→09-08, same orbit,
+  ~10-month arc): 17 label-change px in monitorable scope; v2 leads
+  again — 41% binary / 29% Δp recall; base 5 TP at 188 FP.
+
+**Status:** three independent change measures (Imja gold 28%,
+cross-season 29–41%, AOI SCL ~7%) consistently rank **v2+Δp first** —
+directionally consistent but thin truth everywhere (~30–50 verified
+px per eval). The verified-change evidence has hit the ceiling of the
+current data window; promotion is an owner call on the thin-evidence
+caveat, or waits for a future in-domain event at a monitorable lake.
+Promotion procedure documented in the session notes (2026-09-19).
