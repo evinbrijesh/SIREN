@@ -28,6 +28,7 @@ dev = [
 ml = [
     "torch>=2.2",
     "torchvision>=0.17",
+    "h5py>=3.8",   # ICESat-2 photon bathymetry (HDF5) loader
 ]
 # Production extras (ADR-011, accepted 2026-09-08). Install with:
 #   pip install -e ".[production]"          # production stack only

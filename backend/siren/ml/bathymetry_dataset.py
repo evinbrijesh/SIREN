@@ -105,6 +105,20 @@ DAS_4LAKES_CITATION = (
 GLOBAL_COMPILATION_DOI = "10.5281/zenodo.10201073"
 GLOBAL_COMPILATION_LICENSE = "CC BY 4.0"
 
+IMJA_BATHYMETRY_DIR = DATASETS_DIR / "imja_bathymetry"
+ICESAT2_BATHYMETRY_DIR = DATASETS_DIR / "icesat2_bathymetry"
+
+ICESAT2_DOI = "10.5281/zenodo.10901737"
+ICESAT2_CITATION = (
+    "Fair, Z., et al. (2024), A Framework for Automated Supraglacial Lake "
+    "Detection and Depth Retrieval in ICESat-2 Photon Data Across the "
+    "Greenland and Antarctic Ice Sheets"
+)
+ICESAT2_DOMAIN_CAVEAT = (
+    "supraglacial lakes (ice-sheet surface) — morphologically different "
+    "from moraine-dammed GLOF lakes; pretraining data only"
+)
+
 # --- Lake name normalisation ---
 
 # The 16-lake dataset uses inconsistent casing in filenames. Map the
@@ -627,19 +641,240 @@ def load_global_compilation(
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Imja Tsho multi-survey loader (Zenodo 2002 + UT Austin 2012)
+# ---------------------------------------------------------------------------
+
+
+def load_imja_bathymetry(
+    data_dir: Path | None = None,
+) -> list[LakeRecord]:
+    """Load Imja Tsho bathymetric surveys downloaded by ingest.imja_bathymetry.
+
+    Scans the dataset directory for CSV files; each file becomes one
+    LakeRecord tagged with the survey year parsed from its name. Handles
+    both lat/lon (EPSG:4326) and UTM 45N (EPSG:32645) coordinate columns —
+    the 2002 survey reports UTM.
+
+    Args:
+        data_dir: dataset directory (default ``data/datasets/imja_bathymetry``).
+
+    Returns:
+        List of LakeRecord objects, one per survey file.
+    """
+    if data_dir is None:
+        data_dir = IMJA_BATHYMETRY_DIR
+    if not data_dir.exists():
+        logger.warning("Imja bathymetry directory not found: %s", data_dir)
+        return []
+
+    records: list[LakeRecord] = []
+    for csv_path in sorted(data_dir.rglob("*.csv")):
+        if "provenance" in csv_path.name or csv_path.name == "manifest.json":
+            continue
+        df = pd.read_csv(csv_path)
+        col_map: dict[str, str] = {}
+        for c in df.columns:
+            cl = c.lower().strip()
+            if "depth" in cl or "sounding" in cl:
+                col_map[c] = "depth_m"
+            elif "lat" in cl:
+                col_map[c] = "latitude"
+            elif "lon" in cl:
+                col_map[c] = "longitude"
+            elif cl in ("easting", "x", "x_m"):
+                col_map[c] = "easting"
+            elif cl in ("northing", "y", "y_m"):
+                col_map[c] = "northing"
+        df = df.rename(columns=col_map)
+
+        if "depth_m" not in df.columns:
+            logger.warning("Skipping %s: no depth column", csv_path.name)
+            continue
+
+        df["depth_m"] = pd.to_numeric(df["depth_m"], errors="coerce")
+        df = df.dropna(subset=["depth_m"])
+        df = df[df["depth_m"] > 0]
+
+        if {"latitude", "longitude"} <= set(df.columns):
+            df = df.dropna(subset=["latitude", "longitude"])
+            gdf = gpd.GeoDataFrame(
+                df[["depth_m"]].copy(),
+                geometry=[Point(xy) for xy in
+                          zip(df["longitude"], df["latitude"])],
+                crs="EPSG:4326",
+            )
+        elif {"easting", "northing"} <= set(df.columns):
+            df = df.dropna(subset=["easting", "northing"])
+            gdf = gpd.GeoDataFrame(
+                df[["depth_m"]].copy(),
+                geometry=[Point(xy) for xy in
+                          zip(df["easting"], df["northing"])],
+                crs="EPSG:32645",  # UTM 45N — per Fujita et al. 2009
+            ).to_crs("EPSG:4326")
+        else:
+            logger.warning(
+                "Skipping %s: no recognisable coordinate columns",
+                csv_path.name)
+            continue
+
+        if gdf.empty:
+            continue
+
+        year_match = re.search(r"(19|20)\d{2}", csv_path.name)
+        survey_date = year_match.group(0) if year_match else "unknown"
+        gdf["survey_source"] = "imja_surveys"
+        bounds = tuple(gdf.total_bounds)
+
+        records.append(LakeRecord(
+            lake_id=f"imja:{survey_date}",
+            lake_name="Imja Tsho",
+            source="imja_surveys",
+            survey_date=survey_date,
+            crs=gdf.crs,
+            points=gdf,
+            n_points=len(gdf),
+            bounds=bounds,
+            max_depth_m=float(gdf["depth_m"].max()),
+            mean_depth_m=float(gdf["depth_m"].mean()),
+            doi="10.5281/zenodo.18251249",
+            license="CC BY 4.0",
+            provenance={
+                "source": (
+                    "Imja bathymetric surveys (Zenodo 18251249 / "
+                    "UT Austin 2152/19754)"
+                ),
+                "survey_method": "sounding line / echo sounder",
+                "file": csv_path.name,
+            },
+        ))
+
+    logger.info("Loaded %d Imja survey file(s)", len(records))
+    return records
+
+
+# ---------------------------------------------------------------------------
+# ICESat-2 supraglacial lake bathymetry loader (pretraining corpus)
+# ---------------------------------------------------------------------------
+
+
+def load_icesat2_bathymetry(
+    data_dir: Path | None = None,
+    max_lakes: int | None = None,
+) -> list[LakeRecord]:
+    """Load ICESat-2 supraglacial lake photon bathymetry (HDF5).
+
+    Each HDF5 file carries a ``depth_data`` group with per-photon
+    (lat, lon, water_depth_meters, lakebed_fit_elevation_meters). One
+    LakeRecord per file. Requires h5py (``pip install -e ".[ml]"``).
+
+    Domain caveat: supraglacial lakes differ morphologically from
+    moraine-dammed GLOF lakes — use as pretraining data, not evaluation.
+
+    Args:
+        data_dir: dataset directory
+            (default ``data/datasets/icesat2_bathymetry``).
+        max_lakes: cap on files read (the corpus is ~1,249 files).
+
+    Returns:
+        List of LakeRecord objects, one per HDF5 file.
+    """
+    try:
+        import h5py
+    except ImportError:
+        logger.error(
+            "h5py not installed — run `pip install -e \".[ml]\"` to load "
+            "ICESat-2 bathymetry")
+        return []
+
+    if data_dir is None:
+        data_dir = ICESAT2_BATHYMETRY_DIR
+    if not data_dir.exists():
+        logger.warning("ICESat-2 bathymetry directory not found: %s",
+                       data_dir)
+        return []
+
+    files = sorted(
+        p for p in data_dir.iterdir()
+        if p.suffix in (".h5", ".hdf5")
+    )
+    if max_lakes is not None:
+        files = files[:max_lakes]
+
+    records: list[LakeRecord] = []
+    for h5_path in files:
+        try:
+            with h5py.File(h5_path, "r") as f:
+                grp = f.get("depth_data") or f.get("depth_data/")
+                if grp is None:
+                    logger.warning("No depth_data group in %s",
+                                   h5_path.name)
+                    continue
+                lat = np.asarray(grp["lat"])
+                lon = np.asarray(grp["lon"])
+                depth = np.asarray(grp["water_depth_meters"])
+        except (OSError, KeyError) as exc:
+            logger.warning("Skipping %s: %s", h5_path.name, exc)
+            continue
+
+        ok = np.isfinite(lat) & np.isfinite(lon) & np.isfinite(depth) \
+            & (depth > 0)
+        if not ok.any():
+            continue
+        lat, lon, depth = lat[ok], lon[ok], depth[ok]
+
+        gdf = gpd.GeoDataFrame(
+            {"depth_m": depth},
+            geometry=[Point(xy) for xy in zip(lon, lat)],
+            crs="EPSG:4326",
+        )
+        gdf["survey_source"] = "icesat2_supraglacial"
+        bounds = tuple(gdf.total_bounds)
+
+        records.append(LakeRecord(
+            lake_id=f"icesat2:{h5_path.stem}",
+            lake_name=h5_path.stem,
+            source="icesat2_supraglacial",
+            survey_date="2018-2021",
+            crs=gdf.crs,
+            points=gdf,
+            n_points=len(gdf),
+            bounds=bounds,
+            max_depth_m=float(depth.max()),
+            mean_depth_m=float(depth.mean()),
+            doi=ICESAT2_DOI,
+            license="CC BY 4.0",
+            provenance={
+                "source": "ICESat-2 ATL03 photon bathymetry (Zenodo)",
+                "doi": ICESAT2_DOI,
+                "citation": ICESAT2_CITATION,
+                "domain_caveat": ICESAT2_DOMAIN_CAVEAT,
+            },
+        ))
+
+    logger.info("Loaded %d ICESat-2 lake(s)", len(records))
+    return records
+
+
 def load_all_surveyed_lakes(
     zhang_dir: Path | None = None,
     das_dir: Path | None = None,
+    include_imja: bool = False,
+    icesat2_dir: Path | None = None,
+    max_icesat2: int | None = None,
 ) -> list[LakeRecord]:
-    """Load all surveyed bathymetry lakes from both sources.
+    """Load surveyed bathymetry lakes from all sources.
 
-    Returns a single list of LakeRecord objects from both the 16-lake
-    and 4-lake datasets. CRS is preserved per-lake (callers must
-    reproject as needed).
+    Returns a single list of LakeRecord objects from the 16-lake and
+    4-lake datasets; Imja survey files and the ICESat-2 supraglacial
+    corpus are opt-in (ICESat-2 is domain-shifted — pretraining only).
 
     Args:
         zhang_dir: override path for the 16-lake dataset.
         das_dir: override path for the 4-lake dataset.
+        include_imja: append Imja survey LakeRecords (in-domain).
+        icesat2_dir: if set, append ICESat-2 records from this directory.
+        max_icesat2: cap on ICESat-2 files loaded.
 
     Returns:
         Combined list of LakeRecord objects.
@@ -647,6 +882,10 @@ def load_all_surveyed_lakes(
     records: list[LakeRecord] = []
     records.extend(load_zhang_16lakes(zhang_dir))
     records.extend(load_das_4lakes(das_dir))
+    if include_imja:
+        records.extend(load_imja_bathymetry())
+    if icesat2_dir is not None:
+        records.extend(load_icesat2_bathymetry(icesat2_dir, max_icesat2))
     logger.info("Total surveyed lakes loaded: %d", len(records))
     return records
 
