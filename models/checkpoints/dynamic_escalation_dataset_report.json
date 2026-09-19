@@ -3,17 +3,22 @@
   "dataset": "data/datasets/dynamic_escalation_train.parquet",
   "weather_source": "power",
   "fetch": {
-    "cached": 106,
-    "fetched": 348,
+    "cached": 230,
+    "fetched": 657,
     "failed": 0,
     "skipped_offline": 0,
-    "no_coverage_pre1981": 263
+    "no_coverage_pre1981": 86,
+    "stale": 224
   },
-  "n_samples": 454,
+  "n_samples": 887,
   "n_breached": 230,
-  "n_stable": 224,
+  "n_stable": 657,
   "n_unique_breach_lakes": 110,
   "n_breached_with_area": 98,
+  "neg_kinds": {
+    "stable": 401,
+    "within_lake": 256
+  },
   "features": [
     "precip_30d_mm",
     "precip_7d_mm",
