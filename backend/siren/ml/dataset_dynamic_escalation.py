@@ -62,7 +62,7 @@ import json
 import logging
 import sys
 import time
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
@@ -164,14 +164,70 @@ def _sample_negative_windows(
     neg = sus._sample_negatives(pos, icimod, kmeans, n_negatives, seed)
     rng = np.random.default_rng(seed + 1)
     # Draw (year, month, day) jointly from the empirical positive
-    # distribution — preserves both seasonal and era coverage.
-    pos_dates = pos["event_date"].dt.date.values
+    # distribution restricted to the POWER era — preserves seasonality
+    # without introducing a pre-1981 era confound (weather coverage
+    # starts 1981; pre-1981 negatives could never be fetched).
+    pos_dates = pos.loc[
+        pos["event_date"].dt.date >= MIN_POWER_DATE, "event_date"
+    ].dt.date.values
     neg["event_date"] = pd.to_datetime(
         rng.choice(pos_dates, size=len(neg), replace=True)
     )
     neg["lake_id"] = -1 - np.arange(len(neg))   # negative lake ids distinct
     neg["lake_area_km2"] = neg["icimod_area_km2"]
+    neg["neg_kind"] = "stable"
     return neg
+
+
+WITHIN_LAKE_EXCLUSION_DAYS = 120  # pseudo-window can't overlap a real event
+
+
+def _sample_within_lake_negatives(
+    pos: pd.DataFrame, per_lake: int, seed: int,
+) -> pd.DataFrame:
+    """Non-event windows on lakes that DID breach — the hard negatives.
+
+    Stable-lake negatives let morphology do the work (breach lakes are
+    simply more dangerous). Within-lake controls share the exact same
+    morphometrics, so only the weather window can separate them — this
+    is what makes the model an escalation detector rather than a second
+    susceptibility scorer.
+
+    Dates are uniform draws in the POWER era, rejecting any window within
+    ±WITHIN_LAKE_EXCLUSION_DAYS of that lake's known event dates.
+    """
+    rng = np.random.default_rng(seed + 7)
+    today = datetime.now(UTC).date()
+    lo = MIN_POWER_DATE.toordinal()
+    hi = today.toordinal()
+    rows = []
+    for lake_id, g in pos.groupby("lake_id"):
+        event_ords = set()
+        for d in g["event_date"].dt.date:
+            event_ords.update(
+                range(d.toordinal() - WITHIN_LAKE_EXCLUSION_DAYS,
+                      d.toordinal() + WITHIN_LAKE_EXCLUSION_DAYS + 1)
+            )
+        lake = g.iloc[0]
+        drawn = 0
+        attempts = 0
+        while drawn < per_lake and attempts < per_lake * 40:
+            attempts += 1
+            o = int(rng.integers(lo, hi))
+            if o in event_ords:
+                continue
+            drawn += 1
+            rows.append({
+                "lake_id": lake_id,
+                "event_date": pd.Timestamp(date.fromordinal(o)),
+                "lat": lake["lat"],
+                "lon": lake["lon"],
+                "lake_elev_m": lake["lake_elev_m"],
+                "lake_area_km2": lake["lake_area_km2"],
+                "breached": 0,
+                "neg_kind": "within_lake",
+            })
+    return pd.DataFrame(rows)
 
 
 # --------------------------------------------------------------------------- #
@@ -272,24 +328,47 @@ def _fetch_with_retry(lat: float, lon: float, start: date, end: date,
     return None, last_err
 
 
+def _cache_valid(path: Path, end: date) -> bool:
+    """Cache entry exists and its recorded event_date matches.
+
+    Entries written before event_date was recorded are only trusted for
+    `pos_*` samples — positive identities are deterministic and never
+    change, while neg_*/wneg_* sample_ids get reassigned whenever the
+    negative sampling changes, so undated negative caches must refetch.
+    A recorded date that differs is stale — must refetch.
+    """
+    if not path.exists():
+        return False
+    try:
+        cd = json.loads(path.read_text())
+    except (json.JSONDecodeError, OSError):
+        return False
+    cd_date = cd.get("event_date")
+    if not cd_date:
+        return path.stem.startswith("pos_")
+    return cd_date == str(end)
+
+
 def fetch_missing(
     samples: pd.DataFrame, delay_s: float = REQUEST_DELAY_S,
     offline: bool = False, source: str = "openmeteo",
 ) -> dict:
     """Fetch per-sample daily series into the cache. Returns stats."""
     stats = {"cached": 0, "fetched": 0, "failed": 0, "skipped_offline": 0,
-             "no_coverage_pre1981": 0}
+             "no_coverage_pre1981": 0, "stale": 0}
     for _, row in samples.iterrows():
         sid = row["sample_id"]
         end = row["event_date"].date()
-        if _cache_path(sid, source).exists():
+        if _cache_valid(_cache_path(sid, source), end):
             stats["cached"] += 1
             continue
+        if _cache_path(sid, source).exists():
+            stats["stale"] += 1   # exists but wrong event_date
         # POWER daily coverage starts 1981 — pre-1981 events are
         # unreachable there; reuse any legacy openmeteo cache, else skip
         # (no retries — the request can never succeed).
         if source == "power" and end < MIN_POWER_DATE:
-            if _cache_path(sid).exists():
+            if _cache_valid(_cache_path(sid), end):
                 stats["cached"] += 1
             else:
                 stats["no_coverage_pre1981"] += 1
@@ -313,6 +392,7 @@ def fetch_missing(
         cache.parent.mkdir(parents=True, exist_ok=True)
         cache.write_text(json.dumps({
             "sample_id": sid, "lat": row["lat"], "lon": row["lon"],
+            "event_date": str(end),
             "weather_source": source,
             "station_elev_m": data.get("elevation"),
             "daily": data.get("daily", {}),
@@ -412,12 +492,14 @@ def build_features(samples: pd.DataFrame,
     """Compute feature rows for every sample with a cache entry."""
     rows = []
     for _, row in samples.iterrows():
+        end = row["event_date"].date()
         path = _cache_path(row["sample_id"], source)
-        if not path.exists():
+        if not _cache_valid(path, end):
             # fallback to the legacy flat cache (openmeteo) — the only
             # option for pre-1981 events under source=power
-            path = _cache_path(row["sample_id"])
-        if not path.exists():
+            alt = _cache_path(row["sample_id"])
+            path = alt if _cache_valid(alt, end) else None
+        if path is None:
             continue
         try:
             cached = json.loads(path.read_text())
@@ -446,6 +528,7 @@ def build_dataset(
     delay_s: float = REQUEST_DELAY_S,
     limit: int | None = None,
     source: str = "openmeteo",
+    within_per_lake: int = 2,
 ) -> tuple[pd.DataFrame, dict]:
     """Full build: sample frame -> fetch -> features -> spatial blocks."""
     pos = _load_dated_events()
@@ -466,10 +549,15 @@ def build_dataset(
     neg = _sample_negative_windows(pos, icimod, kmeans, n_negatives, seed)
     neg["sample_id"] = ["neg_" + str(i) for i in range(len(neg))]
     neg["breached"] = 0
+    pos["neg_kind"] = "event"
+
+    within = _sample_within_lake_negatives(pos, within_per_lake, seed)
+    within["sample_id"] = ["wneg_" + str(i) for i in range(len(within))]
 
     keep = ["sample_id", "lake_id", "event_date", "lat", "lon",
-            "lake_elev_m", "lake_area_km2", "breached"]
-    samples = pd.concat([pos[keep], neg[keep]], ignore_index=True)
+            "lake_elev_m", "lake_area_km2", "breached", "neg_kind"]
+    samples = pd.concat([pos[keep], neg[keep], within[keep]],
+                        ignore_index=True)
     if limit:
         samples = samples.head(limit)
 
@@ -498,6 +586,11 @@ def build_dataset(
             df[df["breached"] == 1]["lake_id"].nunique()),
         "n_breached_with_area": int(
             df[df["breached"] == 1]["lake_area_km2"].notna().sum()),
+        "neg_kinds": (
+            df.loc[df["breached"] == 0, "neg_kind"]
+            .value_counts().to_dict()
+            if "neg_kind" in df.columns else {}
+        ),
         "features": FEATURE_NAMES,
     }
     return df, meta
@@ -513,6 +606,10 @@ def main(argv: list[str] | None = None) -> int:
                    help="skip fetching; build features from cache only")
     p.add_argument("--limit", type=int, default=None)
     p.add_argument("--delay", type=float, default=REQUEST_DELAY_S)
+    p.add_argument("--within-per-lake", type=int, default=2,
+                   help="within-lake control windows per breach lake "
+                        "(hard negatives — same morphology, different "
+                        "weather)")
     p.add_argument("--source", choices=["openmeteo", "power"],
                    default="power",
                    help=(
@@ -529,6 +626,7 @@ def main(argv: list[str] | None = None) -> int:
         n_negatives=args.n_negatives, n_blocks=args.n_blocks,
         seed=args.seed, offline=args.offline, delay_s=args.delay,
         limit=args.limit, source=args.source,
+        within_per_lake=args.within_per_lake,
     )
     logger.info("fetch stats: %s", meta["fetch"])
 

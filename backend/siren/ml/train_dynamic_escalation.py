@@ -69,14 +69,9 @@ XGBOOST_PARAMS = {
 }
 
 
-def _isotonic_oof(X, y, groups, n_blocks, seed):
-    """Out-of-fold raw predictions across blocks -> isotonic mapping.
-
-    Returns (isotonic_thresholds_x, isotonic_thresholds_y) fitted on OOF
-    predictions — honest calibrator inputs for a final all-data model.
-    """
+def _oof_probs(X, y, groups, n_blocks, seed):
+    """Out-of-fold raw predictions across spatial blocks."""
     import xgboost as xgb
-    from sklearn.isotonic import IsotonicRegression
     from sklearn.model_selection import GroupKFold
 
     oof = np.full(len(y), np.nan)
@@ -87,10 +82,34 @@ def _isotonic_oof(X, y, groups, n_blocks, seed):
         )
         m.fit(X[tr], y[tr])
         oof[te] = m.predict_proba(X[te])[:, 1]
+    return oof
+
+
+def _isotonic_oof(X, y, groups, n_blocks, seed):
+    """Out-of-fold raw predictions across blocks -> isotonic mapping.
+
+    Returns (isotonic_thresholds_x, isotonic_thresholds_y) fitted on OOF
+    predictions — honest calibrator inputs for a final all-data model.
+    """
+    from sklearn.isotonic import IsotonicRegression
+
+    oof = _oof_probs(X, y, groups, n_blocks, seed)
     mask = ~np.isnan(oof)
     iso = IsotonicRegression(out_of_bounds="clip")
     iso.fit(oof[mask], y[mask])
     return iso
+
+
+def _platt_oof(X, y, groups, n_blocks, seed):
+    """Platt (logistic) calibration on OOF predictions — more stable than
+    isotonic at small fold sizes. Returns (coef, intercept)."""
+    from sklearn.linear_model import LogisticRegression
+
+    oof = _oof_probs(X, y, groups, n_blocks, seed)
+    mask = ~np.isnan(oof)
+    lr = LogisticRegression()
+    lr.fit(oof[mask].reshape(-1, 1), y[mask])
+    return float(lr.coef_[0][0]), float(lr.intercept_[0])
 
 
 def spatiotemporal_cv(
@@ -102,6 +121,7 @@ def spatiotemporal_cv(
     """Held-out-in-space-and-time evaluation. Returns metrics dict."""
     import xgboost as xgb
     from sklearn.isotonic import IsotonicRegression
+    from sklearn.linear_model import LogisticRegression
     from sklearn.metrics import (
         average_precision_score,
         brier_score_loss,
@@ -134,8 +154,9 @@ def spatiotemporal_cv(
         model.fit(X[tr], y[tr])
         p = model.predict_proba(X[te])[:, 1]
 
-        # Cross-fitted isotonic: internal 2-block split of the training set
+        # Cross-fitted calibration: internal 2-block split of training
         brier_cal = float("nan")
+        brier_platt = float("nan")
         inner = list(GroupKFold(n_splits=2).split(X[tr], y[tr], blocks[tr]))
         if inner:
             a_idx, b_idx = inner[0]
@@ -147,10 +168,18 @@ def spatiotemporal_cv(
                     random_state=seed + int(blk),
                 )
                 mdl_a.fit(X[tra], y[tra])
+                p_trb = mdl_a.predict_proba(X[trb])[:, 1]
                 iso = IsotonicRegression(out_of_bounds="clip")
-                iso.fit(mdl_a.predict_proba(X[trb])[:, 1], y[trb])
+                iso.fit(p_trb, y[trb])
                 brier_cal = float(
                     brier_score_loss(y[te], iso.predict(p))
+                )
+                # Platt scaling — stabler than isotonic on small folds
+                platt = LogisticRegression().fit(
+                    p_trb.reshape(-1, 1), y[trb])
+                brier_platt = float(
+                    brier_score_loss(y[te], platt.predict_proba(
+                        p.reshape(-1, 1))[:, 1])
                 )
 
         m = {
@@ -166,6 +195,9 @@ def spatiotemporal_cv(
             "brier_score": float(brier_score_loss(y[te], p)),
             "brier_score_calibrated": (
                 brier_cal if not np.isnan(brier_cal) else None
+            ),
+            "brier_score_platt": (
+                brier_platt if not np.isnan(brier_platt) else None
             ),
         }
         fold_metrics.append(m)
@@ -195,6 +227,12 @@ def spatiotemporal_cv(
         "mean_brier": mean_brier if not np.isnan(mean_brier) else None,
         "std_brier": float(np.std(briers)) if briers else None,
         "mean_brier_calibrated": float(np.mean(cals)) if cals else None,
+        "mean_brier_platt": (
+            float(np.mean([m["brier_score_platt"] for m in fold_metrics
+                           if m["brier_score_platt"] is not None]))
+            if any(m["brier_score_platt"] is not None
+                   for m in fold_metrics) else None
+        ),
         "mean_pr_auc": float(np.mean([m["pr_auc"] for m in fold_metrics]))
         if fold_metrics else None,
         "fold_metrics": fold_metrics,
@@ -289,7 +327,10 @@ def main(argv: list[str] | None = None) -> int:
 
         import xgboost as xgb
 
-        iso = _isotonic_oof(X, y, groups, df["block"].nunique(), args.seed)
+        n_blocks = df["block"].nunique()
+        iso = _isotonic_oof(X, y, groups, n_blocks, args.seed)
+        platt_coef, platt_int = _platt_oof(
+            X, y, groups, n_blocks, args.seed)
         model = xgb.XGBClassifier(**XGBOOST_PARAMS, scale_pos_weight=sp,
                                   random_state=args.seed)
         model.fit(X, y)
@@ -298,10 +339,22 @@ def main(argv: list[str] | None = None) -> int:
         model.save_model(str(args.model_output))
         cal_path = args.model_output.with_suffix(".calibration.json")
         cal_path.write_text(json.dumps({
-            "method": "isotonic_crossfit_oof",
-            "x_thresholds": iso.X_thresholds_.tolist(),
-            "y_thresholds": iso.y_thresholds_.tolist(),
-            "apply": "p_cal = np.interp(p_raw, x_thresholds, y_thresholds)",
+            "method": "platt_crossfit_oof",
+            "prefer": "platt",
+            "platt": {
+                "coef": platt_coef,
+                "intercept": platt_int,
+                "apply": (
+                    "p_cal = sigmoid(coef * p_raw + intercept)"
+                ),
+            },
+            "isotonic": {
+                "x_thresholds": iso.X_thresholds_.tolist(),
+                "y_thresholds": iso.y_thresholds_.tolist(),
+                "apply": (
+                    "p_cal = np.interp(p_raw, x_thresholds, y_thresholds)"
+                ),
+            },
             "base_rate": float(y.mean()),
         }, indent=2))
         logger.info("Booster + calibrator saved to %s", args.model_output)

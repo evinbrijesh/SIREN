@@ -79,6 +79,7 @@ class DynamicEscalationScorer:
         self._model: Any = None
         self._cal_x: np.ndarray | None = None
         self._cal_y: np.ndarray | None = None
+        self._platt: tuple[float, float] | None = None
         self._is_loaded = False
         self._base_rate = base_rate
         self._meta: dict = {}
@@ -121,8 +122,21 @@ class DynamicEscalationScorer:
 
         if cal_path.exists():
             cal = json.loads(cal_path.read_text())
-            self._cal_x = np.asarray(cal["x_thresholds"])
-            self._cal_y = np.asarray(cal["y_thresholds"])
+            # New sidecar: {"platt": {...}, "isotonic": {...}, "prefer"}
+            # legacy flat: {"x_thresholds": [...], "y_thresholds": [...]}
+            if "platt" in cal or "isotonic" in cal:
+                if "platt" in cal:
+                    self._platt = (
+                        float(cal["platt"]["coef"]),
+                        float(cal["platt"]["intercept"]),
+                    )
+                iso = cal.get("isotonic")
+                if iso:
+                    self._cal_x = np.asarray(iso["x_thresholds"])
+                    self._cal_y = np.asarray(iso["y_thresholds"])
+            else:
+                self._cal_x = np.asarray(cal["x_thresholds"])
+                self._cal_y = np.asarray(cal["y_thresholds"])
             self._base_rate = float(cal.get("base_rate", self._base_rate))
 
         self._is_loaded = True
@@ -141,10 +155,13 @@ class DynamicEscalationScorer:
             dtype=np.float32,
         )
         p_raw = float(self._model.predict_proba(x)[0, 1])
-        p_cal = (
-            float(np.interp(p_raw, self._cal_x, self._cal_y))
-            if self._cal_x is not None else p_raw
-        )
+        if self._platt is not None:
+            coef, intercept = self._platt
+            p_cal = float(1.0 / (1.0 + np.exp(-(coef * p_raw + intercept))))
+        elif self._cal_x is not None:
+            p_cal = float(np.interp(p_raw, self._cal_x, self._cal_y))
+        else:
+            p_cal = p_raw
 
         missing = [f for f in FEATURE_NAMES
                    if features.get(f) is None]
