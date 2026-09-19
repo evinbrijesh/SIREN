@@ -188,9 +188,9 @@ def get_model_status() -> dict[str, Any]:
         exp_rec = None
     if exp_rec is not None:
         ckpt = CHECKPOINTS_DIR / exp_rec["checkpoint"]
-        models["himalayan_adapter_labelrefined_v2"] = {
+        models["himalayan_adapter_multidate"] = {
             "stage": 3,
-            "name": "Himalayan adapter v2 — Δp expansion evidence",
+            "name": "Himalayan adapter (multi-date) — Δp expansion evidence",
             "loaded": ckpt.exists(),
             "weights_path": str(ckpt),
             "weights_exists": ckpt.exists(),
@@ -198,10 +198,13 @@ def get_model_status() -> dict[str, Any]:
             "description": (
                 "Promoted expansion evidence (ADR-014-am1): "
                 "(p1>=0.5)&(p1-p0>=0.2) within monitorable-lake vicinity "
-                "on ro-121 desc unfrozen pairs. Union policy: "
-                "deterministic change stays live as labeled cross-check. "
-                "Extent masks remain shadow. Caveat: thin verified-change "
-                "truth (~30-50px/eval) — see ml/promotion.py."
+                "on ro-121 desc unfrozen pairs. Multi-date fine-tune "
+                "(3 SAR pairs) — 50% verified-change recall on the "
+                "held-out gold pair vs 28% for the single-date adapter. "
+                "Union policy: deterministic change stays live as "
+                "labeled cross-check. Extent masks remain shadow. "
+                "Caveat: thin verified-change truth (~30-50px/eval) — "
+                "see ml/promotion.py."
             ),
             "status": "promoted_component",
             "promoted_component": "sar_segmentation_expansion",

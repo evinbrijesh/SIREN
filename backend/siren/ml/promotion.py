@@ -24,9 +24,15 @@ PROMOTED_COMPONENTS: dict[str, dict[str, Any]] = {
     # L4 −90% glacier FP, L5 2 pairs). Owner-directed promotion on the
     # documented thin-evidence caveat (~30–50 verified change px per
     # eval — the verified-change ceiling of the current data window).
+    # Checkpoint swapped 2026-09-19 → multidate adapter: trained on
+    # 3 SAR pairs (t1: 07-14/07-26/08-07) vs v2's single pair. On the
+    # held-out gold pair (08-19/09-12) it doubles verified-change
+    # recall for the promoted function — dp_tp 16 vs 9 of 32 px
+    # (recall 50% vs 28%) — at similar precision; extent IoU is lower
+    # (0.44 vs 0.55) but extent is shadow-only under this record.
     "sar_segmentation_expansion": {
         "checkpoint": (
-            "water_resunet_6ch_himalayan_adapter_labelrefined_v2.pt"
+            "water_resunet_6ch_himalayan_adapter_multidate.pt"
         ),
         "evidence_method": "expansion_dp",  # (p1>=0.5)&(p1-p0>=0.2)
         "gate": "ADR-014-am1",
@@ -52,8 +58,9 @@ PROMOTED_COMPONENTS: dict[str, dict[str, Any]] = {
         "caveat": (
             "verified-change truth is thin (~30-50 px per eval — the "
             "ceiling of the current data window); recall measured "
-            "28-41% on verified change; promote reviewed when a real "
-            "in-domain event at a monitorable lake occurs"
+            "50% on verified change with the multidate checkpoint "
+            "(28-41% under labelrefined_v2); promote reviewed when a "
+            "real in-domain event at a monitorable lake occurs"
         ),
         "promoted_at": "2026-09-19",
         "reversible": True,

@@ -186,13 +186,29 @@ class ChangeDetectionEngine:
     def _candidate_paths(self) -> list[Path]:
         """Ordered checkpoint candidates (first existing wins).
 
-        The gate-passed Kuro Siwo 6-channel checkpoint comes first so the
-        qualified model is used at runtime; the ADR-010 Stage 1 2-channel
-        checkpoint is the fallback.
+        When ``sar_segmentation_expansion`` is promoted, its recorded
+        checkpoint is the runtime model — the promotion record must
+        describe what actually runs, not just what was evaluated.
+        Otherwise the gate-passed Kuro Siwo 6-channel checkpoint leads
+        and the ADR-010 Stage 1 2-channel checkpoint is the fallback.
         """
         if self.weights_path is not None:
             return [self.weights_path]
-        return [KURO_SIWO_WEIGHTS_PATH, DEFAULT_WEIGHTS_PATH]
+        candidates: list[Path] = []
+        try:
+            from siren.ml.promotion import is_promoted, promotion_record
+
+            if is_promoted("sar_segmentation_expansion"):
+                rec = promotion_record("sar_segmentation_expansion")
+                promoted = (
+                    _REPO_ROOT / "models" / "checkpoints" / rec["checkpoint"]
+                )
+                if promoted.exists():
+                    candidates.append(promoted)
+        except ImportError:
+            pass
+        candidates += [KURO_SIWO_WEIGHTS_PATH, DEFAULT_WEIGHTS_PATH]
+        return candidates
 
     def _resolve_weights_path(self) -> Path | None:
         for candidate in self._candidate_paths():
