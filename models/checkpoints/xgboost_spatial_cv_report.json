@@ -1,0 +1,110 @@
+{
+  "status": "gate_evaluated",
+  "evaluation_valid": true,
+  "inference_allowed": false,
+  "validation_protocol": "5-fold spatial block GroupKFold",
+  "leakage_controls": [
+    "measured features only \u2014 no label-conditioned generation",
+    "repeat events deduplicated to unique lakes (1 km)",
+    "negatives excluded within 1 km of every breach centroid",
+    "test folds are whole contiguous spatial blocks",
+    "lat/lon/region/lake_type/breach_year excluded as features"
+  ],
+  "features": [
+    "lake_elev_m",
+    "log_lake_area_km2",
+    "log_dist_glacier_m",
+    "log_glacier_area_10km"
+  ],
+  "n_samples": 2241,
+  "n_breached": 241,
+  "n_stable": 2000,
+  "brier_gate": 0.15,
+  "gate_metric": "mean_brier (uncalibrated). scale_pos_weight shifts the logit intercept to balance training loss, inflating raw probabilities above the empirical base rate; mean_brier_calibrated is the cross-fitted in-fold isotonic diagnostic.",
+  "data_provenance": {
+    "positives": "data/datasets/HMAGLOFDB/Database/GLOFs/HMAGLOFDB.csv",
+    "negatives": "data/datasets/glacial_lake_2022-2024/Glacial_Lake_2022.shp",
+    "glaciers": [
+      "RGI2000-v7.0-G-13_central_asia.zip",
+      "RGI2000-v7.0-G-14_south_asia_west.zip",
+      "RGI2000-v7.0-G-15_south_asia_east.zip"
+    ]
+  },
+  "known_limitations": [
+    "ICIMOD 2022 area is post-event for pre-2022 breaches",
+    "unrecorded breaches may contaminate negatives",
+    "no DEM-derived slope (GLO-30 tiles cover fragments of HMA)",
+    "passing the Brier gate does not itself promote the model \u2014 promotion is a separate PRD \u00a79.8 decision"
+  ],
+  "mean_roc_auc": 0.7921592646664207,
+  "std_roc_auc": 0.09516924479481614,
+  "mean_brier": 0.1568239748477936,
+  "std_brier": 0.05713319685672605,
+  "mean_brier_calibrated": 0.08478538244962693,
+  "calibration_protocol": "cross-fitted isotonic: internal 2-block split of each training fold, mapping fitted on held-out half, frozen, applied to test",
+  "mean_pr_auc": 0.3627942931476544,
+  "fold_metrics": [
+    {
+      "fold": 0,
+      "heldout_block": 1,
+      "n_train": 1479,
+      "n_test": 762,
+      "n_breached_test": 82,
+      "roc_auc": 0.8533177905308466,
+      "pr_auc": 0.3928559506390952,
+      "brier_score": 0.12528960406780243,
+      "brier_score_calibrated": 0.08119150996208191
+    },
+    {
+      "fold": 1,
+      "heldout_block": 4,
+      "n_train": 1664,
+      "n_test": 577,
+      "n_breached_test": 62,
+      "roc_auc": 0.846507986219856,
+      "pr_auc": 0.4245067402556566,
+      "brier_score": 0.1449236124753952,
+      "brier_score_calibrated": 0.07899554818868637
+    },
+    {
+      "fold": 2,
+      "heldout_block": 3,
+      "n_train": 1934,
+      "n_test": 307,
+      "n_breached_test": 33,
+      "roc_auc": 0.9032293740322939,
+      "pr_auc": 0.5907639505197175,
+      "brier_score": 0.08148658275604248,
+      "brier_score_calibrated": 0.06790708750486374
+    },
+    {
+      "fold": 3,
+      "heldout_block": 2,
+      "n_train": 1934,
+      "n_test": 307,
+      "n_breached_test": 33,
+      "roc_auc": 0.6617451891174518,
+      "pr_auc": 0.16298448640186763,
+      "brier_score": 0.251251757144928,
+      "brier_score_calibrated": 0.10129863768815994
+    },
+    {
+      "fold": 4,
+      "heldout_block": 0,
+      "n_train": 1953,
+      "n_test": 288,
+      "n_breached_test": 31,
+      "roc_auc": 0.6959959834316556,
+      "pr_auc": 0.242860337921935,
+      "brier_score": 0.1811683177947998,
+      "brier_score_calibrated": 0.09453412890434265
+    }
+  ],
+  "feature_importances": {
+    "lake_elev_m": 0.1530819833278656,
+    "log_lake_area_km2": 0.18779060244560242,
+    "log_dist_glacier_m": 0.43655475974082947,
+    "log_glacier_area_10km": 0.22257260978221893
+  },
+  "passes_brier_gate": false
+}
