@@ -277,17 +277,27 @@ def fetch_missing(
     offline: bool = False, source: str = "openmeteo",
 ) -> dict:
     """Fetch per-sample daily series into the cache. Returns stats."""
-    stats = {"cached": 0, "fetched": 0, "failed": 0, "skipped_offline": 0}
+    stats = {"cached": 0, "fetched": 0, "failed": 0, "skipped_offline": 0,
+             "no_coverage_pre1981": 0}
     for _, row in samples.iterrows():
         sid = row["sample_id"]
+        end = row["event_date"].date()
         if _cache_path(sid, source).exists():
             stats["cached"] += 1
+            continue
+        # POWER daily coverage starts 1981 — pre-1981 events are
+        # unreachable there; reuse any legacy openmeteo cache, else skip
+        # (no retries — the request can never succeed).
+        if source == "power" and end < MIN_POWER_DATE:
+            if _cache_path(sid).exists():
+                stats["cached"] += 1
+            else:
+                stats["no_coverage_pre1981"] += 1
             continue
         if offline:
             stats["skipped_offline"] += 1
             continue
 
-        end = row["event_date"].date()
         start = max(
             end - timedelta(days=WINDOW_DAYS + CLIM_YEARS * 366),
             MIN_POWER_DATE if source == "power" else date(1940, 1, 1),
@@ -403,7 +413,9 @@ def build_features(samples: pd.DataFrame,
     rows = []
     for _, row in samples.iterrows():
         path = _cache_path(row["sample_id"], source)
-        if not path.exists() and source == "openmeteo":
+        if not path.exists():
+            # fallback to the legacy flat cache (openmeteo) — the only
+            # option for pre-1981 events under source=power
             path = _cache_path(row["sample_id"])
         if not path.exists():
             continue
