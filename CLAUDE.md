@@ -65,6 +65,7 @@ docs/
 - **Logging:** use Python `logging`; log run_id/observation_id on every pipeline step for lineage.
 - **Reproducibility:** no unseeded randomness. Seed any RNG explicitly.
 - **Payload size:** the ≤250-byte alert constraint is enforced by a unit test, not by hope.
+- **Commit granularity:** group related tasks into a few logical commits — never one commit per action. N tasks sharing a theme → 1 commit (e.g. 5 tasks, 3+2 related → 2 commits). No "Generated with …", co-author trailers, or tool/agent mentions in commit messages.
 - **Neural promotion + fallback provenance (v5.1):** the target architecture is neural-primary (PRD §9.8 promotion pathway); deterministic modules are the interim primary path and permanent labeled fallback/cross-check. No neural module is load-bearing until its §9.8/§17.2 gate is evaluated on held-out real deployment-domain data; promotion is component-wise and reversible. Every component — neural or deterministic — records its method (primary vs fallback) in the result provenance. The deterministic baseline must never be silently removed or bypassed, before or after promotion.
 
 ## Known Gotchas

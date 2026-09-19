@@ -97,6 +97,11 @@ Authoritative schemas live in the PRD — implement exactly these, field names a
 
 ---
 
+## Git workflow
+
+- **Commit granularity: group, don't scatter.** Do not create one commit per task — group related work into a small number of logical commits. Rule of thumb: N tasks sharing a theme → 1 commit. E.g. 5 tasks where 3 belong to one change-set and 2 to another → 2 commits total. The goal is a readable history, not a commit-per-action stream that floods the repo.
+- **No assistant attribution.** Do not add "Generated with …", co-author trailers, or tool/agent mentions in commit messages.
+
 ## Definition of Done
 
 Offline, in one click-chain: baseline loads → 3 observations process through the pipeline → elevated/critical review card appears with ≥3 evidence reasons → Confirm produces a ≤250-byte simulated dispatch → audit log reconstructs the full lineage with SHA-256 hash chain. If your change breaks this chain, fix it before anything else.
