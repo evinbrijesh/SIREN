@@ -1,0 +1,286 @@
+{
+ "experiment": "adapter scoring vs hand-verified Imja gold labels",
+ "truth_tier": "gold NDWI>0.15 hand-verified labels \u2014 above SCL and inventory median outlines (ADR-014)",
+ "pairs": [
+  {
+   "pair": "unfrozen_desc",
+   "t0": "20260819",
+   "t1": "20260912",
+   "gold_labels": {
+    "20260819": "imja_gold_label_20260824.tif",
+    "20260912": "imja_gold_label_20260908.tif"
+   },
+   "checkpoints": {
+    "kuro_siwo_base": {
+     "0.3": {
+      "t1": {
+       "gold_iou": 0.418,
+       "gold_precision": 0.4693,
+       "gold_recall": 0.7926,
+       "gold_valid_coverage": 0.6532,
+       "gold_px": 135
+      },
+      "t0": {
+       "gold_iou": 0.381,
+       "gold_precision": 0.5161,
+       "gold_recall": 0.5926,
+       "gold_valid_coverage": 0.5968,
+       "gold_px": 81
+      }
+     },
+     "0.4": {
+      "t1": {
+       "gold_iou": 0.4378,
+       "gold_precision": 0.5367,
+       "gold_recall": 0.7037,
+       "gold_valid_coverage": 0.6532,
+       "gold_px": 135
+      },
+      "t0": {
+       "gold_iou": 0.3636,
+       "gold_precision": 0.5797,
+       "gold_recall": 0.4938,
+       "gold_valid_coverage": 0.5968,
+       "gold_px": 81
+      }
+     },
+     "0.5": {
+      "t1": {
+       "gold_iou": 0.4652,
+       "gold_precision": 0.6259,
+       "gold_recall": 0.6444,
+       "gold_valid_coverage": 0.6532,
+       "gold_px": 135
+      },
+      "t0": {
+       "gold_iou": 0.3398,
+       "gold_precision": 0.614,
+       "gold_recall": 0.4321,
+       "gold_valid_coverage": 0.5968,
+       "gold_px": 81
+      }
+     },
+     "0.55": {
+      "t1": {
+       "gold_iou": 0.4914,
+       "gold_precision": 0.6825,
+       "gold_recall": 0.637,
+       "gold_valid_coverage": 0.6532,
+       "gold_px": 135
+      },
+      "t0": {
+       "gold_iou": 0.301,
+       "gold_precision": 0.5849,
+       "gold_recall": 0.3827,
+       "gold_valid_coverage": 0.5968,
+       "gold_px": 81
+      }
+     }
+    },
+    "himalayan_adapter": {
+     "0.3": {
+      "t1": {
+       "gold_iou": 0.5632,
+       "gold_precision": 0.7153,
+       "gold_recall": 0.7259,
+       "gold_valid_coverage": 0.6532,
+       "gold_px": 135
+      },
+      "t0": {
+       "gold_iou": 0.4797,
+       "gold_precision": 0.5145,
+       "gold_recall": 0.8765,
+       "gold_valid_coverage": 0.5968,
+       "gold_px": 81
+      }
+     },
+     "0.4": {
+      "t1": {
+       "gold_iou": 0.4201,
+       "gold_precision": 0.6762,
+       "gold_recall": 0.5259,
+       "gold_valid_coverage": 0.6532,
+       "gold_px": 135
+      },
+      "t0": {
+       "gold_iou": 0.4859,
+       "gold_precision": 0.5308,
+       "gold_recall": 0.8519,
+       "gold_valid_coverage": 0.5968,
+       "gold_px": 81
+      }
+     },
+     "0.5": {
+      "t1": {
+       "gold_iou": 0.1988,
+       "gold_precision": 0.5156,
+       "gold_recall": 0.2444,
+       "gold_valid_coverage": 0.6532,
+       "gold_px": 135
+      },
+      "t0": {
+       "gold_iou": 0.488,
+       "gold_precision": 0.581,
+       "gold_recall": 0.7531,
+       "gold_valid_coverage": 0.5968,
+       "gold_px": 81
+      }
+     },
+     "0.55": {
+      "t1": {
+       "gold_iou": 0.1481,
+       "gold_precision": 0.4706,
+       "gold_recall": 0.1778,
+       "gold_valid_coverage": 0.6532,
+       "gold_px": 135
+      },
+      "t0": {
+       "gold_iou": 0.4836,
+       "gold_precision": 0.59,
+       "gold_recall": 0.7284,
+       "gold_valid_coverage": 0.5968,
+       "gold_px": 81
+      }
+     }
+    },
+    "himalayan_adapter_labelrefined": {
+     "0.3": {
+      "t1": {
+       "gold_iou": 0.565,
+       "gold_precision": 0.7042,
+       "gold_recall": 0.7407,
+       "gold_valid_coverage": 0.6532,
+       "gold_px": 135
+      },
+      "t0": {
+       "gold_iou": 0.4861,
+       "gold_precision": 0.5263,
+       "gold_recall": 0.8642,
+       "gold_valid_coverage": 0.5968,
+       "gold_px": 81
+      }
+     },
+     "0.4": {
+      "t1": {
+       "gold_iou": 0.5371,
+       "gold_precision": 0.7015,
+       "gold_recall": 0.6963,
+       "gold_valid_coverage": 0.6532,
+       "gold_px": 135
+      },
+      "t0": {
+       "gold_iou": 0.493,
+       "gold_precision": 0.5344,
+       "gold_recall": 0.8642,
+       "gold_valid_coverage": 0.5968,
+       "gold_px": 81
+      }
+     },
+     "0.5": {
+      "t1": {
+       "gold_iou": 0.526,
+       "gold_precision": 0.7054,
+       "gold_recall": 0.6741,
+       "gold_valid_coverage": 0.6532,
+       "gold_px": 135
+      },
+      "t0": {
+       "gold_iou": 0.4857,
+       "gold_precision": 0.5354,
+       "gold_recall": 0.8395,
+       "gold_valid_coverage": 0.5968,
+       "gold_px": 81
+      }
+     },
+     "0.55": {
+      "t1": {
+       "gold_iou": 0.5233,
+       "gold_precision": 0.7087,
+       "gold_recall": 0.6667,
+       "gold_valid_coverage": 0.6532,
+       "gold_px": 135
+      },
+      "t0": {
+       "gold_iou": 0.4928,
+       "gold_precision": 0.544,
+       "gold_recall": 0.8395,
+       "gold_valid_coverage": 0.5968,
+       "gold_px": 81
+      }
+     }
+    },
+    "himalayan_adapter_stratified": {
+     "0.3": {
+      "t1": {
+       "gold_iou": 0.6467,
+       "gold_precision": 0.7083,
+       "gold_recall": 0.8815,
+       "gold_valid_coverage": 0.6532,
+       "gold_px": 135
+      },
+      "t0": {
+       "gold_iou": 0.4724,
+       "gold_precision": 0.4843,
+       "gold_recall": 0.9506,
+       "gold_valid_coverage": 0.5968,
+       "gold_px": 81
+      }
+     },
+     "0.4": {
+      "t1": {
+       "gold_iou": 0.6536,
+       "gold_precision": 0.7267,
+       "gold_recall": 0.8667,
+       "gold_valid_coverage": 0.6532,
+       "gold_px": 135
+      },
+      "t0": {
+       "gold_iou": 0.4691,
+       "gold_precision": 0.4841,
+       "gold_recall": 0.9383,
+       "gold_valid_coverage": 0.5968,
+       "gold_px": 81
+      }
+     },
+     "0.5": {
+      "t1": {
+       "gold_iou": 0.642,
+       "gold_precision": 0.7338,
+       "gold_recall": 0.837,
+       "gold_valid_coverage": 0.6532,
+       "gold_px": 135
+      },
+      "t0": {
+       "gold_iou": 0.4625,
+       "gold_precision": 0.4837,
+       "gold_recall": 0.9136,
+       "gold_valid_coverage": 0.5968,
+       "gold_px": 81
+      }
+     },
+     "0.55": {
+      "t1": {
+       "gold_iou": 0.6379,
+       "gold_precision": 0.74,
+       "gold_recall": 0.8222,
+       "gold_valid_coverage": 0.6532,
+       "gold_px": 135
+      },
+      "t0": {
+       "gold_iou": 0.4744,
+       "gold_precision": 0.4966,
+       "gold_recall": 0.9136,
+       "gold_valid_coverage": 0.5968,
+       "gold_px": 81
+      }
+     }
+    }
+   }
+  }
+ ],
+ "limitations": [
+  "4\u20135 day label offsets (monsoon shoreline drift).",
+  "Centre-sampling 10 m labels onto ~90 m SAR grid is stricter than the polygon burn (~1 px bound).",
+  "Gold labels exist only for the unfrozen_desc dates."
+ ]
+}

@@ -29,6 +29,61 @@ under-labels turbid water (marks open water cloud/unclassified near the
 terminus). Inventory polygons *flattered* the model — its ring lands
 inside their over-wide boundary.
 
+## Label-refined round — EXECUTED 2026-09-18 (gate still NOT passed)
+
+Ran the recommended path below: per-date NDWI targets (a) + 1-px-eroded
+inventory fallback (b) + boundary-aware loss (c). New artifacts:
+
+- `ml/lake_label_refine.py` — rebuilds chip labels: >50%-of-~90m-footprint
+  NDWI>0.15 on SCL-valid px from S2 07-05 where usable, 1-px-eroded
+  inventory elsewhere. Output `data/datasets/himalayan_lake_chips_refined/`
+  (169 chips partial S2 coverage, 0 full, 528 none — 7.7% grid coverage;
+  pos px 84,893→35,329, median 79→13; 98 micro-tarn chips eroded to zero).
+- `lake_adapter_finetune.py` — loads `v`/`src` from npz; new
+  `--boundary-alpha/--boundary-band` (per-pixel edge emphasis).
+- `ml/imja_gold_eval.py` — gold-label scorer reusing held-out machinery;
+  report `models/checkpoints/imja_gold_eval_report.json`.
+- Checkpoint `water_resunet_6ch_himalayan_adapter_labelrefined.pt`
+  (stratified, α=1.0, band=2px, 15 ep, lr 5e-5) + report
+  `lake_adapter_labelrefined_report.json`.
+
+Held-out gate legs vs stratified adapter (τ=0.30, Imja-scoped):
+
+| Metric | unfrozen_desc strat→refined | unfrozen_desc2 strat→refined |
+|---|---|---|
+| Imja IoU inv (t1/t0) | 0.654/0.660 → 0.610/0.546 | 0.627/0.674 → 0.613/0.620 |
+| Imja IoU SCL | 0.734/0.638 → 0.692/0.604 | 0.634 → 0.721 |
+| Imja P inv | 0.720/0.698 → 0.751/0.685 | 0.652/0.716 → 0.712/0.717 |
+| Imja P SCL | 0.797/0.669 → 0.829/0.674 | 0.634 → 0.733 |
+| Glacier water px | 11,516 → 10,654 | 7,771 → 8,688 |
+| Imja recall t1 | 0.877 → 0.765 | 0.942 → 0.815 |
+
+Gold re-score (unfrozen_desc only; `imja_gold_eval_report.json`):
+
+| Date | strat IoU/P/R | refined IoU/P/R |
+|---|---|---|
+| t1 (τ=0.30) | 0.647 / 0.708 / 0.882 | 0.565 / 0.704 / 0.741 |
+| t0 (τ=0.30) | 0.472 / 0.484 / 0.951 | 0.486 / 0.526 / 0.864 |
+
+**Verdict:** SCL-precision legs improved (+0.03–0.10) and glacier FPs
+edged down, but against gold truth the refinement is a wash — t1 gold
+IoU dropped (0.65→0.57, recall traded away), t0 barely moved
+(P 0.48→0.53). Gate still fails: no label source reaches P ≥ 0.84.
+
+**Interpretation:** the residual precision deficit is not recoverable
+by label tightening. The remaining gap is consistent with (i) ~1-px
+systematic boundary offset — GCP geolocation jitter vs the S2 grid and
+the model's true boundary uncertainty at ~90 m pitch — on a lake only
+~13–19 px wide, where a 1-px offset caps gold IoU ~0.6 and P ~0.7 by
+geometry alone; and (ii) 4–5-day label offsets. P ≥ 0.84 at Imja scope
+may be unreachable at this resolution/label granularity — consider
+either relaxing the gate leg to a displacement-bounded criterion
+(e.g. boundary F1 within 1 px), scoring a *change*-detection target
+where the constant boundary offset cancels between t0/t1, or finer
+input resolution (S1 GRD is already ~10 m; the decimated ~90 m cache
+pitch is the binding constraint — a full-resolution pipeline is a
+larger change).
+
 ## Next session — recommended path
 
 Label-refined fine-tune round, same `lake_adapter_finetune.py` machinery:

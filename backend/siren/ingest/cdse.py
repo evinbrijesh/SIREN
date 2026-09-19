@@ -252,19 +252,22 @@ def search_all_scenes(
 def _pick_asset(item: dict) -> tuple[str | None, dict | None]:
     """Pick the primary downloadable asset from a STAC item.
 
-    The new CDSE STAC API uses different asset keys than the legacy endpoint.
-    For Sentinel-1 GRD, the primary data is typically under 'data' or a
-    product-specific key. For Sentinel-2 L2A, it's under 'data' or 'product'.
+    The current CDSE STAC API exposes the full product archive as the
+    ``Product`` asset (capital P) — an HTTPS OData
+    ``Products(<id>)/$value`` URL. Per-band assets carry ``s3://`` hrefs
+    that urllib cannot download, so the fallback must require http(s).
     """
     assets = item.get("assets", {})
     # Priority order for primary data assets
-    for key in ("data", "product", "download", "manifest", "metadata"):
+    for key in ("Product", "data", "product", "download", "manifest", "metadata"):
         a = assets.get(key)
         if a and "href" in a:
             return key, a
-    # Fallback: first asset with an href
+    # Fallback: first asset reachable over HTTP(S) — s3:// hrefs are not
+    # downloadable through this path.
     for key, a in assets.items():
-        if "href" in a:
+        href = (a or {}).get("href", "")
+        if href.startswith("http"):
             return key, a
     return None, None
 
@@ -287,7 +290,9 @@ def download_scene(
         raise RuntimeError(f"no downloadable asset for {scene_id}")
     url = asset["href"]
     ext = Path(url).suffix or ".bin"
-    if key == "data" and ext.lower() not in (".zip", ".tif", ".tiff", ".nc"):
+    if "$value" in url or (
+        key == "data" and ext.lower() not in (".zip", ".tif", ".tiff", ".nc")
+    ):
         ext = ".zip"
     out_path = out_dir / f"{scene_id}{ext}"
     headers = {}

@@ -124,6 +124,8 @@ def run_finetune(
     evaluate: bool = True,
     stratified: bool = False,
     loss_weight: str | None = None,
+    boundary_alpha: float = 0.0,
+    boundary_band: int = 2,
     out_ckpt: Path | str = OUT_CKPT,
     report_out: Path | str = REPORT_OUT,
 ) -> dict:
@@ -142,7 +144,10 @@ def run_finetune(
     x = data["x"].astype(np.float32)          # (N, 6, C, C)
     y = data["y"].astype(np.uint8)            # (N, C, C)
     manifest = json.loads((chips_dir / "manifest.json").read_text())
-    v = np.ones_like(y, dtype=np.float32)     # weak labels cover every px
+    if "v" in data.files:                     # refined chips may carry a mask
+        v = data["v"].astype(np.float32)
+    else:
+        v = np.ones_like(y, dtype=np.float32)  # weak labels cover every px
 
     val_mask = _spatial_split(manifest)
     tr, va = ~val_mask, val_mask
@@ -208,9 +213,31 @@ def run_finetune(
         chip_w /= chip_w[train_idx].mean()  # normalise around 1.0
         logger.info("invsqrt chip weights: %s", np.round(chip_w, 3)[:10])
 
+    # Boundary-aware emphasis: upweight pixels within ``boundary_band``
+    # px of a label edge — the shoreline ring is where the model
+    # over-segments (ADR-014 gate finding). border_value=1 keeps lakes
+    # cut by the chip edge from gaining a false boundary there.
+    px_w = np.ones_like(y, dtype=np.float32)
+    if boundary_alpha:
+        from scipy.ndimage import binary_dilation, binary_erosion
+        n_edge = 0
+        for i in range(len(y)):
+            pos = y[i] > 0
+            if not pos.any():
+                continue
+            edge = binary_dilation(pos, iterations=boundary_band) ^ (
+                binary_erosion(pos, iterations=boundary_band, border_value=1)
+            )
+            px_w[i][edge] += boundary_alpha
+            n_edge += int(edge.sum())
+        logger.info("boundary weighting: alpha=%.1f band=%d px (edge px=%d)",
+                    boundary_alpha, boundary_band, n_edge)
+
     xt = torch.from_numpy(x)
     yt = torch.from_numpy(y.astype(np.float32))[:, None]
-    vt = torch.from_numpy((v * chip_w[:, None, None]).astype(np.float32))[:, None]
+    vt = torch.from_numpy(
+        (v * chip_w[:, None, None] * px_w).astype(np.float32)
+    )[:, None]
 
     model.train()
     history = []
@@ -274,10 +301,24 @@ def run_finetune(
     out_ckpt.parent.mkdir(parents=True, exist_ok=True)
     torch.save(model.state_dict(), out_ckpt)
 
+    # Label semantics live in the chip set's own report.json when it was
+    # produced by lake_label_refine (per-date NDWI + eroded inventory);
+    # otherwise the default is the original weak-polygon set.
+    label_semantics = "weak_positive: median-outlined inventory polygons (2022–2024)"
+    chip_report_path = chips_dir / "report.json"
+    if chip_report_path.exists():
+        try:
+            chip_report = json.loads(chip_report_path.read_text())
+            label_semantics = chip_report.get(
+                "label_semantics", label_semantics
+            )
+        except (json.JSONDecodeError, OSError):
+            pass
+
     report = {
         "experiment": "high-altitude decoder fine-tune on Himalayan lake chips",
         "labels": {
-            "positives": "verified lake inventory polygons (weak, 2022–2024 median outlines)",
+            "positives": label_semantics,
             "negatives": "all non-polygon pixels incl. glacier/moraine/slope",
             "chips": int(len(x)),
             "train_chips": int(tr.sum()),
@@ -293,6 +334,8 @@ def run_finetune(
             "loss_history": history,
             "stratified": stratified,
             "loss_weight": loss_weight,
+            "boundary_alpha": boundary_alpha,
+            "boundary_band_px": boundary_band,
             "area_bins_km2": list(AREA_BINS_KM2),
         },
         "val_weaklabel_metrics": val_metrics,
@@ -350,6 +393,11 @@ def main() -> None:
                     help="balanced per-epoch sampling across lake-area bins")
     ap.add_argument("--loss-weight", choices=["invsqrt"], default=None,
                     help="per-chip loss weight w_i = 1/sqrt(area_km2)")
+    ap.add_argument("--boundary-alpha", type=float, default=0.0,
+                    help="added loss weight within --boundary-band px of a "
+                         "label edge (0 disables boundary emphasis)")
+    ap.add_argument("--boundary-band", type=int, default=2,
+                    help="half-width of the shoreline emphasis band (px)")
     ap.add_argument("--out-ckpt", default=str(OUT_CKPT))
     ap.add_argument("--report-out", default=str(REPORT_OUT))
     ap.add_argument("--no-eval", action="store_true", help="skip full-scene eval")
@@ -360,6 +408,7 @@ def main() -> None:
         batch_size=args.batch_size, pos_weight_cap=args.pos_weight_cap,
         evaluate=not args.no_eval,
         stratified=args.stratified, loss_weight=args.loss_weight,
+        boundary_alpha=args.boundary_alpha, boundary_band=args.boundary_band,
         out_ckpt=args.out_ckpt, report_out=args.report_out,
     )
     print(json.dumps(report, indent=1))

@@ -131,6 +131,66 @@ def test_cdse_provenance_sidecar(tmp_path, monkeypatch):
     assert prov["retries"] == 0
 
 
+def test_cdse_product_asset_preferred_over_s3_bands(tmp_path, monkeypatch):
+    """The current CDSE STAC API exposes the archive as the 'Product'
+    asset (HTTPS OData $value); per-band s3:// hrefs must never win."""
+    monkeypatch.setenv("CDSE_TOKEN", "fake-token")
+    monkeypatch.setattr("time.sleep", lambda *a, **k: None)
+
+    odata = (
+        "https://download.dataspace.copernicus.eu/odata/v1/"
+        "Products(00000000-0000-0000-0000-000000000000)/$value"
+    )
+    stac_resp = json.dumps(
+        {
+            "features": [
+                {
+                    "id": "S2_SCENE_001",
+                    "properties": {"datetime": "2026-07-25T04:46:00Z"},
+                    "assets": {
+                        "B03_20m": {"href": "s3://eodata/band.jp2"},
+                        "Product": {"href": odata},
+                    },
+                }
+            ],
+            "links": [],
+        }
+    ).encode()
+    download_bytes = b"FAKE-SAFE-ZIP"
+
+    def fake_urlopen(req, timeout=None):  # noqa: ARG001
+        if req.get_method() == "POST":
+            return _FakeResp(stac_resp)
+        assert "s3://" not in req.full_url
+        return _FakeResp(download_bytes)
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+
+    code = cdse.main(
+        ["--bbox", "86.65,27.65,87.00,27.98", "--sensor", "s2",
+         "--date", "2026-07-25:2026-07-25", "--out", str(tmp_path)]
+    )
+    assert code == 0
+
+    zips = [f for f in tmp_path.iterdir() if f.suffix == ".zip"]
+    assert len(zips) == 1
+    assert zips[0].read_bytes() == download_bytes
+    prov = json.loads(next(tmp_path.glob("*.json")).read_text())
+    assert prov["download_url"] == odata
+
+
+def test_cdse_pick_asset_skips_s3_fallback():
+    item = {
+        "assets": {
+            "B03_20m": {"href": "s3://eodata/band.jp2"},
+            "thumbnail": {"href": "https://example.com/t.png"},
+        }
+    }
+    key, asset = cdse._pick_asset(item)
+    assert key == "thumbnail"
+    assert asset["href"].startswith("http")
+
+
 def test_srtm_provenance_sidecar(tmp_path, monkeypatch):
     monkeypatch.setenv("EARTHDATA_USERNAME", "u")
     monkeypatch.setenv("EARTHDATA_PASSWORD", "p")
