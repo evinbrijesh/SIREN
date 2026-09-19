@@ -8,6 +8,10 @@ Sources:
     2. UT Austin repository (hdl.handle.net/2152/19754) — September 2012
        sonar survey (Somos-Valenzuela et al. 2014): fetches the item page
        and downloads linked bitstreams matching bathymetry CSV/zip.
+       NOTE: the repository sits behind CloudFront and 403s non-browser
+       requests — this fetch is best-effort and usually fails. If you
+       have the 2012 CSV by other means, drop it in
+       data/datasets/imja_bathymetry/imja_2012/ and the loader picks it up.
 
 Offline-safe (ADR-004): exits cleanly without network, writes nothing.
 Provenance sidecars are written beside every downloaded file.
@@ -33,7 +37,8 @@ logger = logging.getLogger(__name__)
 ZENODO_API = "https://zenodo.org/api/records"
 IMJA_2002_RECORD = "18251249"
 UT_2012_ITEM = "https://repositories.lib.utexas.edu/items/2152/19754"
-DEFAULT_OUT = Path("data/datasets/imja_bathymetry")
+REPO_ROOT = Path(__file__).resolve().parents[3]
+DEFAULT_OUT = REPO_ROOT / "data" / "datasets" / "imja_bathymetry"
 UA = {"User-Agent": "SIREN-ingest/1.0"}
 
 

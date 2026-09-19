@@ -39,7 +39,8 @@ from siren.ingest.imja_bathymetry import (
 logger = logging.getLogger(__name__)
 
 ICESAT2_RECORD = "10901738"
-DEFAULT_OUT = Path("data/datasets/icesat2_bathymetry")
+REPO_ROOT = Path(__file__).resolve().parents[3]
+DEFAULT_OUT = REPO_ROOT / "data" / "datasets" / "icesat2_bathymetry"
 
 
 def main(argv: list[str] | None = None) -> int:

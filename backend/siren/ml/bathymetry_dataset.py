@@ -682,9 +682,9 @@ def load_imja_bathymetry(
                 col_map[c] = "latitude"
             elif "lon" in cl:
                 col_map[c] = "longitude"
-            elif cl in ("easting", "x", "x_m"):
+            elif "easting" in cl or cl in ("x", "x_m"):
                 col_map[c] = "easting"
-            elif cl in ("northing", "y", "y_m"):
+            elif "northing" in cl or cl in ("y", "y_m"):
                 col_map[c] = "northing"
         df = df.rename(columns=col_map)
 
