@@ -64,7 +64,7 @@ import sys
 import time
 from datetime import date, timedelta
 from pathlib import Path
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 
 import numpy as np
@@ -192,6 +192,29 @@ def _fetch_series(lat: float, lon: float, start: date, end: date) -> dict:
         return json.load(resp)
 
 
+RATE_LIMIT_WAIT_S = 65.0  # Open-Meteo minutely limit — wait a full window
+
+
+def _fetch_with_retry(lat: float, lon: float, start: date, end: date,
+                      delay_s: float) -> tuple[dict | None, str]:
+    """Fetch with 429-aware retry. Returns (data, error_reason)."""
+    last_err = "unknown"
+    for attempt in range(MAX_RETRIES):
+        try:
+            return _fetch_series(lat, lon, start, end), ""
+        except HTTPError as exc:
+            last_err = f"HTTP {exc.code}"
+            if exc.code == 429:
+                logger.info("rate limited — waiting %.0fs", RATE_LIMIT_WAIT_S)
+                time.sleep(RATE_LIMIT_WAIT_S)
+            else:
+                time.sleep(delay_s * (2 ** attempt + 1))
+        except (URLError, OSError) as exc:
+            last_err = str(exc.reason if hasattr(exc, "reason") else exc)
+            time.sleep(delay_s * (2 ** attempt + 1))
+    return None, last_err
+
+
 def fetch_missing(
     samples: pd.DataFrame, delay_s: float = REQUEST_DELAY_S,
     offline: bool = False,
@@ -212,20 +235,12 @@ def fetch_missing(
             end - timedelta(days=WINDOW_DAYS + CLIM_YEARS * 366),
             date(1940, 1, 1),
         )
-        try:
-            data = _fetch_series(row["lat"], row["lon"], start, end)
-        except (URLError, OSError):
-            for attempt in range(MAX_RETRIES):
-                time.sleep(delay_s * (2 ** attempt + 1))
-                try:
-                    data = _fetch_series(row["lat"], row["lon"], start, end)
-                    break
-                except (URLError, OSError):
-                    data = None
-            if data is None:
-                stats["failed"] += 1
-                logger.warning("fetch failed: %s", sid)
-                continue
+        data, err = _fetch_with_retry(row["lat"], row["lon"], start, end,
+                                      delay_s)
+        if data is None:
+            stats["failed"] += 1
+            logger.warning("fetch failed: %s (%s)", sid, err)
+            continue
 
         _cache_path(sid).parent.mkdir(parents=True, exist_ok=True)
         _cache_path(sid).write_text(json.dumps({
