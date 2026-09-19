@@ -58,6 +58,54 @@ PROMOTED_COMPONENTS: dict[str, dict[str, Any]] = {
         "promoted_at": "2026-09-19",
         "reversible": True,
     },
+    # Gate-evaluated 2026-09-18: spatio-temporal holdout (5 spatial blocks,
+    # post-2015 events only) on 887 real windows — 230 dated GLOF events +
+    # 657 negatives (stable-lake AND within-lake controls) — mean ROC-AUC
+    # 0.838, PR-AUC 0.872, raw Brier 0.143 < 0.15 gate. The within-lake
+    # control design removes the morphology shortcut: weather features
+    # carry ~45% of SHAP importance. Platt calibration (isotonic overfit
+    # small folds). South Lhonak hindcast correctly declines to warn —
+    # landslide-triggered breach is outside the weather-feature contract.
+    "dynamic_escalation": {
+        "checkpoint": "xgboost_dynamic_escalation.json",
+        "calibration": "platt_crossfit_oof",
+        "evidence_method": "p_dynamic >= 0.65 + detected expansion",
+        "gate": "Brier < 0.15 (ADR-013 / PRD §9.8)",
+        "gate_evidence": [
+            "models/checkpoints/dynamic_escalation_eval_report.json",
+            "models/checkpoints/south_lhonak_hindcast.json",
+            "models/checkpoints/dynamic_escalation_dataset_report.json",
+        ],
+        "scope": {
+            "signal": (
+                "weather-driven escalation probability for monitored "
+                "lakes — trailing-30d precip/melt/freeze-thaw window "
+                "vs 10-yr climatology + static morphometrics"
+            ),
+            "weather_source": (
+                "NASA POWER (MERRA-2 daily, ~0.5deg) — committed "
+                "imja_power_series.json asset keeps runtime offline"
+            ),
+            "out_of_scope": (
+                "non-weather triggers — landslide/avalanche impact "
+                "waves, seismicity, dam piping (South Lhonak 2023 was "
+                "landslide-triggered and correctly does not warn)"
+            ),
+        },
+        "union_policy": (
+            "deterministic severity classification stays live as "
+            "labeled cross-check; pre_breach_warning surfaces as an "
+            "advisory reason on the review card — it does not change "
+            "severity or dispatch, and human confirm remains mandatory"
+        ),
+        "caveat": (
+            "454->887-row dataset; per-block AUC spread 0.74-1.0 "
+            "(small test folds); ~0.5deg grid smooths convective "
+            "extremes; negatives carry label noise (unrecorded events)"
+        ),
+        "promoted_at": "2026-09-19",
+        "reversible": True,
+    },
 }
 
 

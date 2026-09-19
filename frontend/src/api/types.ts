@@ -170,6 +170,26 @@ export interface MlEvidence {
   ml_drainage_km2: number | null;
   model_available: boolean;
   change_polygon: GeoJSONFeature | null;
+  /** Tier-2 dynamic escalation result — promoted advisory evidence
+   *  (is_shadow=false when promoted); null when the scorer is
+   *  unavailable for the run. */
+  dynamic_escalation: DynamicEscalationResult | null;
+}
+
+export interface DynamicEscalationResult {
+  is_available: boolean;
+  promoted?: boolean;
+  is_shadow?: boolean;
+  p_dynamic?: number;
+  p_dynamic_raw?: number;
+  calibrated?: boolean;
+  degraded?: boolean;
+  pre_breach_warning?: boolean;
+  warning_threshold?: number;
+  expansion_pct?: number;
+  reasons?: string[];
+  reason?: string;
+  prior_combination?: Record<string, unknown>;
 }
 
 export interface ApiError {

@@ -140,6 +140,23 @@ const mlEvidence: MlEvidence = {
   ml_drainage_km2: 0.008,
   model_available: true,
   change_polygon: { type: "Polygon", coordinates: [[[86.8945, 27.8681], [86.9555, 27.8681], [86.9555, 27.9219], [86.8945, 27.9219], [86.8945, 27.8681]]] },
+  dynamic_escalation: {
+    is_available: true,
+    promoted: true,
+    is_shadow: false,
+    p_dynamic: 0.71,
+    p_dynamic_raw: 0.78,
+    calibrated: true,
+    degraded: false,
+    pre_breach_warning: false,
+    warning_threshold: 0.65,
+    expansion_pct: 12,
+    reasons: [
+      "mdd_30: +0.31 to log-odds",
+      "log_glacier_area_10km: +0.45 to log-odds",
+      "P_escalation=0.710",
+    ],
+  },
 };
 
 const mlEvaluation: MlEvaluation = {

@@ -572,6 +572,38 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
                 </div>
               )}
 
+              {/* Dynamic escalation advisory (Tier-2): promoted ML score —
+                  P(escalation | morphometrics + trailing-30d weather).
+                  Advisory only: never changes severity or dispatch. */}
+              {mlEvidence.dynamic_escalation?.is_available && (
+                <div className={`border px-space-8 py-space-6 ${
+                  mlEvidence.dynamic_escalation.pre_breach_warning
+                    ? "border-status-danger bg-status-danger/10"
+                    : "border-border-subtle bg-surface-recessed"
+                }`} data-testid="dynamic-escalation">
+                  <div className="flex items-center justify-between">
+                    <span className="text-caption text-text-dim">
+                      Escalation risk {mlEvidence.dynamic_escalation.promoted ? "(ML, promoted)" : "(ML shadow)"}
+                    </span>
+                    <span className={`data-val text-body-sm ${
+                      mlEvidence.dynamic_escalation.pre_breach_warning
+                        ? "text-status-danger" : "text-text-primary"
+                    }`}>
+                      P={((mlEvidence.dynamic_escalation.p_dynamic ?? 0)).toFixed(2)}
+                      {mlEvidence.dynamic_escalation.pre_breach_warning && " — PRE-BREACH WARNING"}
+                    </span>
+                  </div>
+                  {(mlEvidence.dynamic_escalation.reasons ?? []).slice(0, 3).map((r, i) => (
+                    <div key={i} className="text-caption text-text-dim mt-space-4">{r}</div>
+                  ))}
+                  {mlEvidence.dynamic_escalation.degraded && (
+                    <div className="text-caption text-status-warn mt-space-4">
+                      degraded — some weather features unavailable
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* ML heatmap */}
               <div className="h-[120px] border border-border-subtle bg-surface-recessed relative overflow-hidden flex flex-col">
                 <img

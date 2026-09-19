@@ -289,6 +289,12 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
             "ml_terrain_gate": stats.get("ml_terrain_gate"),
             "ml_rule_overlap_px": stats.get("ml_rule_overlap_px"),
             "ml_rule_overlap_pct": stats.get("ml_rule_overlap_pct"),
+            # Tier-2 dynamic escalation (promoted advisory per
+            # ml/promotion.py; is_shadow=False when promoted)
+            "dynamic_escalation": (
+                stats.get("shadow_evidence", {}).get("dynamic_escalation")
+                if isinstance(stats.get("shadow_evidence"), dict) else None
+            ),
         }
 
     # POST /runs/{run_id}/review

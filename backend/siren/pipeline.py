@@ -1184,13 +1184,33 @@ def run_pipeline(
         logger.warning(f"Shadow evidence attachment failed: {exc}")
         change_stats["shadow_evidence"] = {"error": str(exc), "is_shadow": True}
 
+    shadow = change_stats.get("shadow_evidence", {})
+
+    # 7b.1 Promoted ML advisory: when dynamic_escalation is promoted and
+    # its pre-breach warning fires (expansion + elevated P_escalation),
+    # the warning surfaces as a review reason — advisory only, the
+    # deterministic severity and the human gate are unchanged.
+    _esc = shadow.get("dynamic_escalation", {}) if isinstance(
+        shadow, dict) else {}
+    if (
+        isinstance(_esc, dict)
+        and _esc.get("promoted")
+        and _esc.get("pre_breach_warning")
+    ):
+        score["reasons"].append(
+            f"ML escalation advisory (promoted): P_escalation="
+            f"{_esc.get('p_dynamic', 0):.2f} >= "
+            f"{_esc.get('warning_threshold', 0.65)} with detected "
+            f"expansion {_esc.get('expansion_pct', 0):.0f}% — "
+            f"pre-breach warning"
+        )
+
     # 7c. Wire FNO arrival horizons to the corridor (Sprint 3, shadow-only).
     # If the FNO surrogate was triggered (P_breach ≥ 0.70) and produced
     # sector arrival times, attach them to the corridor exposures. This
     # does NOT modify the deterministic corridor or hazard score — it
     # enriches the corridor result with shadow telemetry for the review
     # card UI and audit lineage. Provenance is tagged "fno_surrogate_v1".
-    shadow = change_stats.get("shadow_evidence", {})
     hydro = shadow.get("hydro_surrogate", {}) if isinstance(shadow, dict) else {}
     if isinstance(hydro, dict) and hydro.get("t_arrival_by_sector"):
         try:

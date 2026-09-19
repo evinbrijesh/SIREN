@@ -239,14 +239,41 @@ class DynamicEscalationScorer:
         return reasons
 
 
+POWER_SERIES_PATH = (
+    REPO_ROOT / "data" / "assets" / "imja_power_series.json"
+)
+
+
 def _imja_window_features(obs_date: str, obs_config: dict) -> dict:
     """Assemble Imja's trailing-30d feature row from committed assets.
 
-    Temperature-derived features come from the committed ERA5-Land series
-    (lake_thermal_series.json); precipitation uses the observation's
-    recorded 7-day rainfall. Features with no offline source stay None —
-    flagged ``degraded`` by the scorer, never fabricated.
+    Preferred source: the committed NASA POWER daily series
+    (``imja_power_series.json``, written by
+    ``ingest/imja_weather_power.py``) — same fetcher/schema as the
+    training corpus, so the full 9-feature dynamic vector is computed
+    identically to training. Fallback: the legacy ERA5-Land thermal
+    series (mdd_30 only) + observation rainfall fields. Features with
+    no offline source stay None — flagged ``degraded``, never fabricated.
     """
+    end = date.fromisoformat(obs_date[:10])
+
+    if POWER_SERIES_PATH.exists():
+        try:
+            from siren.ml.dataset_dynamic_escalation import (
+                _window_features,
+            )
+            series = json.loads(POWER_SERIES_PATH.read_text())
+            feats = _window_features(
+                series["daily"], end,
+                series.get("station_elev_m"), IMJA_ELEV_M,
+            )
+            if feats is not None:
+                return {**feats, **IMJA_STATIC}
+            logger.warning("POWER series lacks coverage at %s", end)
+        except Exception as exc:  # noqa: BLE001 — degrade, never crash
+            logger.warning("POWER series unusable: %s", exc)
+
+    # Legacy partial path: thermal series (mdd_30) + obs rainfall fields
     feats: dict[str, float | None] = {
         "precip_30d_mm": None,
         "precip_7d_mm": obs_config.get("rainfall_7d_mm"),
@@ -264,7 +291,6 @@ def _imja_window_features(obs_date: str, obs_config: dict) -> dict:
         series = json.loads(Path(SERIES_PATH).read_text())
         days = series.get("days", {})
         station_elev = series.get("station_elev_m")
-        end = date.fromisoformat(obs_date[:10])
         lapse_c = (
             LAPSE_RATE_C_PER_KM * (IMJA_ELEV_M - station_elev) / 1000.0
             if station_elev is not None else 0.0
@@ -325,5 +351,15 @@ def score_imja_observation(
         expansion_pct > 0.0 and result["p_dynamic"] >= WARNING_THRESHOLD
     )
     result["warning_threshold"] = WARNING_THRESHOLD
-    result["is_shadow"] = True
+
+    # Promotion status (ADR-013 / PRD §9.8): when the component is
+    # promoted the score is primary advisory evidence — it surfaces on
+    # the review card as a reason — otherwise it stays labeled shadow.
+    from siren.ml.promotion import is_promoted, promotion_record
+
+    promoted = is_promoted("dynamic_escalation")
+    result["is_shadow"] = not promoted
+    result["promoted"] = promoted
+    if promoted:
+        result["promotion"] = promotion_record("dynamic_escalation")
     return result
