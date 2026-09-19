@@ -1,0 +1,122 @@
+{
+  "status": "gate_evaluated",
+  "evaluation_valid": true,
+  "inference_allowed": false,
+  "brier_gate": 0.15,
+  "gate_metric": "mean_brier (uncalibrated); mean_brier_calibrated is the cross-fitted in-fold isotonic diagnostic",
+  "features": [
+    "precip_30d_mm",
+    "precip_7d_mm",
+    "max_daily_precip_mm",
+    "heavy_rain_days",
+    "api_30",
+    "rain_anom_30d_mm",
+    "mdd_30",
+    "mdd_anom_30",
+    "ft_cycles_14",
+    "lake_elev_m",
+    "log_lake_area_km2",
+    "log_dist_glacier_m",
+    "log_glacier_area_10km"
+  ],
+  "n_samples": 454,
+  "n_breached": 230,
+  "n_stable": 224,
+  "dataset": "/home/e0kt/Documents/01_projects/2026/hackathons/hack_26/project/data/datasets/dynamic_escalation_train.parquet",
+  "protocol": "spatio-temporal holdout: per block, train on all other blocks, test on rows >= 2015-01-01",
+  "temporal_cutoff": "2015-01-01",
+  "mean_roc_auc": 0.883095510515419,
+  "std_roc_auc": 0.09620155577276758,
+  "mean_brier": 0.13729575034230948,
+  "std_brier": 0.08211703443296765,
+  "mean_brier_calibrated": 0.16753413304686546,
+  "mean_pr_auc": 0.8724850790758862,
+  "fold_metrics": [
+    {
+      "heldout_block": 0,
+      "n_train": 306,
+      "n_test": 29,
+      "n_breached_test": 8,
+      "test_date_range": [
+        "2015-04-25",
+        "2026-07-26"
+      ],
+      "roc_auc": 0.7142857142857143,
+      "pr_auc": 0.6048295454545454,
+      "brier_score": 0.2308007925748825,
+      "brier_score_calibrated": 0.2773870527744293
+    },
+    {
+      "heldout_block": 1,
+      "n_train": 355,
+      "n_test": 41,
+      "n_breached_test": 18,
+      "test_date_range": [
+        "2015-04-25",
+        "2026-07-26"
+      ],
+      "roc_auc": 0.9057971014492754,
+      "pr_auc": 0.8994096617828871,
+      "brier_score": 0.1268784999847412,
+      "brier_score_calibrated": 0.1627110093832016
+    },
+    {
+      "heldout_block": 2,
+      "n_train": 352,
+      "n_test": 49,
+      "n_breached_test": 30,
+      "test_date_range": [
+        "2015-07-23",
+        "2025-08-22"
+      ],
+      "roc_auc": 0.8578947368421053,
+      "pr_auc": 0.8915195214753325,
+      "brier_score": 0.22476540505886078,
+      "brier_score_calibrated": 0.23085907101631165
+    },
+    {
+      "heldout_block": 3,
+      "n_train": 388,
+      "n_test": 18,
+      "n_breached_test": 10,
+      "test_date_range": [
+        "2015-07-15",
+        "2025-05-15"
+      ],
+      "roc_auc": 0.9375,
+      "pr_auc": 0.9666666666666666,
+      "brier_score": 0.08854416012763977,
+      "brier_score_calibrated": 0.14070621132850647
+    },
+    {
+      "heldout_block": 4,
+      "n_train": 415,
+      "n_test": 10,
+      "n_breached_test": 3,
+      "test_date_range": [
+        "2015-07-03",
+        "2025-07-08"
+      ],
+      "roc_auc": 1.0,
+      "pr_auc": 1.0,
+      "brier_score": 0.015489893965423107,
+      "brier_score_calibrated": 0.02600732073187828
+    }
+  ],
+  "feature_importances": {
+    "precip_30d_mm": 0.04751073569059372,
+    "precip_7d_mm": 0.049337271600961685,
+    "max_daily_precip_mm": 0.04402092844247818,
+    "heavy_rain_days": 0.0,
+    "api_30": 0.048865169286727905,
+    "rain_anom_30d_mm": 0.04468033090233803,
+    "mdd_30": 0.06051310896873474,
+    "mdd_anom_30": 0.04969772323966026,
+    "ft_cycles_14": 0.049005329608917236,
+    "lake_elev_m": 0.056011755019426346,
+    "log_lake_area_km2": 0.26465746760368347,
+    "log_dist_glacier_m": 0.1665310561656952,
+    "log_glacier_area_10km": 0.11916911602020264
+  },
+  "passes_brier_gate": true
+}
