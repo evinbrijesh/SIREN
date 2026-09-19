@@ -1,0 +1,284 @@
+{
+  "pair": "unfrozen_desc",
+  "t0": "20260819",
+  "t1": "20260912",
+  "checkpoints": {
+    "corrector": {
+      "0.3": {
+        "gold_t1": {
+          "gold_iou": 0.0,
+          "gold_precision": 0.0,
+          "gold_precision_tol1px": 0.0,
+          "gold_precision_tol2px": 0.0,
+          "gold_recall": 0.0,
+          "gold_valid_coverage": 0.6532,
+          "gold_px": 135
+        },
+        "gold_t0": {
+          "gold_iou": 0.0,
+          "gold_precision": 0.0,
+          "gold_precision_tol1px": 0.0,
+          "gold_precision_tol2px": 0.0,
+          "gold_recall": 0.0,
+          "gold_valid_coverage": 0.5968,
+          "gold_px": 81
+        },
+        "gold_change": {
+          "expansion_px_in_scope": 0,
+          "fp_vs_gold_t1": 0,
+          "tp_vs_gold_change": 0,
+          "expansion_dp_px_in_scope": 0,
+          "fp_dp_vs_gold_t1": 0,
+          "tp_dp_vs_gold_change": 0,
+          "dp_mass_px_equiv": 0.5,
+          "gold_change_px": 32,
+          "scope_valid_frac": 0.5563
+        },
+        "auto_t1": null,
+        "auto_t0": null,
+        "auto_change": null
+      },
+      "0.4": {
+        "gold_t1": {
+          "gold_iou": 0.0,
+          "gold_precision": 0.0,
+          "gold_precision_tol1px": 0.0,
+          "gold_precision_tol2px": 0.0,
+          "gold_recall": 0.0,
+          "gold_valid_coverage": 0.6532,
+          "gold_px": 135
+        },
+        "gold_t0": {
+          "gold_iou": 0.0,
+          "gold_precision": 0.0,
+          "gold_precision_tol1px": 0.0,
+          "gold_precision_tol2px": 0.0,
+          "gold_recall": 0.0,
+          "gold_valid_coverage": 0.5968,
+          "gold_px": 81
+        },
+        "gold_change": {
+          "expansion_px_in_scope": 0,
+          "fp_vs_gold_t1": 0,
+          "tp_vs_gold_change": 0,
+          "expansion_dp_px_in_scope": 0,
+          "fp_dp_vs_gold_t1": 0,
+          "tp_dp_vs_gold_change": 0,
+          "dp_mass_px_equiv": 0.5,
+          "gold_change_px": 32,
+          "scope_valid_frac": 0.5563
+        },
+        "auto_t1": null,
+        "auto_t0": null,
+        "auto_change": null
+      },
+      "0.5": {
+        "gold_t1": {
+          "gold_iou": 0.0,
+          "gold_precision": 0.0,
+          "gold_precision_tol1px": 0.0,
+          "gold_precision_tol2px": 0.0,
+          "gold_recall": 0.0,
+          "gold_valid_coverage": 0.6532,
+          "gold_px": 135
+        },
+        "gold_t0": {
+          "gold_iou": 0.0,
+          "gold_precision": 0.0,
+          "gold_precision_tol1px": 0.0,
+          "gold_precision_tol2px": 0.0,
+          "gold_recall": 0.0,
+          "gold_valid_coverage": 0.5968,
+          "gold_px": 81
+        },
+        "gold_change": {
+          "expansion_px_in_scope": 0,
+          "fp_vs_gold_t1": 0,
+          "tp_vs_gold_change": 0,
+          "expansion_dp_px_in_scope": 0,
+          "fp_dp_vs_gold_t1": 0,
+          "tp_dp_vs_gold_change": 0,
+          "dp_mass_px_equiv": 0.5,
+          "gold_change_px": 32,
+          "scope_valid_frac": 0.5563
+        },
+        "auto_t1": null,
+        "auto_t0": null,
+        "auto_change": null
+      },
+      "0.55": {
+        "gold_t1": {
+          "gold_iou": 0.0,
+          "gold_precision": 0.0,
+          "gold_precision_tol1px": 0.0,
+          "gold_precision_tol2px": 0.0,
+          "gold_recall": 0.0,
+          "gold_valid_coverage": 0.6532,
+          "gold_px": 135
+        },
+        "gold_t0": {
+          "gold_iou": 0.0,
+          "gold_precision": 0.0,
+          "gold_precision_tol1px": 0.0,
+          "gold_precision_tol2px": 0.0,
+          "gold_recall": 0.0,
+          "gold_valid_coverage": 0.5968,
+          "gold_px": 81
+        },
+        "gold_change": {
+          "expansion_px_in_scope": 0,
+          "fp_vs_gold_t1": 0,
+          "tp_vs_gold_change": 0,
+          "expansion_dp_px_in_scope": 0,
+          "fp_dp_vs_gold_t1": 0,
+          "tp_dp_vs_gold_change": 0,
+          "dp_mass_px_equiv": 0.5,
+          "gold_change_px": 32,
+          "scope_valid_frac": 0.5563
+        },
+        "auto_t1": null,
+        "auto_t0": null,
+        "auto_change": null
+      }
+    },
+    "adapter_labelrefined_v2": {
+      "0.3": {
+        "gold_t1": {
+          "gold_iou": 0.5773,
+          "gold_precision": 0.655,
+          "gold_precision_tol1px": 0.7895,
+          "gold_precision_tol2px": 0.8421,
+          "gold_recall": 0.8296,
+          "gold_valid_coverage": 0.6532,
+          "gold_px": 135
+        },
+        "gold_t0": {
+          "gold_iou": 0.4023,
+          "gold_precision": 0.4294,
+          "gold_precision_tol1px": 0.5767,
+          "gold_precision_tol2px": 0.7239,
+          "gold_recall": 0.8642,
+          "gold_valid_coverage": 0.5968,
+          "gold_px": 81
+        },
+        "gold_change": {
+          "expansion_px_in_scope": 15,
+          "fp_vs_gold_t1": 3,
+          "tp_vs_gold_change": 8,
+          "expansion_dp_px_in_scope": 15,
+          "fp_dp_vs_gold_t1": 3,
+          "tp_dp_vs_gold_change": 9,
+          "dp_mass_px_equiv": 15.3,
+          "gold_change_px": 32,
+          "scope_valid_frac": 0.5563
+        },
+        "auto_t1": null,
+        "auto_t0": null,
+        "auto_change": null
+      },
+      "0.4": {
+        "gold_t1": {
+          "gold_iou": 0.5677,
+          "gold_precision": 0.6566,
+          "gold_precision_tol1px": 0.7892,
+          "gold_precision_tol2px": 0.8373,
+          "gold_recall": 0.8074,
+          "gold_valid_coverage": 0.6532,
+          "gold_px": 135
+        },
+        "gold_t0": {
+          "gold_iou": 0.4167,
+          "gold_precision": 0.4459,
+          "gold_precision_tol1px": 0.5987,
+          "gold_precision_tol2px": 0.7452,
+          "gold_recall": 0.8642,
+          "gold_valid_coverage": 0.5968,
+          "gold_px": 81
+        },
+        "gold_change": {
+          "expansion_px_in_scope": 13,
+          "fp_vs_gold_t1": 3,
+          "tp_vs_gold_change": 7,
+          "expansion_dp_px_in_scope": 15,
+          "fp_dp_vs_gold_t1": 3,
+          "tp_dp_vs_gold_change": 9,
+          "dp_mass_px_equiv": 15.3,
+          "gold_change_px": 32,
+          "scope_valid_frac": 0.5563
+        },
+        "auto_t1": null,
+        "auto_t0": null,
+        "auto_change": null
+      },
+      "0.5": {
+        "gold_t1": {
+          "gold_iou": 0.5526,
+          "gold_precision": 0.6562,
+          "gold_precision_tol1px": 0.7937,
+          "gold_precision_tol2px": 0.8375,
+          "gold_recall": 0.7778,
+          "gold_valid_coverage": 0.6532,
+          "gold_px": 135
+        },
+        "gold_t0": {
+          "gold_iou": 0.4313,
+          "gold_precision": 0.4662,
+          "gold_precision_tol1px": 0.6284,
+          "gold_precision_tol2px": 0.7703,
+          "gold_recall": 0.8519,
+          "gold_valid_coverage": 0.5968,
+          "gold_px": 81
+        },
+        "gold_change": {
+          "expansion_px_in_scope": 10,
+          "fp_vs_gold_t1": 3,
+          "tp_vs_gold_change": 5,
+          "expansion_dp_px_in_scope": 15,
+          "fp_dp_vs_gold_t1": 3,
+          "tp_dp_vs_gold_change": 9,
+          "dp_mass_px_equiv": 15.3,
+          "gold_change_px": 32,
+          "scope_valid_frac": 0.5563
+        },
+        "auto_t1": null,
+        "auto_t0": null,
+        "auto_change": null
+      },
+      "0.55": {
+        "gold_t1": {
+          "gold_iou": 0.5532,
+          "gold_precision": 0.6624,
+          "gold_precision_tol1px": 0.7898,
+          "gold_precision_tol2px": 0.8344,
+          "gold_recall": 0.7704,
+          "gold_valid_coverage": 0.6532,
+          "gold_px": 135
+        },
+        "gold_t0": {
+          "gold_iou": 0.4423,
+          "gold_precision": 0.4792,
+          "gold_precision_tol1px": 0.6389,
+          "gold_precision_tol2px": 0.7778,
+          "gold_recall": 0.8519,
+          "gold_valid_coverage": 0.5968,
+          "gold_px": 81
+        },
+        "gold_change": {
+          "expansion_px_in_scope": 12,
+          "fp_vs_gold_t1": 4,
+          "tp_vs_gold_change": 6,
+          "expansion_dp_px_in_scope": 15,
+          "fp_dp_vs_gold_t1": 3,
+          "tp_dp_vs_gold_change": 9,
+          "dp_mass_px_equiv": 15.3,
+          "gold_change_px": 32,
+          "scope_valid_frac": 0.5563
+        },
+        "auto_t1": null,
+        "auto_t0": null,
+        "auto_change": null
+      }
+    }
+  },
+  "verdict": "FAIL \u2014 corrector predicts zero water px on the gold pair (temporal transfer failure); trained 07-02/14 chips, gold pair 08-19/09-12. Spatial-heldout chip win (IoU 0.327 vs adapter 0.171) does not survive date change. NOT promotable; adapter remains the neural path."
+}
