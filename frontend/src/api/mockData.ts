@@ -157,6 +157,24 @@ const mlEvidence: MlEvidence = {
       "P_escalation=0.710",
     ],
   },
+  susceptibility: {
+    is_available: true,
+    promoted: true,
+    is_shadow: false,
+    p_breach: 1.0,
+    interval_low: 0.18,
+    interval_high: 1.0,
+    interval_width: 0.82,
+    requires_manual_inspection: true,
+    is_calibrated: true,
+    brier_score: 0.085,
+    model: "xgboost_susceptibility_spatial (measured features)",
+    reasons: [
+      "log_lake_area_km2: +1.761 to log-odds",
+      "log_glacier_area_10km: +0.693 to log-odds",
+      "P_breach=1.000",
+    ],
+  },
 };
 
 const mlEvaluation: MlEvaluation = {

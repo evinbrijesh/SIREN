@@ -141,13 +141,23 @@ def attach_shadow_evidence(
         logger.warning("Dynamic escalation failed: %s", exc)
         shadow["dynamic_escalation"] = {"is_available": False, "error": str(exc)}
 
-    # Mark as shadow evidence (ADR-010 §3: not load-bearing)
+    # Mark as shadow evidence (ADR-010 §3: not load-bearing). Components
+    # promoted via PROMOTED_COMPONENTS carry promoted=True and are
+    # advisory-primary evidence; the rest remain labeled shadow.
+    promoted_components = [
+        k for k, v in shadow.items()
+        if isinstance(v, dict) and v.get("promoted") is True
+    ]
     shadow["is_shadow"] = True
-    shadow["gate_status"] = "shadow_only"
+    shadow["promoted_components"] = promoted_components
+    shadow["gate_status"] = (
+        "component_promotion" if promoted_components else "shadow_only"
+    )
     shadow["note"] = (
-        "ML evidence is shadow-only (ADR-010 §3). The deterministic 5-factor "
-        "hazard score remains authoritative until the ML evaluation gate "
-        "(IoU > 0.65 / Brier < 0.15) is passed."
+        "ML evidence is advisory (ADR-010 §3). The deterministic 5-factor "
+        "hazard score remains authoritative; promoted components "
+        f"({', '.join(promoted_components) or 'none'}) surface as advisory "
+        "reasons on the review card — human confirm remains mandatory."
     )
 
     change_stats["shadow_evidence"] = shadow
@@ -167,35 +177,30 @@ def _compute_shadow_susceptibility(
     prohibited (PRD v4.7 §17.3). When no valid checkpoint is available,
     returns an explicit ``is_available=False`` result without a ``p_breach``.
     """
-    from siren.risk.susceptibility import SusceptibilityScorer, FEATURE_NAMES
+    from siren.risk.dynamic_escalation import IMJA_STATIC
+    from siren.risk.susceptibility import (
+        SPATIAL_CHECKPOINT_PATH,
+        SPATIAL_FEATURE_NAMES,
+        SusceptibilityScorer,
+    )
 
-    # Construct feature vector from pipeline data
-    expansion_pct = obs_config.get("expansion_pct", 0.0)
-    # Lake expansion rate: convert % to fraction per year (demo assumption:
-    # observations are ~12 days apart → annualize)
-    lake_expansion_rate = expansion_pct / 100.0 * 30.0  # rough annualization
-
-    mean_slope = obs_config.get("mean_slope_degrees", 20.0)
-    lake_area = change_stats.get("water_area_km2", DEFAULT_LAKE_AREA_KM2)
-
-    # Rain anomaly: 7d rainfall vs climatology (demo: use 7d as z-score proxy)
-    # In production, this would compare against ERA5 climatology
-    rain_anomaly = max(0.0, (rainfall_7d - 20.0) / 10.0)  # rough z-score
-
+    # Spatial model contract: 4 measured morphometric features for Imja
+    # (ICIMOD elevation/area + RGI v7 glacier context — static constants,
+    # the same values used by the dynamic-escalation scorer).
     features = np.array([[
-        lake_expansion_rate,
-        DEFAULT_MORAINE_DAM_WIDTH_M,
-        DEFAULT_MORAINE_DAM_HEIGHT_M,
-        rain_anomaly,
-        mean_slope,
-        lake_area,
+        IMJA_STATIC["lake_elev_m"],
+        IMJA_STATIC["log_lake_area_km2"],
+        IMJA_STATIC["log_dist_glacier_m"],
+        IMJA_STATIC["log_glacier_area_10km"],
     ]], dtype=np.float32)
 
-    # Load the trained checkpoint. Runtime training is prohibited — if the
-    # checkpoint is missing or disqualified, return an explicit unavailable
-    # result rather than inventing a probability (PRD v4.7 §17.3).
-    scorer = SusceptibilityScorer(random_state=42)
-    if not scorer.load_checkpoint():
+    # Load the gate-evaluated spatial checkpoint. Runtime training is
+    # prohibited — if the checkpoint is missing or disqualified, return an
+    # explicit unavailable result (PRD v4.7 §17.3).
+    scorer = SusceptibilityScorer(
+        random_state=42, feature_names=SPATIAL_FEATURE_NAMES,
+    )
+    if not scorer.load_checkpoint(SPATIAL_CHECKPOINT_PATH):
         return {
             "is_available": False,
             "reason": (
@@ -209,6 +214,14 @@ def _compute_shadow_susceptibility(
     result = scorer.predict(features)
     out = result.to_dict()
     out["is_available"] = True
+    out["model"] = "xgboost_susceptibility_spatial (measured features)"
+
+    from siren.ml.promotion import is_promoted, promotion_record
+    promoted = is_promoted("susceptibility")
+    out["promoted"] = promoted
+    out["is_shadow"] = not promoted
+    if promoted:
+        out["promotion"] = promotion_record("susceptibility")
     return out
 
 

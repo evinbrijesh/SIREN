@@ -295,6 +295,12 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
                 stats.get("shadow_evidence", {}).get("dynamic_escalation")
                 if isinstance(stats.get("shadow_evidence"), dict) else None
             ),
+            # Breach susceptibility prior (promoted advisory — the static
+            # "which lake" score feeding the escalation prior + FNO gate)
+            "susceptibility": (
+                stats.get("shadow_evidence", {}).get("susceptibility")
+                if isinstance(stats.get("shadow_evidence"), dict) else None
+            ),
         }
 
     # POST /runs/{run_id}/review

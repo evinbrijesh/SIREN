@@ -184,9 +184,9 @@ class DynamicEscalationScorer:
         self, p_dynamic: float, p_static: float | None,
     ) -> dict[str, float | None]:
         """Odds-update the static prior by the dynamic likelihood ratio."""
-        if p_static is None or not (0.0 < p_static < 1.0):
+        if p_static is None:
             return {"p_posterior": None}
-        eps = 1e-4
+        eps = 1e-4  # isotonic calibration saturates to 0/1 — clip into the open interval
         p_dyn = float(np.clip(p_dynamic, eps, 1 - eps))
         p_sta = float(np.clip(p_static, eps, 1 - eps))
         base = float(np.clip(self._base_rate, eps, 1 - eps))
@@ -255,9 +255,12 @@ def _imja_window_features(obs_date: str, obs_config: dict) -> dict:
     series (mdd_30 only) + observation rainfall fields. Features with
     no offline source stay None — flagged ``degraded``, never fabricated.
     """
-    end = date.fromisoformat(obs_date[:10])
+    try:
+        end = date.fromisoformat(obs_date[:10])
+    except ValueError:
+        end = None
 
-    if POWER_SERIES_PATH.exists():
+    if end is not None and POWER_SERIES_PATH.exists():
         try:
             from siren.ml.dataset_dynamic_escalation import (
                 _window_features,

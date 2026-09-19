@@ -1,0 +1,16 @@
+{
+  "checkpoint": "xgboost_susceptibility_spatial.json",
+  "features": [
+    "lake_elev_m",
+    "log_lake_area_km2",
+    "log_dist_glacier_m",
+    "log_glacier_area_10km"
+  ],
+  "evaluation_valid": true,
+  "inference_allowed": true,
+  "roc_auc_cv": 0.792,
+  "brier_score_cv": 0.085,
+  "brier_score_cv_raw": 0.157,
+  "protocol": "spherical-KMeans spatial blocks + GroupKFold; isotonic OOF calibration is part of the declared model (raw probabilities are scale_pos_weight-inflated)",
+  "gate": "Brier < 0.15 on calibrated score \u2014 PASS (0.085)"
+}

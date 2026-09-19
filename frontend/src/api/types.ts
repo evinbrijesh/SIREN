@@ -174,6 +174,24 @@ export interface MlEvidence {
    *  (is_shadow=false when promoted); null when the scorer is
    *  unavailable for the run. */
   dynamic_escalation: DynamicEscalationResult | null;
+  /** Static breach-susceptibility prior (promoted advisory) — the
+   *  "which lake" score feeding the escalation prior and FNO gate. */
+  susceptibility: SusceptibilityResult | null;
+}
+
+export interface SusceptibilityResult {
+  is_available: boolean;
+  promoted?: boolean;
+  is_shadow?: boolean;
+  p_breach?: number;
+  interval_low?: number;
+  interval_high?: number;
+  interval_width?: number;
+  requires_manual_inspection?: boolean;
+  is_calibrated?: boolean;
+  brier_score?: number | null;
+  reasons?: string[];
+  model?: string;
 }
 
 export interface DynamicEscalationResult {

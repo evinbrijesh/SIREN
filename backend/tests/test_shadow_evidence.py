@@ -75,21 +75,27 @@ def test_attach_shadow_evidence_is_marked_shadow():
     obs_config = _make_obs_config()
     shadow = attach_shadow_evidence(change_stats, obs_config, 5.0, 30.0)
     assert shadow["is_shadow"] is True
-    assert shadow["gate_status"] == "shadow_only"
+    # Promoted components (susceptibility, dynamic_escalation) are
+    # advisory-primary — the dict-level status reflects the mix.
+    assert shadow["gate_status"] == "component_promotion"
+    assert "promoted_components" in shadow
     assert "note" in shadow
 
 
 def test_attach_shadow_evidence_includes_susceptibility():
-    """Shadow evidence includes susceptibility (unavailable when disqualified)."""
+    """Shadow evidence includes the promoted spatial susceptibility score."""
     change_stats = _make_change_stats()
     obs_config = _make_obs_config()
     shadow = attach_shadow_evidence(change_stats, obs_config, 5.0, 30.0)
     assert "susceptibility" in shadow
     sus = shadow["susceptibility"]
-    # The XGBoost checkpoint is disqualified (PRD v4.7 §17.3) — susceptibility
-    # is reported as unavailable without a fabricated p_breach.
-    assert sus["is_available"] is False
-    assert "p_breach" not in sus
+    # The gate-evaluated spatial checkpoint (measured features) loads —
+    # susceptibility is promoted advisory evidence (PROMOTED_COMPONENTS).
+    assert sus["is_available"] is True
+    assert sus["promoted"] is True
+    assert sus["is_shadow"] is False
+    assert isinstance(sus["p_breach"], float)
+    assert "susceptibility" in shadow["promoted_components"]
 
 
 def test_attach_shadow_evidence_includes_hand():
@@ -121,18 +127,23 @@ def test_attach_shadow_evidence_includes_hydro_surrogate():
     assert "hydro_surrogate" in shadow
 
 
-def test_attach_shadow_evidence_fno_not_triggered_low_p_breach():
-    """FNO is not triggered when susceptibility is unavailable (disqualified)."""
-    change_stats = _make_change_stats(expansion_pct=5.0)  # low expansion
+def test_attach_shadow_evidence_fno_triggered_but_fails_closed():
+    """Promoted susceptibility triggers the FNO gate; FNO fails closed.
+
+    The spatial model scores Imja above the 0.70 trigger — the trigger
+    fires, but the FNO returns a disqualified/unavailable result rather
+    than fabricating hydrodynamics (no valid real-terrain checkpoint).
+    """
+    change_stats = _make_change_stats(expansion_pct=5.0)
     obs_config = _make_obs_config(expansion_pct=5.0)
     shadow = attach_shadow_evidence(change_stats, obs_config, 2.0, 10.0)
     hydro = shadow["hydro_surrogate"]
     sus = shadow["susceptibility"]
-    # Susceptibility is unavailable (disqualified checkpoint) — FNO trigger
-    # gate requires a valid P_breach, so FNO is not triggered.
-    assert sus["is_available"] is False
-    assert hydro["is_triggered"] is False
+    assert sus["is_available"] is True
+    assert hydro["is_triggered"] is True
+    # FNO must not fabricate — disqualified checkpoint → unavailable
     assert hydro["is_available"] is False
+    assert hydro["status"] == "disqualified"
 
 
 def test_attach_shadow_evidence_does_not_modify_hazard():
@@ -159,33 +170,39 @@ def test_attach_shadow_evidence_handles_errors_gracefully():
 # --------------------------------------------------------------------------- #
 
 def test_compute_shadow_susceptibility_returns_dict():
-    """_compute_shadow_susceptibility returns an unavailable dict (disqualified)."""
+    """_compute_shadow_susceptibility returns the promoted spatial score."""
     change_stats = _make_change_stats()
     obs_config = _make_obs_config()
     result = _compute_shadow_susceptibility(change_stats, obs_config, 30.0)
     assert isinstance(result, dict)
-    assert result["is_available"] is False
-    assert "p_breach" not in result
+    assert result["is_available"] is True
+    assert result["model"] == "xgboost_susceptibility_spatial (measured features)"
+    assert 0.0 <= result["p_breach"] <= 1.0
 
 
-def test_compute_shadow_susceptibility_high_expansion_high_p_breach():
-    """Both high and low expansion return unavailable (disqualified checkpoint)."""
+def test_compute_shadow_susceptibility_static_prior():
+    """Static morphometric prior is identical for high and low expansion.
+
+    The spatial model's features are measured lake statics — expansion
+    is the dynamic_escalation component's job, not this one's.
+    """
     change_stats_low = _make_change_stats(expansion_pct=5.0)
     change_stats_high = _make_change_stats(expansion_pct=50.0)
     obs_config = _make_obs_config()
     result_low = _compute_shadow_susceptibility(change_stats_low, obs_config, 10.0)
     result_high = _compute_shadow_susceptibility(change_stats_high, obs_config, 10.0)
-    assert result_low["is_available"] is False
-    assert result_high["is_available"] is False
+    assert result_low["is_available"] is True
+    assert result_high["is_available"] is True
+    assert result_low["p_breach"] == result_high["p_breach"]
 
 
 def test_compute_shadow_susceptibility_includes_reasons():
-    """Susceptibility result includes a reason when unavailable (disqualified)."""
+    """Promoted susceptibility result includes SHAP reasons."""
     change_stats = _make_change_stats()
     obs_config = _make_obs_config()
     result = _compute_shadow_susceptibility(change_stats, obs_config, 30.0)
-    assert "reason" in result
-    assert len(result["reason"]) > 0
+    assert "reasons" in result
+    assert len(result["reasons"]) >= 3
 
 
 # --------------------------------------------------------------------------- #

@@ -85,5 +85,7 @@
     1.0
   ],
   "apply": "p_cal = np.interp(p_raw, x_thresholds, y_thresholds)",
-  "note": "raw booster probabilities are intercept-inflated by scale_pos_weight; apply this mapping before using p as a calibrated probability"
+  "note": "raw booster probabilities are intercept-inflated by scale_pos_weight; apply this mapping before using p as a calibrated probability",
+  "conformal_q": 0.8192771084337349,
+  "conformal_note": "95% split-conformal on OOF calibrated preds"
 }

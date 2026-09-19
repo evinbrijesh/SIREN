@@ -41,6 +41,20 @@ DEFAULT_CHECKPOINT_PATH = (
     Path(__file__).resolve().parents[3] / "models" / "checkpoints" / "xgboost_susceptibility_v1.json"
 )
 
+# Gate-evaluated spatial model (siren.ml.train_susceptibility_spatial):
+# 4 measured, non-label-contaminated features; spatial-block GroupKFold
+# eval; isotonic OOF calibration. This is the declared susceptibility
+# model — v1/v2 are disqualified (label-conditioned generated features).
+SPATIAL_CHECKPOINT_PATH = (
+    Path(__file__).resolve().parents[3] / "models" / "checkpoints" / "xgboost_susceptibility_spatial.json"
+)
+SPATIAL_FEATURE_NAMES: tuple[str, ...] = (
+    "lake_elev_m",
+    "log_lake_area_km2",
+    "log_dist_glacier_m",
+    "log_glacier_area_10km",
+)
+
 # SHA-256 hashes of disqualified XGBoost checkpoints (PRD v4.7 §17.3).
 # A contaminated checkpoint cannot be promoted by renaming or editing the
 # sidecar — the content hash identifies the weights themselves.
@@ -148,6 +162,8 @@ class SusceptibilityScorer:
         self.feature_names = feature_names
         self._model: Any = None  # xgboost.XGBClassifier
         self._calibrator: Any = None  # sklearn IsotonicRegression
+        self._iso_x: np.ndarray | None = None  # isotonic thresholds (sidecar)
+        self._iso_y: np.ndarray | None = None
         self._calibration_q: float | None = None  # conformal quantile
         self._brier_score: float | None = None
         self._brier_score_raw: float | None = None  # pre-calibration Brier
@@ -254,6 +270,8 @@ class SusceptibilityScorer:
         p_raw = self._model.predict_proba(X)[:, 1]
         if self._calibrator is not None:
             return self._calibrator.transform(p_raw)
+        if self._iso_x is not None and self._iso_y is not None:
+            return np.interp(p_raw, self._iso_x, self._iso_y)
         return p_raw
 
     def load_checkpoint(
@@ -314,11 +332,28 @@ class SusceptibilityScorer:
             self._model.load_model(str(checkpoint_path))
             self._is_trained = True
 
+            # Calibration sidecar (spatial trainer writes thresholds;
+            # np.interp-reconstructable — no sklearn pickle needed).
+            cal_path = checkpoint_path.with_suffix(".calibration.json")
+            if cal_path.exists():
+                cal = json.loads(cal_path.read_text())
+                iso = cal.get("isotonic", cal)
+                if iso.get("x_thresholds") and iso.get("y_thresholds"):
+                    self._iso_x = np.asarray(iso["x_thresholds"])
+                    self._iso_y = np.asarray(iso["y_thresholds"])
+                    self._is_isotonic_calibrated = True
+                    self._is_calibrated = True
+                if cal.get("conformal_q") is not None:
+                    self._calibration_q = float(cal["conformal_q"])
+
             if metadata_path.exists():
                 meta = json.loads(metadata_path.read_text())
                 self._brier_score = meta.get("brier_score_cv")
-                self._calibration_q = meta.get("calibration_q")
-                self._is_calibrated = self._calibration_q is not None
+                if meta.get("calibration_q") is not None:
+                    self._calibration_q = meta.get("calibration_q")
+                self._is_calibrated = self._is_calibrated or (
+                    self._calibration_q is not None
+                )
                 logger.info(
                     "Susceptibility checkpoint loaded: Brier=%.4f, AUC=%s, conformal_q=%.4f",
                     self._brier_score or 0.0,
@@ -338,6 +373,8 @@ class SusceptibilityScorer:
         """Clear all model and calibration state."""
         self._model = None
         self._calibrator = None
+        self._iso_x = None
+        self._iso_y = None
         self._calibration_q = None
         self._brier_score = None
         self._brier_score_raw = None

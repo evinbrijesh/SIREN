@@ -58,6 +58,46 @@ PROMOTED_COMPONENTS: dict[str, dict[str, Any]] = {
         "promoted_at": "2026-09-19",
         "reversible": True,
     },
+    # Gate-evaluated 2026-09-18 (leakage-free rebuild): 4 measured features
+    # (ICIMOD elevation/area, RGI v7 glacier distance + 10km context),
+    # deduplicated breach events, spatial-block GroupKFold. Mean AUC 0.792;
+    # the DECLARED model is booster + isotonic (OOF-calibrated) — raw
+    # probabilities are scale_pos_weight-inflated (Brier 0.157), calibrated
+    # Brier 0.085 passes the <0.15 gate. External validation: Imja raw 0.963
+    # / 99.8th percentile out-of-sample; Thulagi + Thorthormi are misses.
+    "susceptibility": {
+        "checkpoint": "xgboost_susceptibility_spatial.json",
+        "calibration": "isotonic_crossfit_oof",
+        "evidence_method": "calibrated p_breach — static prior for the "
+                           "escalation scorer and the FNO trigger gate",
+        "gate": "Brier < 0.15 on calibrated score (ADR-013 / PRD §9.8)",
+        "gate_evidence": [
+            "models/checkpoints/xgboost_spatial_cv_report.json",
+            "models/checkpoints/pdgl_external_validation.json",
+        ],
+        "scope": {
+            "signal": (
+                "static per-lake breach susceptibility — which lakes are "
+                "dangerous, not when; temporal escalation is the "
+                "dynamic_escalation component's job"
+            ),
+            "features": "measured only (ICIMOD + RGI v7); no generated "
+                        "or label-contaminated features",
+        },
+        "union_policy": (
+            "advisory prior — feeds dynamic_escalation's "
+            "combine_with_static and the FNO trigger gate; does not "
+            "change deterministic severity or bypass the human gate"
+        ),
+        "caveat": (
+            "conformal interval is wide (q=0.82 on OOF residuals) — "
+            "requires_manual_inspection is expected; Thulagi and "
+            "Thorthormi are external-validation misses (dam geometry "
+            "not in feature set)"
+        ),
+        "promoted_at": "2026-09-19",
+        "reversible": True,
+    },
     # Gate-evaluated 2026-09-18: spatio-temporal holdout (5 spatial blocks,
     # post-2015 events only) on 887 real windows — 230 dated GLOF events +
     # 657 negatives (stable-lake AND within-lake controls) — mean ROC-AUC
