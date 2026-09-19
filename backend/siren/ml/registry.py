@@ -169,6 +169,47 @@ def get_model_status() -> dict[str, Any]:
         "gate": ks_metadata.get("gate", {}) if ks_metadata else None,
     }
 
+    # --- Promoted component: Himalayan adapter expansion evidence ---
+    # ADR-014-am1 (2026-09-19, owner-directed): the Δp expansion product
+    # of the label-refined v2 adapter is promoted to primary expansion
+    # evidence under the union policy — deterministic change evidence
+    # stays live as the labeled cross-check. Per-date extent masks of
+    # the same checkpoint remain unqualified shadow evidence.
+    try:
+        from siren.ml.promotion import (
+            is_promoted,
+            promotion_record,
+        )
+        exp_rec = (
+            promotion_record("sar_segmentation_expansion")
+            if is_promoted("sar_segmentation_expansion") else None
+        )
+    except ImportError:
+        exp_rec = None
+    if exp_rec is not None:
+        ckpt = CHECKPOINTS_DIR / exp_rec["checkpoint"]
+        models["himalayan_adapter_labelrefined_v2"] = {
+            "stage": 3,
+            "name": "Himalayan adapter v2 — Δp expansion evidence",
+            "loaded": ckpt.exists(),
+            "weights_path": str(ckpt),
+            "weights_exists": ckpt.exists(),
+            "weights_size_mb": round(ckpt.stat().st_size / 1e6, 1) if ckpt.exists() else 0,
+            "description": (
+                "Promoted expansion evidence (ADR-014-am1): "
+                "(p1>=0.5)&(p1-p0>=0.2) within monitorable-lake vicinity "
+                "on ro-121 desc unfrozen pairs. Union policy: "
+                "deterministic change stays live as labeled cross-check. "
+                "Extent masks remain shadow. Caveat: thin verified-change "
+                "truth (~30-50px/eval) — see ml/promotion.py."
+            ),
+            "status": "promoted_component",
+            "promoted_component": "sar_segmentation_expansion",
+            "promotion": exp_rec,
+            "inference_allowed": True,
+            "evaluation_valid": True,
+        }
+
     # --- Disqualified checkpoints (PRD v4.7 §17.3) ---
     # These remain on disk for audit history but must not be promoted.
     for entry in DISQUALIFIED_CHECKPOINTS:

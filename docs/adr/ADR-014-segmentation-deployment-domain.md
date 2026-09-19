@@ -217,6 +217,19 @@ monitorable lakes):
 cross-season 29–41%, AOI SCL ~7%) consistently rank **v2+Δp first** —
 directionally consistent but thin truth everywhere (~30–50 verified
 px per eval). The verified-change evidence has hit the ceiling of the
-current data window; promotion is an owner call on the thin-evidence
-caveat, or waits for a future in-domain event at a monitorable lake.
-Promotion procedure documented in the session notes (2026-09-19).
+current data window.
+
+### Promotion executed (2026-09-19, owner-directed)
+
+The owner accepted the thin-evidence caveat: **`sar_segmentation_expansion`
+is promoted** under the union policy — `expansion_dp` is the primary
+expansion evidence within monitorable-lake vicinity on ro-121 desc
+unfrozen pairs; deterministic change evidence stays live as the
+labeled cross-check and material disagreement in either direction
+surfaces as a review reason. Per-date extent masks of the same
+checkpoint remain unqualified shadow. Machine-readable declaration:
+`ml/promotion.py`; runtime wiring in `pipeline.py` (union stats +
+promotion provenance in `change_stats`); registry status
+`promoted_component`. Reversible per §17.2 — a regressing gate on
+new held-out data demotes it. First real DL-primary component in the
+system.

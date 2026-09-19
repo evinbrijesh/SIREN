@@ -409,3 +409,25 @@ in-domain event at a monitorable lake corroborates):
 3. Audit lineage: gate evidence persisted at promotion time.
 4. Reversible: a regressing gate on new held-out data demotes back
    automatically (spec §17.2).
+
+## Promotion executed (2026-09-19, owner-directed)
+
+Owner accepted the thin-evidence caveat — `sar_segmentation_expansion`
+promoted under the union policy:
+
+- `ml/promotion.py` — machine-readable promotion declaration
+  (component, checkpoint, evidence method, scope, gate refs, union
+  policy, caveat, reversibility).
+- `pipeline.py` — primary evidence mask = `expansion_dp`; union stats
+  (expansion_union/neural_only/rule_only px+km2) + promotion
+  provenance persisted to `change_stats`; consensus_mask stays the
+  deterministic rule mask (extent unchanged); cross_check verdict
+  unchanged mechanism, now compares the promoted Δp evidence vs rule.
+- `registry.py` — `himalayan_adapter_labelrefined_v2` status
+  `promoted_component` with the full promotion record.
+- Tests: dp-mask invariants + promotion registry assertions
+  (88 backend tests pass).
+
+First real DL-primary component. Reversible per §17.2. The union
+policy means the detection floor is the deterministic path — neural
+near-zero FP + deterministic recall together.

@@ -397,7 +397,17 @@ def _try_ml_evidence_layer(
         # segmenter sees Imja at BOTH dates, so expansion alone is ~empty
         # — the review card needs water_t1 (extent) alongside the delta.
         ml_state = engine.predict_state_and_change(t0_db, t1_db)
-        ml_mask = ml_state["expansion"]           # keeps shadow semantics
+        # ADR-014-am1 promotion: when the expansion component is
+        # promoted, the primary evidence mask is the Δp expansion —
+        # the gate-evaluated contract. The binary extent-difference
+        # mask stays recorded alongside for the audit trail.
+        from siren.ml.promotion import is_promoted, promotion_record
+
+        _exp_promoted = is_promoted("sar_segmentation_expansion")
+        ml_mask = (
+            ml_state["expansion_dp"] if _exp_promoted
+            else ml_state["expansion"]
+        )
         ml_water_t1 = ml_state["water_t1"]
         ml_drainage = ml_state["drainage"]
 
@@ -540,6 +550,34 @@ def _try_ml_evidence_layer(
                 gate_stats["cross_check"] = evaluate_overlap(
                     ml_mask, rule_on_sar
                 )
+
+                # Union-policy expansion evidence (ADR-014-am1): the
+                # promoted neural Δp mask and the deterministic mask are
+                # complementary detectors — the union records the combined
+                # evidence and per-source contributions; disagreement in
+                # either direction stays visible via cross_check above.
+                if _exp_promoted:
+                    union = ml_mask | rule_on_sar
+                    gate_stats["expansion_union_px"] = int(union.sum())
+                    gate_stats["expansion_union_km2"] = round(
+                        union.sum() * px_area_m2 / 1e6, 3
+                    )
+                    gate_stats["expansion_neural_only_px"] = int(
+                        (ml_mask & ~rule_on_sar).sum()
+                    )
+                    gate_stats["expansion_rule_only_px"] = int(
+                        (rule_on_sar & ~ml_mask).sum()
+                    )
+                    gate_stats["ml_expansion_binary_px"] = int(
+                        ml_state["expansion"].sum()
+                    )
+                    gate_stats["promotion"] = {
+                        "component": "sar_segmentation_expansion",
+                        "method": "neural_primary_union_deterministic",
+                        "evidence": promotion_record(
+                            "sar_segmentation_expansion"
+                        ),
+                    }
         except Exception as exc:
             logger.warning(f"Shadow-mask terrain gating failed: {exc}")
 
@@ -867,6 +905,9 @@ def run_pipeline(
             "ml_water_extent_px", "ml_water_extent_km2",
             "ml_expansion_km2", "ml_drainage_px", "ml_drainage_km2",
             "ml_sar_grid_bounds",
+            "expansion_union_px", "expansion_union_km2",
+            "expansion_neural_only_px", "expansion_rule_only_px",
+            "ml_expansion_binary_px", "promotion",
         ):
             if key in ml_evidence and ml_evidence[key] is not None:
                 change_stats[key] = ml_evidence[key]

@@ -922,3 +922,48 @@ def test_risk_fusion_reasons_have_no_ml_term() -> None:
         assert "confidence" not in reason.lower(), f"Reason references confidence: {reason}"
     # Must have exactly 5 reasons (one per physical factor)
     assert len(reasons) == 5
+
+
+def test_state_and_change_includes_expansion_dp(tmp_path) -> None:
+    """ADR-014-am1: predict_state_and_change emits the Δp expansion
+    variant alongside the binary mask — the gate-evaluated contract
+    (p1>=0.5)&(p1-p0>=0.2), catching sub-pixel footprint growth."""
+    try:
+        import torch
+    except ImportError:
+        pytest.skip("torch not installed")
+
+    from siren.ml.engine import ChangeDetectionEngine
+    from siren.ml.model import WaterUNet
+
+    wpath = tmp_path / "w.pt"
+    torch.save({"state_dict": WaterUNet(in_channels=2).state_dict(),
+                "in_channels": 2}, str(wpath))
+    engine = ChangeDetectionEngine(weights_path=wpath, device="cpu")
+
+    t0 = np.random.RandomState(3).randn(2, 48, 48).astype(np.float32) * 20 - 15
+    t1 = np.random.RandomState(4).randn(2, 48, 48).astype(np.float32) * 20 - 15
+    state = engine.predict_state_and_change(t0, t1)
+    assert "expansion_dp" in state
+    assert state["expansion_dp"].dtype == np.uint8
+    assert state["expansion_dp"].shape == (48, 48)
+    # Identical inputs: no probability rise -> empty dp expansion
+    same = engine.predict_state_and_change(t0, t0)
+    assert same["expansion_dp"].sum() == 0
+    # dp expansion is a subset of confident t1 water
+    assert not (state["expansion_dp"] & ~state["water_t1"]).any()
+
+
+def test_promotion_registry_declares_expansion_component() -> None:
+    """ADR-014-am1: the expansion component is promoted with the union
+    policy and the dp evidence method recorded for audit."""
+    from siren.ml.promotion import is_promoted, promotion_record
+
+    assert is_promoted("sar_segmentation_expansion")
+    rec = promotion_record("sar_segmentation_expansion")
+    assert rec is not None
+    assert rec["evidence_method"] == "expansion_dp"
+    assert rec["gate"] == "ADR-014-am1"
+    assert rec["reversible"] is True
+    assert "deterministic" in rec["union_policy"]
+    assert not is_promoted("nonexistent_component")
