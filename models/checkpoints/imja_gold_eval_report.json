@@ -1,6 +1,9 @@
 {
- "experiment": "adapter scoring vs hand-verified Imja gold labels",
- "truth_tier": "gold NDWI>0.15 hand-verified labels \u2014 above SCL and inventory median outlines (ADR-014)",
+ "experiment": "adapter scoring vs hand-verified + auto Imja labels",
+ "truth_tiers": {
+  "gold": "hand-verified NDWI>0.15 (tier 1)",
+  "auto": "unverified inventory+200m NDWI (tier 2)"
+ },
  "pairs": [
   {
    "pair": "unfrozen_desc",
@@ -10,277 +13,341 @@
     "20260819": "imja_gold_label_20260824.tif",
     "20260912": "imja_gold_label_20260908.tif"
    },
+   "auto_labels": {},
    "checkpoints": {
     "kuro_siwo_base": {
      "0.3": {
-      "t1": {
+      "gold_t1": {
        "gold_iou": 0.418,
        "gold_precision": 0.4693,
+       "gold_precision_tol1px": 0.5307,
+       "gold_precision_tol2px": 0.5482,
        "gold_recall": 0.7926,
        "gold_valid_coverage": 0.6532,
        "gold_px": 135
       },
-      "t0": {
+      "gold_t0": {
        "gold_iou": 0.381,
        "gold_precision": 0.5161,
+       "gold_precision_tol1px": 0.6667,
+       "gold_precision_tol2px": 0.7634,
        "gold_recall": 0.5926,
        "gold_valid_coverage": 0.5968,
        "gold_px": 81
-      }
-     },
-     "0.4": {
-      "t1": {
-       "gold_iou": 0.4378,
-       "gold_precision": 0.5367,
-       "gold_recall": 0.7037,
+      },
+      "gold_change": {
+       "expansion_px_in_scope": 114,
+       "fp_vs_gold_t1": 94,
+       "tp_vs_gold_change": 6,
+       "gold_change_px": 32,
+       "scope_valid_frac": 0.5563
+      },
+      "auto_t1": null,
+      "auto_t0": null,
+      "auto_change": null
+     }
+    },
+    "himalayan_adapter": {
+     "0.3": {
+      "gold_t1": {
+       "gold_iou": 0.5632,
+       "gold_precision": 0.7153,
+       "gold_precision_tol1px": 0.7737,
+       "gold_precision_tol2px": 0.8248,
+       "gold_recall": 0.7259,
        "gold_valid_coverage": 0.6532,
        "gold_px": 135
       },
-      "t0": {
-       "gold_iou": 0.3636,
-       "gold_precision": 0.5797,
-       "gold_recall": 0.4938,
+      "gold_t0": {
+       "gold_iou": 0.4797,
+       "gold_precision": 0.5145,
+       "gold_precision_tol1px": 0.6739,
+       "gold_precision_tol2px": 0.7826,
+       "gold_recall": 0.8765,
        "gold_valid_coverage": 0.5968,
        "gold_px": 81
-      }
-     },
-     "0.5": {
-      "t1": {
-       "gold_iou": 0.4652,
-       "gold_precision": 0.6259,
-       "gold_recall": 0.6444,
+      },
+      "gold_change": {
+       "expansion_px_in_scope": 9,
+       "fp_vs_gold_t1": 1,
+       "tp_vs_gold_change": 6,
+       "gold_change_px": 32,
+       "scope_valid_frac": 0.5563
+      },
+      "auto_t1": null,
+      "auto_t0": null,
+      "auto_change": null
+     }
+    },
+    "himalayan_adapter_labelrefined": {
+     "0.3": {
+      "gold_t1": {
+       "gold_iou": 0.565,
+       "gold_precision": 0.7042,
+       "gold_precision_tol1px": 0.7817,
+       "gold_precision_tol2px": 0.831,
+       "gold_recall": 0.7407,
        "gold_valid_coverage": 0.6532,
        "gold_px": 135
       },
-      "t0": {
-       "gold_iou": 0.3398,
-       "gold_precision": 0.614,
-       "gold_recall": 0.4321,
+      "gold_t0": {
+       "gold_iou": 0.4861,
+       "gold_precision": 0.5263,
+       "gold_precision_tol1px": 0.6842,
+       "gold_precision_tol2px": 0.7895,
+       "gold_recall": 0.8642,
        "gold_valid_coverage": 0.5968,
        "gold_px": 81
-      }
-     },
-     "0.55": {
-      "t1": {
-       "gold_iou": 0.4914,
-       "gold_precision": 0.6825,
-       "gold_recall": 0.637,
+      },
+      "gold_change": {
+       "expansion_px_in_scope": 4,
+       "fp_vs_gold_t1": 0,
+       "tp_vs_gold_change": 3,
+       "gold_change_px": 32,
+       "scope_valid_frac": 0.5563
+      },
+      "auto_t1": null,
+      "auto_t0": null,
+      "auto_change": null
+     }
+    },
+    "himalayan_adapter_labelrefined_v2": {
+     "0.3": {
+      "gold_t1": {
+       "gold_iou": 0.5773,
+       "gold_precision": 0.655,
+       "gold_precision_tol1px": 0.7895,
+       "gold_precision_tol2px": 0.8421,
+       "gold_recall": 0.8296,
        "gold_valid_coverage": 0.6532,
        "gold_px": 135
       },
-      "t0": {
-       "gold_iou": 0.301,
-       "gold_precision": 0.5849,
-       "gold_recall": 0.3827,
+      "gold_t0": {
+       "gold_iou": 0.4023,
+       "gold_precision": 0.4294,
+       "gold_precision_tol1px": 0.5767,
+       "gold_precision_tol2px": 0.7239,
+       "gold_recall": 0.8642,
        "gold_valid_coverage": 0.5968,
        "gold_px": 81
+      },
+      "gold_change": {
+       "expansion_px_in_scope": 15,
+       "fp_vs_gold_t1": 3,
+       "tp_vs_gold_change": 8,
+       "gold_change_px": 32,
+       "scope_valid_frac": 0.5563
+      },
+      "auto_t1": null,
+      "auto_t0": null,
+      "auto_change": null
+     }
+    },
+    "himalayan_adapter_stratified": {
+     "0.3": {
+      "gold_t1": {
+       "gold_iou": 0.6467,
+       "gold_precision": 0.7083,
+       "gold_precision_tol1px": 0.7798,
+       "gold_precision_tol2px": 0.8214,
+       "gold_recall": 0.8815,
+       "gold_valid_coverage": 0.6532,
+       "gold_px": 135
+      },
+      "gold_t0": {
+       "gold_iou": 0.4724,
+       "gold_precision": 0.4843,
+       "gold_precision_tol1px": 0.6541,
+       "gold_precision_tol2px": 0.761,
+       "gold_recall": 0.9506,
+       "gold_valid_coverage": 0.5968,
+       "gold_px": 81
+      },
+      "gold_change": {
+       "expansion_px_in_scope": 2,
+       "fp_vs_gold_t1": 1,
+       "tp_vs_gold_change": 1,
+       "gold_change_px": 32,
+       "scope_valid_frac": 0.5563
+      },
+      "auto_t1": null,
+      "auto_t0": null,
+      "auto_change": null
+     }
+    }
+   }
+  },
+  {
+   "pair": "unfrozen_desc2",
+   "t0": "20260726",
+   "t1": "20260807",
+   "gold_labels": {},
+   "auto_labels": {
+    "20260726": "S2B_MSIL2A_20260725T044659_N0512_R076_T45RVL_20260725T083358.zip",
+    "20260807": "S2A_MSIL2A_20260811T045241_N0512_R076_T45RVL_20260811T100012.SAFE.zip"
+   },
+   "checkpoints": {
+    "kuro_siwo_base": {
+     "0.3": {
+      "gold_t1": null,
+      "gold_t0": null,
+      "gold_change": null,
+      "auto_t1": {
+       "auto_iou": 0.6071,
+       "auto_precision": 0.9189,
+       "auto_precision_tol1px": 0.973,
+       "auto_precision_tol2px": 1.0,
+       "auto_recall": 0.6415,
+       "auto_valid_coverage": 0.1161,
+       "auto_px": 53
+      },
+      "auto_t0": {
+       "auto_iou": 0.3137,
+       "auto_precision": 0.4848,
+       "auto_precision_tol1px": 0.8939,
+       "auto_precision_tol2px": 0.9848,
+       "auto_recall": 0.4706,
+       "auto_valid_coverage": 0.1988,
+       "auto_px": 68
+      },
+      "auto_change": {
+       "expansion_px_in_scope": 7,
+       "fp_vs_auto_t1": 1,
+       "tp_vs_auto_change": 1,
+       "auto_change_px": 24,
+       "scope_valid_frac": 0.0955
       }
      }
     },
     "himalayan_adapter": {
      "0.3": {
-      "t1": {
-       "gold_iou": 0.5632,
-       "gold_precision": 0.7153,
-       "gold_recall": 0.7259,
-       "gold_valid_coverage": 0.6532,
-       "gold_px": 135
+      "gold_t1": null,
+      "gold_t0": null,
+      "gold_change": null,
+      "auto_t1": {
+       "auto_iou": 0.6452,
+       "auto_precision": 0.8163,
+       "auto_precision_tol1px": 0.9184,
+       "auto_precision_tol2px": 0.9796,
+       "auto_recall": 0.7547,
+       "auto_valid_coverage": 0.1161,
+       "auto_px": 53
       },
-      "t0": {
-       "gold_iou": 0.4797,
-       "gold_precision": 0.5145,
-       "gold_recall": 0.8765,
-       "gold_valid_coverage": 0.5968,
-       "gold_px": 81
-      }
-     },
-     "0.4": {
-      "t1": {
-       "gold_iou": 0.4201,
-       "gold_precision": 0.6762,
-       "gold_recall": 0.5259,
-       "gold_valid_coverage": 0.6532,
-       "gold_px": 135
+      "auto_t0": {
+       "auto_iou": 0.4338,
+       "auto_precision": 0.4646,
+       "auto_precision_tol1px": 0.8425,
+       "auto_precision_tol2px": 0.9528,
+       "auto_recall": 0.8676,
+       "auto_valid_coverage": 0.1988,
+       "auto_px": 68
       },
-      "t0": {
-       "gold_iou": 0.4859,
-       "gold_precision": 0.5308,
-       "gold_recall": 0.8519,
-       "gold_valid_coverage": 0.5968,
-       "gold_px": 81
-      }
-     },
-     "0.5": {
-      "t1": {
-       "gold_iou": 0.1988,
-       "gold_precision": 0.5156,
-       "gold_recall": 0.2444,
-       "gold_valid_coverage": 0.6532,
-       "gold_px": 135
-      },
-      "t0": {
-       "gold_iou": 0.488,
-       "gold_precision": 0.581,
-       "gold_recall": 0.7531,
-       "gold_valid_coverage": 0.5968,
-       "gold_px": 81
-      }
-     },
-     "0.55": {
-      "t1": {
-       "gold_iou": 0.1481,
-       "gold_precision": 0.4706,
-       "gold_recall": 0.1778,
-       "gold_valid_coverage": 0.6532,
-       "gold_px": 135
-      },
-      "t0": {
-       "gold_iou": 0.4836,
-       "gold_precision": 0.59,
-       "gold_recall": 0.7284,
-       "gold_valid_coverage": 0.5968,
-       "gold_px": 81
+      "auto_change": {
+       "expansion_px_in_scope": 1,
+       "fp_vs_auto_t1": 1,
+       "tp_vs_auto_change": 0,
+       "auto_change_px": 24,
+       "scope_valid_frac": 0.0955
       }
      }
     },
     "himalayan_adapter_labelrefined": {
      "0.3": {
-      "t1": {
-       "gold_iou": 0.565,
-       "gold_precision": 0.7042,
-       "gold_recall": 0.7407,
-       "gold_valid_coverage": 0.6532,
-       "gold_px": 135
+      "gold_t1": null,
+      "gold_t0": null,
+      "gold_change": null,
+      "auto_t1": {
+       "auto_iou": 0.7344,
+       "auto_precision": 0.8103,
+       "auto_precision_tol1px": 0.9138,
+       "auto_precision_tol2px": 0.9655,
+       "auto_recall": 0.8868,
+       "auto_valid_coverage": 0.1161,
+       "auto_px": 53
       },
-      "t0": {
-       "gold_iou": 0.4861,
-       "gold_precision": 0.5263,
-       "gold_recall": 0.8642,
-       "gold_valid_coverage": 0.5968,
-       "gold_px": 81
+      "auto_t0": {
+       "auto_iou": 0.5116,
+       "auto_precision": 0.5197,
+       "auto_precision_tol1px": 0.8583,
+       "auto_precision_tol2px": 0.9528,
+       "auto_recall": 0.9706,
+       "auto_valid_coverage": 0.1988,
+       "auto_px": 68
+      },
+      "auto_change": {
+       "expansion_px_in_scope": 1,
+       "fp_vs_auto_t1": 1,
+       "tp_vs_auto_change": 0,
+       "auto_change_px": 24,
+       "scope_valid_frac": 0.0955
       }
-     },
-     "0.4": {
-      "t1": {
-       "gold_iou": 0.5371,
-       "gold_precision": 0.7015,
-       "gold_recall": 0.6963,
-       "gold_valid_coverage": 0.6532,
-       "gold_px": 135
+     }
+    },
+    "himalayan_adapter_labelrefined_v2": {
+     "0.3": {
+      "gold_t1": null,
+      "gold_t0": null,
+      "gold_change": null,
+      "auto_t1": {
+       "auto_iou": 0.6349,
+       "auto_precision": 0.8,
+       "auto_precision_tol1px": 0.96,
+       "auto_precision_tol2px": 0.98,
+       "auto_recall": 0.7547,
+       "auto_valid_coverage": 0.1161,
+       "auto_px": 53
       },
-      "t0": {
-       "gold_iou": 0.493,
-       "gold_precision": 0.5344,
-       "gold_recall": 0.8642,
-       "gold_valid_coverage": 0.5968,
-       "gold_px": 81
-      }
-     },
-     "0.5": {
-      "t1": {
-       "gold_iou": 0.526,
-       "gold_precision": 0.7054,
-       "gold_recall": 0.6741,
-       "gold_valid_coverage": 0.6532,
-       "gold_px": 135
+      "auto_t0": {
+       "auto_iou": 0.4436,
+       "auto_precision": 0.4758,
+       "auto_precision_tol1px": 0.8468,
+       "auto_precision_tol2px": 0.9435,
+       "auto_recall": 0.8676,
+       "auto_valid_coverage": 0.1988,
+       "auto_px": 68
       },
-      "t0": {
-       "gold_iou": 0.4857,
-       "gold_precision": 0.5354,
-       "gold_recall": 0.8395,
-       "gold_valid_coverage": 0.5968,
-       "gold_px": 81
-      }
-     },
-     "0.55": {
-      "t1": {
-       "gold_iou": 0.5233,
-       "gold_precision": 0.7087,
-       "gold_recall": 0.6667,
-       "gold_valid_coverage": 0.6532,
-       "gold_px": 135
-      },
-      "t0": {
-       "gold_iou": 0.4928,
-       "gold_precision": 0.544,
-       "gold_recall": 0.8395,
-       "gold_valid_coverage": 0.5968,
-       "gold_px": 81
+      "auto_change": {
+       "expansion_px_in_scope": 0,
+       "fp_vs_auto_t1": 0,
+       "tp_vs_auto_change": 0,
+       "auto_change_px": 24,
+       "scope_valid_frac": 0.0955
       }
      }
     },
     "himalayan_adapter_stratified": {
      "0.3": {
-      "t1": {
-       "gold_iou": 0.6467,
-       "gold_precision": 0.7083,
-       "gold_recall": 0.8815,
-       "gold_valid_coverage": 0.6532,
-       "gold_px": 135
+      "gold_t1": null,
+      "gold_t0": null,
+      "gold_change": null,
+      "auto_t1": {
+       "auto_iou": 0.7429,
+       "auto_precision": 0.7536,
+       "auto_precision_tol1px": 0.8986,
+       "auto_precision_tol2px": 0.971,
+       "auto_recall": 0.9811,
+       "auto_valid_coverage": 0.1161,
+       "auto_px": 53
       },
-      "t0": {
-       "gold_iou": 0.4724,
-       "gold_precision": 0.4843,
-       "gold_recall": 0.9506,
-       "gold_valid_coverage": 0.5968,
-       "gold_px": 81
-      }
-     },
-     "0.4": {
-      "t1": {
-       "gold_iou": 0.6536,
-       "gold_precision": 0.7267,
-       "gold_recall": 0.8667,
-       "gold_valid_coverage": 0.6532,
-       "gold_px": 135
+      "auto_t0": {
+       "auto_iou": 0.4387,
+       "auto_precision": 0.4387,
+       "auto_precision_tol1px": 0.8258,
+       "auto_precision_tol2px": 0.9613,
+       "auto_recall": 1.0,
+       "auto_valid_coverage": 0.1988,
+       "auto_px": 68
       },
-      "t0": {
-       "gold_iou": 0.4691,
-       "gold_precision": 0.4841,
-       "gold_recall": 0.9383,
-       "gold_valid_coverage": 0.5968,
-       "gold_px": 81
-      }
-     },
-     "0.5": {
-      "t1": {
-       "gold_iou": 0.642,
-       "gold_precision": 0.7338,
-       "gold_recall": 0.837,
-       "gold_valid_coverage": 0.6532,
-       "gold_px": 135
-      },
-      "t0": {
-       "gold_iou": 0.4625,
-       "gold_precision": 0.4837,
-       "gold_recall": 0.9136,
-       "gold_valid_coverage": 0.5968,
-       "gold_px": 81
-      }
-     },
-     "0.55": {
-      "t1": {
-       "gold_iou": 0.6379,
-       "gold_precision": 0.74,
-       "gold_recall": 0.8222,
-       "gold_valid_coverage": 0.6532,
-       "gold_px": 135
-      },
-      "t0": {
-       "gold_iou": 0.4744,
-       "gold_precision": 0.4966,
-       "gold_recall": 0.9136,
-       "gold_valid_coverage": 0.5968,
-       "gold_px": 81
+      "auto_change": {
+       "expansion_px_in_scope": 3,
+       "fp_vs_auto_t1": 1,
+       "tp_vs_auto_change": 2,
+       "auto_change_px": 24,
+       "scope_valid_frac": 0.0955
       }
      }
     }
    }
   }
- ],
- "limitations": [
-  "4\u20135 day label offsets (monsoon shoreline drift).",
-  "Centre-sampling 10 m labels onto ~90 m SAR grid is stricter than the polygon burn (~1 px bound).",
-  "Gold labels exist only for the unfrozen_desc dates."
  ]
 }

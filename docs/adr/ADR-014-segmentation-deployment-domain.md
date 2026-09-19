@@ -70,3 +70,102 @@ Hand-verified labels (`ml/imja_label_roi.py`, `imja_gold_label_*.tif`) were prod
 ### Follow-up: label-refined round (2026-09-18, gate still NOT passed)
 
 A fine-tune round on label-refined targets (`ml/lake_label_refine.py`: >50%-of-footprint NDWI from S2 07-05 where clear, 1-px-eroded inventory elsewhere; + boundary-aware loss) was evaluated on both unfrozen pairs and re-scored against gold (`imja_gold_eval_report.json`). SCL-precision legs improved (unfrozen_desc t1: 0.80→0.83; unfrozen_desc2 t1: 0.63→0.73) and glacier FPs held ~−92% vs base, but **gold truth was a wash** — t1 gold IoU 0.65→0.57 at equal P (~0.70), t0 P 0.48→0.53. No label source reaches P ≥ 0.84. Full numbers in the session notes. Working hypothesis: a ~1-px systematic boundary offset (GCP-vs-S2 geolocation jitter + true boundary uncertainty at ~90 m pitch) caps Imja-scoped P near ~0.7–0.8 on a ~13–19-px-wide lake regardless of label tightening — the precision leg may need a displacement-tolerant criterion or finer input resolution rather than more label work.
+
+### Follow-up: multi-scene label coverage + change-product evidence (2026-09-19, gate still NOT passed)
+
+A second refinement round expanded per-date supervision from one cloudy tile to **16 S2 L2A scenes across the six MGRS tiles covering the swath** (`lake_label_refine.py` now merges all in-window scenes, nearest-to-t1 wins per pixel): grid coverage 7.7% → 65.5%, lake chips with true labels 169 → 692/697. The v2 adapter trained on this set (`..._labelrefined_v2.pt`).
+
+Measured against gold + a new unverified auto tier (desc2):
+
+- Strict extent P still caps ~0.7 vs gold — the 90 m geometry bound stands; no label mix at this resolution reaches P ≥ 0.84.
+- Tolerant precision confirms the displacement story: P@2px 0.72–0.84 vs gold, 0.96–0.98 vs desc2 auto labels.
+- **Change-product evidence** (expansion = water_t1 & ~water_t0): 0–3 FP px in the Imja ROI across both pairs/tiers; v2 has the best change recall (8/32 gold-change px). The per-date boundary offset cancels in the difference — the model is far better at the operational task than at absolute extent.
+- The inter-date gold change itself verified as real signal (contiguous new-water bodies on the terminus end, not label noise).
+- Trade-off: v2 gains change recall + best P@2px but loses strict P and desc2 SCL-IoU (0.544 < 0.60); stratified remains the better extent model.
+
+**Gate recommendation (owner decision pending):** amend §9.8/§17.2 to gate on the operational output — expansion FP-rate + change recall — with a displacement-bounded extent leg (P@2px or boundary F1), rather than strict per-pixel P ≥ 0.84 which is geometry-unreachable at ~90 m. The alternative is a full-resolution pipeline (non-decimated ~10–20 m input), the only route that plausibly passes strict P. Full evidence: `ADR-014-session-notes-2026-09-18.md` (2026-09-19 section) + `imja_gold_eval_report.json`.
+
+---
+
+## Amendment ADR-014-am1 — change-product gate legs (2026-09-19, owner-directed)
+
+**Rationale.** The deployment product of this component is the per-pair
+expansion mask `water_t1 & ~water_t0` inside monitored-lake vicinity —
+the evidence that feeds the elevated/critical severity tiers. The
+inherited extent gate (IoU ≥ 0.60 AND P ≥ 0.84 per date, from
+ADR-011.1's lowland-flood calibration) is geometry-unreachable at the
+~90 m decimated cache pitch: on a ~13–19 px-wide lake, a systematic
+1–2 px boundary offset (GCP-vs-S2 geolocation jitter + label-date
+offset + real boundary uncertainty) caps strict precision near ~0.7
+regardless of model quality. That offset cancels between dates, so the
+*change* contract is both measurable and what the system actually
+uses. The strict extent metrics remain **required reporting** (below)
+for regression tracking — they are not deleted, only de-gated.
+
+**Promotion scope:** this amendment can promote the *expansion
+evidence* of the SAR segmentation component (ro-121 descending,
+unfrozen season) — the per-date extent mask remains unqualified
+shadow evidence regardless.
+
+### Amended legs
+
+| Leg | Criterion | Basis |
+|---|---|---|
+| L1 FP bound | predicted-expansion FP ≤ 5 px inside each evaluated lake ROI vs the highest-quality label tier | 5 px ≈ 0.04 km² — below the watch-tier area (≥5% of a ~1 km² lake ≈ 0.05–0.07 km²); false alarms cannot reach the smallest alert tier |
+| L2 change recall | ≥ 20% of verified inter-date change px detected, with ≥1 contiguous component, on ≥1 of the gated pairs | provisional bar — verified-change truth is thin (32 px gold at Imja; 9.5% valid scope on desc2); a real-event probe (South Lhonak S1, ro-48 desc 2023-09-28→10-10) is the stronger recall test and must corroborate |
+| L3 extent floor | Imja-scoped tolerant precision P@2px ≥ 0.70 on each labelled date | sanity floor — confirms the extent mask is lake-shaped, not noise; ~90 m displacement bound acknowledged |
+| L4 glacier FP | ≥ 50% reduction vs `kuro_siwo_base` in water px on glacier, each pair | unchanged intent from the original domain gate |
+| L5 pairs | ≥ 2 independent held-out in-domain unfrozen pairs | unchanged |
+
+**Not gated (required reporting):** strict per-date IoU/P vs every
+label tier, AOI-wide change metrics vs merged SCL labels (whose
+change-truth is itself SCL-flip noisy and window-offset), winter/
+shoulder context, ascending-pair stress results.
+
+### Measured status under the amended legs (2026-09-19)
+
+| Leg | adapter | stratified | labelrefined | labelrefined_v2 |
+|---|---|---|---|---|
+| L1 (FP ≤5px: desc/desc2) | 1/1 ✅ | 1/1 ✅ | 0/1 ✅ | 3/0 ✅ |
+| L2 (recall ≥20%) | 19% ❌ | 3% ❌ | 9% ❌ | **25%** ✅ |
+| L3 (P@2px ≥0.70, all dates) | min 0.78 ✅ | min 0.76 ✅ | min 0.79 ✅ | min 0.72 ✅ |
+| L4 (glacier FP) | −93% ✅ | −94% ✅ | −93% ✅ | −90% ✅ |
+| L5 | ✅ | ✅ | ✅ | ✅ |
+
+**Verdict: `labelrefined_v2` is the first checkpoint to satisfy all
+five amended legs** — the others fail L2 (change recall < 20% vs the
+gold change). Promotion remains blocked, however, pending the two
+honesty conditions below — the gate legs are satisfied on thin
+evidence and must be corroborated before the runtime flag flips.
+
+*Honesty notes / conditions on the L2 leg:* (a) the 20% bar is
+provisional pending the South Lhonak real-event probe — if the model
+cannot detect catastrophic change, the leg is meaningless regardless
+of the Imja numbers; (b) L1/L2 are Imja-scoped because Imja is the
+only lake with verified-change truth — verified labels on ≥2 more
+in-domain lakes are required before promotion is broad rather than
+Imja-specific; (c) AOI-wide change metrics are reported but not gated
+because the merged SCL label-change is dominated by classification
+noise (SCL flips) and label-window offsets — measured FP mass is
+largely shoreline-adjacent and plausibly real detection the offset
+labels missed, which cuts both ways.
+
+### South Lhonak real-event probe (2026-09-19) — inconclusive, domain-limit finding
+
+S1 ro-48 descending pair straddling the 2023-10-03 GLOF (09-28 pre,
+10-10 post; the only descending track over the site) was calibrated
+and all five checkpoints scored against the Pleiades-measured lake
+footprint (0.866 km² → 80 px on the ~90 m grid).
+
+**The lake is SAR-invisible in this geometry:** footprint backscatter
+is VV −6.9 dB at t0 — *brighter* than its own ring (−10.7 dB) — i.e.
+layover/rough-surface dominated with no water-dark signature anywhere;
+the drain registers ΔVV −0.13 dB, ΔVH +0.28 dB. Every checkpoint
+detects 0/80 px — including the lowland-trained base model, so this is
+a sensor/geometry blind spot, not model-specific recall failure. The
+probe therefore provides no recall evidence either way, and documents
+that **C-band SAR detection has a visibility floor**: steep-walled
+(possibly ice-covered) high-altitude lakes can be unmonitorable by any
+SAR water detector — relevant to coverage claims for the alert
+product. An inventory audit of which monitored lakes are SAR-visible
+is the follow-up.

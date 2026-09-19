@@ -110,29 +110,44 @@ REPORT_OUT = CHECKPOINT_DIR / "heldout_eval_report.json"
 IMJA_LON, IMJA_LAT = 86.9282, 27.8983
 
 # Paired S2 scenes per SAR acquisition date — independent optical labels
-# for the §9.8 IoU gate. Only dates with a usable (or least-cloudy) S2
-# scene on disk are mapped; dates without a pair report inventory IoU
-# only. SCL class 6 = water; SCL_CLEAR classes are valid non-water;
-# everything else (cloud/shadow/nodata) is masked out of the IoU.
+# for the §9.8 IoU gate. Each date maps to a LIST of scenes (nearest
+# acquisition per tile covering the AOI); the label raster merges them
+# per-pixel so eastern tiles fill coverage the Imja tile's cloud masks.
+# Dates without a pair report inventory IoU only. SCL class 6 = water;
+# SCL_CLEAR classes are valid non-water; everything else (cloud/shadow/
+# nodata) is masked out of the IoU.
 S2_LABEL_SCENES = {
     # shoulder t1: same-day+1 clear scene (AOI clear frac ~0.84)
-    "20251121": RAW_DIR
-    / "S2C_MSIL2A_20251122T045131_N0511_R076_T45RVL_20251122T083010.SAFE.zip",
-    # unfrozen_desc2 t1: 4-day-offset scene (t1=08-07, S2=08-11,
-    # tile cloud 34.7%) — closest clear monsoon acquisition
-    "20260807": RAW_DIR
+    "20251121": [RAW_DIR
+    / "S2C_MSIL2A_20251122T045131_N0511_R076_T45RVL_20251122T083010.SAFE.zip"],
+    # unfrozen_desc2 t0: 1-day-offset scenes (t0=07-26, S2=07-25)
+    "20260726": [RAW_DIR
+    / "S2B_MSIL2A_20260725T044659_N0512_R076_T45RVL_20260725T083358.zip",
+                 RAW_DIR
+    / "S2B_MSIL2A_20260725T044659_N0512_R076_T45RWL_20260725T083358.zip"],
+    # unfrozen_desc2 t1: 4-day-offset scenes (t1=08-07, S2=08-11,
+    # RVL tile cloud 34.7%, RWL 32.6%) — closest clear acquisitions
+    "20260807": [RAW_DIR
     / "S2A_MSIL2A_20260811T045241_N0512_R076_T45RVL_20260811T100012.SAFE.zip",
-    # monsoon_asc t0: same-day scene (tile cloud 34.7%)
-    "20260811": RAW_DIR
+                 RAW_DIR
+    / "S2A_MSIL2A_20260811T045241_N0512_R076_T45RWL_20260811T100012.zip"],
+    # monsoon_asc t0: same-day scenes (RVL 34.7%, RWL 32.6%)
+    "20260811": [RAW_DIR
     / "S2A_MSIL2A_20260811T045241_N0512_R076_T45RVL_20260811T100012.SAFE.zip",
-    # unfrozen_desc t0: 5-day-offset scene (t0=08-19, S2=08-24,
-    # tile cloud 71%) — clearest RVL acquisition in the window
-    "20260819": RAW_DIR
+                 RAW_DIR
+    / "S2A_MSIL2A_20260811T045241_N0512_R076_T45RWL_20260811T100012.zip"],
+    # unfrozen_desc t0: 5-day-offset scenes (t0=08-19, S2=08-24,
+    # RVL 71%, RWL 62.2%) — clearest acquisitions in the window
+    "20260819": [RAW_DIR
     / "S2B_MSIL2A_20260824T044659_N0512_R076_T45RVL_20260824T083447.SAFE.zip",
-    # unfrozen_desc t1: 4-day-offset scene (t1=09-12, S2=09-08,
-    # tile cloud 66%)
-    "20260912": RAW_DIR
+                 RAW_DIR
+    / "S2B_MSIL2A_20260824T044659_N0512_R076_T45RWL_20260824T083447.zip"],
+    # unfrozen_desc t1: 4-day-offset scenes (t1=09-12, S2=09-08,
+    # RVL 65.7%, RWL 56.6%)
+    "20260912": [RAW_DIR
     / "S2C_MSIL2A_20260908T044701_N0512_R076_T45RVL_20260908T094920.SAFE.zip",
+                 RAW_DIR
+    / "S2C_MSIL2A_20260908T044701_N0512_R076_T45RWL_20260908T094920.zip"],
 }
 SCL_WATER = 6
 SCL_CLEAR = {4, 5, 6, 7, 11}
@@ -160,8 +175,10 @@ def calibrated_cache(date_str: str, tag: str = "desc") -> Path:
     return cache
 
 
-def s2_label_raster(s2_path: Path) -> Path:
-    """Build (cached) SCL water-label GeoTIFF over the AOI at ~20 m.
+def s2_label_raster(s2_paths: list[Path], sar_date: str) -> Path:
+    """Build (cached) merged SCL water-label GeoTIFF over the AOI at
+    ~20 m from every scene in ``s2_paths`` — per pixel the first scene
+    with usable SCL wins, so clearer tiles fill another tile's cloud.
 
     Band values: 1 = water (SCL 6), 0 = valid non-water (SCL_CLEAR),
     255 = unlabelled (cloud/shadow/nodata — masked out of the IoU).
@@ -170,8 +187,7 @@ def s2_label_raster(s2_path: Path) -> Path:
 
     from siren.ml.s2_spectral_eval import _aoi_bounds, _read_scl_on_grid
 
-    m = re.search(r"_(\d{8})T", s2_path.name)
-    cache = PROCESSED_DIR / f"s2_water_label_{m.group(1)}.tif"
+    cache = PROCESSED_DIR / f"s2_water_label_for_{sar_date}.tif"
     if cache.exists():
         return cache
 
@@ -179,10 +195,14 @@ def s2_label_raster(s2_path: Path) -> Path:
     cell = 0.0002  # ~22 m in degrees — near SCL's native 20 m
     w = int(np.ceil((east - west) / cell))
     h = int(np.ceil((north - south) / cell))
-    scl = _read_scl_on_grid(s2_path, (h, w), (west, south, east, north))
     label = np.full((h, w), LABEL_NODATA, dtype=np.uint8)
-    label[np.isin(scl, list(SCL_CLEAR))] = 0
-    label[scl == SCL_WATER] = 1
+    for s2_path in sorted(s2_paths):
+        if not s2_path.exists():
+            continue
+        scl = _read_scl_on_grid(s2_path, (h, w), (west, south, east, north))
+        todo = label == LABEL_NODATA
+        label[todo & np.isin(scl, list(SCL_CLEAR))] = 0
+        label[todo & (scl == SCL_WATER)] = 1
     with rasterio.open(
         cache, "w", driver="GTiff", height=h, width=w, count=1,
         dtype="uint8", crs="EPSG:4326",
@@ -190,23 +210,22 @@ def s2_label_raster(s2_path: Path) -> Path:
         nodata=LABEL_NODATA,
     ) as dst:
         dst.write(label, 1)
-    logger.info("built S2 label raster %s (water px=%d)", cache,
-                int((label == 1).sum()))
+    logger.info("built S2 label raster %s from %d scene(s) (water px=%d)",
+                cache, len(s2_paths), int((label == 1).sum()))
     return cache
 
 
 def _optical_labels(date_str: str, masks: dict):
-    """SCL water labels sampled onto the SAR grid for one scene date.
-
-    Returns (water, valid, coverage) or None when no paired S2 exists.
-    """
-    s2 = S2_LABEL_SCENES.get(date_str)
-    if s2 is None or not s2.exists():
+    """Merged SCL water labels sampled onto the SAR grid for one SAR
+    date. Returns (water, valid, coverage) or None when no paired S2
+    exists."""
+    s2_list = [p for p in S2_LABEL_SCENES.get(date_str, []) if p.exists()]
+    if not s2_list:
         return None
     from siren.detect.sar import sar_grid_sample
 
     lbl = sar_grid_sample(
-        str(s2_label_raster(s2)), masks["lon"], masks["lat"],
+        str(s2_label_raster(s2_list, date_str)), masks["lon"], masks["lat"],
         fill=float(LABEL_NODATA),
     )
     valid = lbl < LABEL_NODATA
@@ -443,6 +462,39 @@ def evaluate_checkpoint(
                 else None
             )
             out[f"optical_label_coverage_{key}"] = cov
+
+    # AOI-wide change-product metrics — the operational contract
+    # (expansion = water_t1 & ~water_t0). The per-date boundary offset
+    # cancels in the difference; measured against the merged optical
+    # label change on the both-valid region.
+    lab0 = labels.get("t0") if labels else None
+    lab1 = labels.get("t1") if labels else None
+    for scope_name, extra in (("aoi", None), ("lake", "vic")):
+        if lab0 is None or lab1 is None:
+            for k in ("exp_px", "tp_px", "fp_px", "label_px",
+                      "precision", "recall"):
+                out[f"change_{scope_name}_{k}"] = None
+            continue
+        wl0, vl0, _ = lab0
+        wl1, vl1, _ = lab1
+        cscope = aoi & vl0 & vl1
+        if extra == "vic":
+            cscope &= lake_vic
+        lab_change = (wl1 & ~wl0) & cscope
+        exp_s = expansion & cscope
+        tp = int((exp_s & lab_change).sum())
+        fp = int((exp_s & ~lab_change).sum())
+        n_exp, n_lc = int(exp_s.sum()), int(lab_change.sum())
+        out[f"change_{scope_name}_exp_px"] = n_exp
+        out[f"change_{scope_name}_tp_px"] = tp
+        out[f"change_{scope_name}_fp_px"] = fp
+        out[f"change_{scope_name}_label_px"] = n_lc
+        out[f"change_{scope_name}_precision"] = (
+            round(tp / n_exp, 4) if n_exp else None
+        )
+        out[f"change_{scope_name}_recall"] = (
+            round(tp / n_lc, 4) if n_lc else None
+        )
     return out
 
 
@@ -486,9 +538,10 @@ def evaluate_pair(pair_name: str, threshold: float = 0.30) -> dict:
         "t1": t1_str,
         "grid_shape": list(pre_db.shape),
         "s2_label_scenes": {
-            d: S2_LABEL_SCENES[d].name
+            d: [p.name for p in S2_LABEL_SCENES[d] if p.exists()]
             for d in (t0_str, t1_str)
-            if d in S2_LABEL_SCENES and S2_LABEL_SCENES[d].exists()
+            if d in S2_LABEL_SCENES
+            and any(p.exists() for p in S2_LABEL_SCENES[d])
         },
         "checkpoints": results,
     }

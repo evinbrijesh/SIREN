@@ -6,22 +6,23 @@ because it learned the *median* 2022–2024 inventory outline, which is
 ~19% wider than any given date's edge (gold ⊂ inventory, P 0.99 /
 R 0.81). This module rebuilds the chip labels from two sources:
 
-  (a) per-date NDWI targets — where the 2026-07-05 S2 scene (closest
-      optical acquisition to the Jul-02/14 SAR training pair) has clear
+  (a) per-date NDWI targets — where any downloaded S2 L2A scene within
+      ±21 days of t1 (all tiles covering the swath) has usable SCL
       coverage, a SAR pixel is water iff >50% of its ~90 m footprint is
       NDWI-water (NDWI > 0.15 on SCL-valid pixels, the gold-label
-      criterion). Teaches "majority water", not "any water".
-  (b) contracted inventory targets — where S2 coverage is absent/cloudy,
+      criterion). Per pixel the scene nearest to t1 wins. Teaches
+      "majority water", not "any water".
+  (b) contracted inventory targets — where no S2 scene covers the pixel,
       the inventory polygon eroded by ~1 SAR px, matching the measured
       median-vs-date bias. Works on all chips.
 
 Both are applied per-pixel on the full SAR grid, then cropped to the
-existing chip windows — a chip can mix sources along its coverage seam.
+existing chip windows — a chip can mix sources along its coverage seams.
 
 Honesty notes:
-  * The 07-05 scene is ~72% tile cloud — only ~27% AOI clear — so (a)
-    covers a minority of the swath; (b) carries the rest.
-  * The S2 scene lags t1 by 9 days (t0 by 3 days) — monsoon shorelines
+  * Monsoon optical coverage is partial even across tiles — (a) covers
+    what is clear; (b) carries the rest.
+  * Merged scenes carry ±1–11 day offsets from t1 — monsoon shorelines
     can drift; the >50%-footprint rule makes the label robust to
     sub-footprint drift but not to real expansion events.
   * Gold labels (``imja_gold_label_*.tif``) are eval-only — they sit on
@@ -31,6 +32,7 @@ Honesty notes:
 
 Usage:
     python -m siren.ml.lake_label_refine [--chips DIR] [--out DIR]
+                                         [--s2 ZIP [ZIP ...]]
 """
 
 from __future__ import annotations
@@ -53,9 +55,12 @@ DATA_DIR = REPO_ROOT / "data"
 PROCESSED_DIR = DATA_DIR / "processed"
 
 SAR_T1 = PROCESSED_DIR / "imja_desc_20260714_sar_vv_vh_db.tif"
-S2_SCENE = DATA_DIR / "raw" / (
-    "S2B_MSIL2A_20260705T044659_N0512_R076_T45RVL_20260705T083506.zip"
-)
+S2_T1_DATE = "20260714"
+# Every downloaded S2 L2A scene contributes per-date labels where its
+# tile + clear SCL cover a SAR pixel; per pixel the scene nearest to t1
+# wins. Resolved at runtime from data/raw (``s2_scenes()``) so newly
+# acquired tiles are picked up automatically.
+S2_SCENE_GLOB = "S2*_MSIL2A_*.zip"
 CHIPS_DIR = DATA_DIR / "datasets" / "himalayan_lake_chips"
 OUT_DIR = DATA_DIR / "datasets" / "himalayan_lake_chips_refined"
 
@@ -70,6 +75,41 @@ ERODE_PX = 1                 # inventory contraction (~90 m)
 
 SRC_S2_NDWI = 1
 SRC_INVENTORY_ERODED = 2
+S2_WINDOW_DAYS = 21           # label relevance window around the SAR pair
+
+
+def _scene_date(path: Path) -> str | None:
+    import re
+    m = re.search(r"_(\d{8})T", path.name)
+    return m.group(1) if m else None
+
+
+def s2_scenes(
+    raw_dir: Path | str | None = None,
+    t1_date: str = S2_T1_DATE,
+    window_days: int = S2_WINDOW_DAYS,
+) -> list[Path]:
+    """S2 scenes within ``window_days`` of t1, nearest date first.
+
+    Per-date labels are only meaningful near the SAR pair — a stale
+    scene's shoreline is weaker evidence than the contracted inventory,
+    so scenes outside the window are excluded rather than merged.
+    """
+    import datetime as _dt
+
+    raw = Path(raw_dir) if raw_dir else DATA_DIR / "raw"
+    t1 = _dt.date(int(t1_date[:4]), int(t1_date[4:6]), int(t1_date[6:]))
+    picked = []
+    for p in sorted(raw.glob(S2_SCENE_GLOB)):
+        d = _scene_date(p)
+        if not d:
+            continue
+        dd = _dt.date(int(d[:4]), int(d[4:6]), int(d[6:]))
+        dist = abs((dd - t1).days)
+        if dist <= window_days:
+            picked.append((dist, d, p))
+    picked.sort(key=lambda t: (t[0], t[1]))
+    return [p for _, _, p in picked]
 
 
 def _s2_bounds_lonlat(s2_zip: Path) -> tuple[float, float, float, float]:
@@ -169,14 +209,14 @@ def _windowed_fraction(
 
 def refine_labels(
     chips_dir: Path | str = CHIPS_DIR,
-    s2_zip: Path | str = S2_SCENE,
+    s2_zips: list[Path | str] | Path | str | None = None,
     sar_path: Path | str = SAR_T1,
     out_dir: Path | str = OUT_DIR,
     erode_px: int = ERODE_PX,
 ) -> dict:
-    """Rebuild chip labels: per-date NDWI where S2-valid, eroded
-    inventory elsewhere. Writes chips.npz + manifest.json + report.json
-    to ``out_dir``."""
+    """Rebuild chip labels: per-date NDWI where any S2 scene covers the
+    pixel (nearest-to-t1 wins), eroded inventory elsewhere. Writes
+    chips.npz + manifest.json + report.json to ``out_dir``."""
     from scipy.ndimage import binary_erosion
 
     from siren.detect.sar import sar_grid_lonlat
@@ -187,6 +227,12 @@ def refine_labels(
     )
 
     chips_dir, out_dir = Path(chips_dir), Path(out_dir)
+    if s2_zips is None:
+        scenes = s2_scenes()
+    elif isinstance(s2_zips, (str, Path)):
+        scenes = [Path(s2_zips)]
+    else:
+        scenes = [Path(p) for p in s2_zips]
     data = np.load(chips_dir / "chips.npz")
     x = data["x"]
     manifest = json.loads((chips_dir / "manifest.json").read_text())
@@ -202,33 +248,46 @@ def refine_labels(
     inventory = rasterize_lake_labels(lakes, positions, str(sar_path)) > 0
     fallback = binary_erosion(inventory, iterations=erode_px)
 
-    # (a) per-date NDWI where the S2 tile + clear SCL cover the pixel.
-    s2_ok = np.zeros(lon.shape, dtype=bool)
-    s2_water = np.zeros(lon.shape, dtype=bool)
-    if Path(s2_zip).exists():
-        tb = _s2_bounds_lonlat(Path(s2_zip))
+    # (a) per-date NDWI merged across scenes: each SAR pixel takes the
+    # label of the first scene (nearest to t1) whose ~90 m footprint is
+    # ≥MIN_VALID_FRAC usable SCL; pixels no scene covers fall back.
+    refined = fallback.astype(np.uint8)
+    src_map = np.full(lon.shape, SRC_INVENTORY_ERODED, dtype=np.uint8)
+    scene_stats = []
+    covered = np.zeros(lon.shape, dtype=bool)
+    for idx, s2_zip in enumerate(scenes):
+        if not s2_zip.exists():
+            logger.warning("S2 scene missing: %s", s2_zip)
+            continue
+        tb = _s2_bounds_lonlat(s2_zip)
         west = max(tb[0], float(np.nanmin(lon)) - 0.002)
         south = max(tb[1], float(np.nanmin(lat)) - 0.002)
         east = min(tb[2], float(np.nanmax(lon)) + 0.002)
         north = min(tb[3], float(np.nanmax(lat)) + 0.002)
-        if east > west and north > south:
-            water, valid, transform = _s2_water_valid_grid(
-                Path(s2_zip), (west, south, east, north)
-            )
-            wfrac, vfrac = _windowed_fraction(water, valid, transform, lon, lat)
-            s2_ok = vfrac >= MIN_VALID_FRAC
-            s2_water = s2_ok & (wfrac > WATER_FRAC)
-            logger.info(
-                "S2 coverage: %.1f%% of SAR grid footprint-valid",
-                100.0 * float(s2_ok.mean()),
-            )
-        else:
-            logger.warning("S2 tile does not intersect the SAR grid")
-    else:
-        logger.warning("S2 scene missing: %s — all labels fall back", s2_zip)
+        if not (east > west and north > south):
+            logger.warning("%s does not intersect the SAR grid", s2_zip.name)
+            continue
+        water, valid, transform = _s2_water_valid_grid(
+            s2_zip, (west, south, east, north)
+        )
+        wfrac, vfrac = _windowed_fraction(water, valid, transform, lon, lat)
+        s2_ok = vfrac >= MIN_VALID_FRAC
+        take = s2_ok & ~covered
+        refined[take] = (wfrac > WATER_FRAC)[take].astype(np.uint8)
+        src_map[take] = SRC_S2_NDWI
+        covered |= s2_ok
+        scene_stats.append({
+            "scene": s2_zip.name,
+            "date": _scene_date(s2_zip),
+            "grid_valid_frac": round(float(s2_ok.mean()), 4),
+            "px_labeled": int(take.sum()),
+        })
+        logger.info(
+            "%s: %.1f%% grid footprint-valid, %d px newly labeled",
+            s2_zip.name, 100.0 * float(s2_ok.mean()), int(take.sum()),
+        )
 
-    refined = np.where(s2_ok, s2_water, fallback).astype(np.uint8)
-    src_map = np.where(s2_ok, SRC_S2_NDWI, SRC_INVENTORY_ERODED).astype(np.uint8)
+    s2_ok = covered
 
     half = CHIP // 2
     y_out = np.empty((len(manifest), CHIP, CHIP), dtype=np.uint8)
@@ -253,7 +312,7 @@ def refine_labels(
         "label_semantics": {
             "s2_ndwi": (
                 f">50% of ~90 m footprint NDWI>{NDWI_THRESHOLD} on SCL-valid "
-                f"px ({Path(s2_zip).name}); ≥{MIN_VALID_FRAC:.0%} usable "
+                f"px, nearest-to-t1 scene wins; ≥{MIN_VALID_FRAC:.0%} usable "
                 "SCL in footprint required"
             ),
             "inventory_eroded": (
@@ -261,7 +320,12 @@ def refine_labels(
                 "fallback where S2 coverage absent/cloudy"
             ),
         },
-        "scenes": {"sar_t1": Path(sar_path).name, "s2": Path(s2_zip).name},
+        "scenes": {
+            "sar_t1": Path(sar_path).name,
+            "s2": [s.name for s in scenes if s.exists()],
+            "s2_window_days": S2_WINDOW_DAYS,
+            "s2_per_scene": scene_stats,
+        },
         "chips_total": int(len(manifest)),
         "grid_s2_valid_frac": round(float(s2_ok.mean()), 4),
         "lake_chips": {
@@ -276,12 +340,14 @@ def refine_labels(
         "pos_px_total_before": int(orig.sum()),
         "pos_px_total_after": int(pos.sum()),
         "limitations": [
-            "S2 07-05 is ~72% tile cloud — per-date labels cover a "
-            "minority of the swath; eroded-inventory fallback carries "
-            "the rest (label seam inside mixed chips).",
-            "S2 lags t1 by 9 days; monsoon shoreline drift inside the "
-            "lag is absorbed into the >50%-footprint rule but real "
-            "expansion would be mislabelled.",
+            "Monsoon optical coverage is partial — per-date labels cover "
+            "wherever any in-window scene has usable SCL; eroded-"
+            "inventory fallback carries the rest (label seams inside "
+            "mixed chips).",
+            "Merged scenes carry ±1–11 day offsets from t1; monsoon "
+            "shoreline drift inside a lag is absorbed into the "
+            ">50%-footprint rule but real expansion would be "
+            "mislabelled.",
             "Eroded fallback erases micro-tarn positives (<~2 px); "
             "those chips become all-negative.",
         ],
@@ -294,7 +360,9 @@ def refine_labels(
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--chips", default=str(CHIPS_DIR))
-    ap.add_argument("--s2", default=str(S2_SCENE))
+    ap.add_argument("--s2", nargs="*", default=None,
+                    help="S2 SAFE zips to merge (default: all raw scenes "
+                         "within ±%d days of t1)" % S2_WINDOW_DAYS)
     ap.add_argument("--sar", default=str(SAR_T1))
     ap.add_argument("--out", default=str(OUT_DIR))
     ap.add_argument("--erode-px", type=int, default=ERODE_PX)

@@ -247,6 +247,44 @@ def apply_edits(
     return out
 
 
+def auto_candidate_label(
+    roi: dict,
+    ndwi_threshold: float = 0.15,
+    region_buffer_m: float = 200.0,
+) -> np.ndarray:
+    """Auto-generated label: NDWI water inside the inventory lake region
+    (buffered ``region_buffer_m`` metres), unlabelled elsewhere.
+
+    NOT hand-verified — the region is the inventory polygon dilated to
+    cover shoreline drift, so the label inherits its bias at the buffer
+    edge. Use as a second reference tier below the hand-verified gold
+    labels, never as the same evidence class.
+    """
+    from rasterio.features import rasterize
+    from shapely.ops import transform as shp_transform
+    import geopandas as gpd
+    import pyproj
+
+    gdf = gpd.read_file(INVENTORY_SHP).to_crs("EPSG:4326")
+    d = (gdf["Longitude"] - IMJA_LON) ** 2 + (gdf["Latitude"] - IMJA_LAT) ** 2
+    geom = gdf.geometry.iloc[int(d.values.argmin())]
+
+    # Buffer + rasterize in the ROI's own CRS (UTM 45N).
+    to_utm = pyproj.Transformer.from_crs(
+        "EPSG:4326", "EPSG:32645", always_xy=True
+    ).transform
+    region = shp_transform(to_utm, geom).buffer(region_buffer_m)
+    region_px = rasterize(
+        [(region, 1)], out_shape=roi["ndwi"].shape,
+        transform=roi["transform"], fill=0, dtype="uint8",
+    ).astype(bool)
+
+    cand = candidate_label(roi, ndwi_threshold=ndwi_threshold)
+    out = np.full(cand.shape, 255, dtype=np.uint8)
+    out[region_px] = cand[region_px]
+    return out
+
+
 def write_label(
     label: np.ndarray, roi: dict, out_tif: Path, provenance: dict
 ) -> Path:
