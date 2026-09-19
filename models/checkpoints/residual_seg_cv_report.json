@@ -2,39 +2,39 @@
   "experiment": "residual segmentation corrector \u2014 lake-grouped holdout",
   "folds": [
     {
-      "rule_iou": 0.0016272189349112425,
-      "corrector_iou": 0.22040057100834884,
-      "n_test": 142,
-      "adapter_iou": 0.12627576545927557
+      "rule_iou": 0.002584105314480741,
+      "corrector_iou": 0.29242401387736633,
+      "n_test": 426,
+      "adapter_iou": 0.11956850766394232
     },
     {
-      "rule_iou": 0.0010719754977029097,
-      "corrector_iou": 0.35580245240837344,
-      "n_test": 142,
-      "adapter_iou": 0.1488303252065946
+      "rule_iou": 0.0018078642093105007,
+      "corrector_iou": 0.33721003596290144,
+      "n_test": 426,
+      "adapter_iou": 0.14493949394939493
     },
     {
-      "rule_iou": 0.0014641288433382138,
-      "corrector_iou": 0.4822644721906924,
-      "n_test": 142,
-      "adapter_iou": 0.17335461598426075
+      "rule_iou": 0.0023427912684541295,
+      "corrector_iou": 0.32757311628754515,
+      "n_test": 426,
+      "adapter_iou": 0.16440422322775264
     },
     {
-      "rule_iou": 0.0006687046236148261,
-      "corrector_iou": 0.4634766153014328,
-      "n_test": 142,
-      "adapter_iou": 0.21017205045135723
+      "rule_iou": 0.0011487284214556942,
+      "corrector_iou": 0.3997605280985616,
+      "n_test": 426,
+      "adapter_iou": 0.1967911145090044
     },
     {
-      "rule_iou": 0.00011222085063404781,
-      "corrector_iou": 0.11396929567561233,
-      "n_test": 142,
-      "adapter_iou": 0.19396491228070176
+      "rule_iou": 0.00026663619395878566,
+      "corrector_iou": 0.42902784116841625,
+      "n_test": 426,
+      "adapter_iou": 0.18460528555104422
     }
   ],
-  "mean_rule_iou": 0.0009888497500402482,
-  "mean_corrector_iou": 0.327182681316892,
-  "mean_adapter_iou": 0.17051953387643798,
+  "mean_rule_iou": 0.0016300250815319702,
+  "mean_corrector_iou": 0.35719910707895813,
+  "mean_adapter_iou": 0.16206172498022772,
   "caveats": [
     "single SAR pair (2026-07-02/14) \u2014 spatial holdout only",
     "labelrefined weak labels (~90 m pitch, per-date NDWI + eroded inventory)",

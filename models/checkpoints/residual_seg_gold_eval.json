@@ -30,7 +30,7 @@
           "expansion_dp_px_in_scope": 0,
           "fp_dp_vs_gold_t1": 0,
           "tp_dp_vs_gold_change": 0,
-          "dp_mass_px_equiv": 0.5,
+          "dp_mass_px_equiv": 0.4,
           "gold_change_px": 32,
           "scope_valid_frac": 0.5563
         },
@@ -41,9 +41,9 @@
       "0.4": {
         "gold_t1": {
           "gold_iou": 0.0,
-          "gold_precision": 0.0,
-          "gold_precision_tol1px": 0.0,
-          "gold_precision_tol2px": 0.0,
+          "gold_precision": null,
+          "gold_precision_tol1px": null,
+          "gold_precision_tol2px": null,
           "gold_recall": 0.0,
           "gold_valid_coverage": 0.6532,
           "gold_px": 135
@@ -64,7 +64,7 @@
           "expansion_dp_px_in_scope": 0,
           "fp_dp_vs_gold_t1": 0,
           "tp_dp_vs_gold_change": 0,
-          "dp_mass_px_equiv": 0.5,
+          "dp_mass_px_equiv": 0.4,
           "gold_change_px": 32,
           "scope_valid_frac": 0.5563
         },
@@ -75,9 +75,9 @@
       "0.5": {
         "gold_t1": {
           "gold_iou": 0.0,
-          "gold_precision": 0.0,
-          "gold_precision_tol1px": 0.0,
-          "gold_precision_tol2px": 0.0,
+          "gold_precision": null,
+          "gold_precision_tol1px": null,
+          "gold_precision_tol2px": null,
           "gold_recall": 0.0,
           "gold_valid_coverage": 0.6532,
           "gold_px": 135
@@ -98,7 +98,7 @@
           "expansion_dp_px_in_scope": 0,
           "fp_dp_vs_gold_t1": 0,
           "tp_dp_vs_gold_change": 0,
-          "dp_mass_px_equiv": 0.5,
+          "dp_mass_px_equiv": 0.4,
           "gold_change_px": 32,
           "scope_valid_frac": 0.5563
         },
@@ -109,9 +109,9 @@
       "0.55": {
         "gold_t1": {
           "gold_iou": 0.0,
-          "gold_precision": 0.0,
-          "gold_precision_tol1px": 0.0,
-          "gold_precision_tol2px": 0.0,
+          "gold_precision": null,
+          "gold_precision_tol1px": null,
+          "gold_precision_tol2px": null,
           "gold_recall": 0.0,
           "gold_valid_coverage": 0.6532,
           "gold_px": 135
@@ -132,7 +132,7 @@
           "expansion_dp_px_in_scope": 0,
           "fp_dp_vs_gold_t1": 0,
           "tp_dp_vs_gold_change": 0,
-          "dp_mass_px_equiv": 0.5,
+          "dp_mass_px_equiv": 0.4,
           "gold_change_px": 32,
           "scope_valid_frac": 0.5563
         },
@@ -280,5 +280,10 @@
       }
     }
   },
-  "verdict": "FAIL \u2014 corrector predicts zero water px on the gold pair (temporal transfer failure); trained 07-02/14 chips, gold pair 08-19/09-12. Spatial-heldout chip win (IoU 0.327 vs adapter 0.171) does not survive date change. NOT promotable; adapter remains the neural path."
+  "verdict": "FAIL \u2014 corrector predicts zero water px on the gold pair across all three variants (scratch single-date, scratch multi-date, adapter-warm-start multi-date). Mechanism: saturated negative raw logits on held-out scenes (median -24.5 in ROI, -18 on rule px) \u2014 the additive \u00b14 rule prior forces the net to fight an offset it cannot maintain OOD under 0.5% positive-pixel imbalance. Adapter (direct prob head, Kuro-Siwo encoder) transfers fine (gold IoU 0.55). NOT promotable; path forward is retraining the adapter on multi-date chips, not residual formulations.",
+  "cv_multidate": {
+    "corrector_iou": 0.3572,
+    "adapter_iou": 0.1621,
+    "note": "warm-started variant; still fails gold"
+  }
 }

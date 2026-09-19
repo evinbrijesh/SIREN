@@ -63,6 +63,29 @@ def _iou(pred: np.ndarray, truth: np.ndarray) -> float:
     return inter / union if union else float("nan")
 
 
+def _init_from_adapter(net, adp_state):
+    """Warm-start the 7ch corrector from the 6ch adapter weights.
+
+    The extra rule-mask input channel is zero-initialised so the net
+    initially behaves exactly like the adapter — the corrector then
+    learns only the correction the adapter can't express.
+    """
+    import torch
+
+    src = adp_state.get("model_state", adp_state)
+    tgt = net.state_dict()
+    for k, v in tgt.items():
+        if k not in src:
+            continue
+        if v.shape == src[k].shape:
+            tgt[k] = src[k]
+        elif "enc1.conv1.weight" == k and v.shape[1] == src[k].shape[1] + 1:
+            w = torch.zeros_like(v)
+            w[:, : src[k].shape[1]] = src[k]
+            tgt[k] = w
+    net.load_state_dict(tgt)
+
+
 def _evaluate_fold(
     x_te: np.ndarray, y_te: np.ndarray, corrector, adapter, device
 ) -> dict:
@@ -101,7 +124,11 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--epochs", type=int, default=40)
     p.add_argument("--folds", type=int, default=5)
-    p.add_argument("--base-channels", type=int, default=16)
+    p.add_argument("--base-channels", type=int, default=32)
+    p.add_argument("--init-adapter", action="store_true",
+                   help="warm-start the 6ch weights from labelrefined_v2 "
+                        "(transfer-learned encoder — the scratch corrector "
+                        "failed temporal transfer on the gold pair)")
     p.add_argument("--save-model", action="store_true")
     args = p.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -120,10 +147,11 @@ def main(argv: list[str] | None = None) -> int:
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     adapter = None
+    adp_state = None
     if ADAPTER_CKPT.exists():
         adp = WaterResUNet(in_channels=6)
-        state = torch.load(ADAPTER_CKPT, map_location="cpu", weights_only=False)
-        adp.load_state_dict(state.get("model_state", state))
+        adp_state = torch.load(ADAPTER_CKPT, map_location="cpu", weights_only=False)
+        adp.load_state_dict(adp_state.get("model_state", adp_state))
         adapter = adp.to(device)
         logger.info("Loaded labelrefined_v2 adapter for comparison")
 
@@ -133,6 +161,8 @@ def main(argv: list[str] | None = None) -> int:
     for fold, (tr, te) in enumerate(gkf.split(x, y, groups)):
         torch.manual_seed(42)
         net = WaterResUNet(in_channels=7, base_channels=args.base_channels).to(device)
+        if args.init_adapter and adp_state is not None:
+            _init_from_adapter(net, adp_state)
         opt = torch.optim.Adam(net.parameters(), lr=1e-3)
         pos_frac = float(y[tr].mean())
         pos_weight = torch.tensor(
