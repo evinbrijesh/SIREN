@@ -2,51 +2,58 @@
   "event": "South Lhonak GLOF, 2023-10-03",
   "measurements": {
     "cell_m2": 1.0,
-    "lake_area_pre_m2": 865722.0,
-    "lake_area_post_m2": 1235244.0,
-    "surface_elev_pre_m": 5196.59716796875,
-    "surface_elev_post_m": 5182.604126516965,
-    "surface_drawdown_m": 13.993041451784848,
-    "dewatered_px": 87448,
-    "visible_emptied_m3": 125952.0135070997,
-    "huggel_volume_m3": 28447763.09054695
+    "lake_area_pre_m2": 385331.0,
+    "lake_area_post_m2": 327932.0,
+    "lake_area_s2_m2": 1496300.0,
+    "surface_elev_pre_m": 5209.13037109375,
+    "surface_elev_post_m": 5167.874484067173,
+    "surface_drawdown_m": 41.2558870265766,
+    "dewatered_px": 371523,
+    "visible_emptied_m3": 8227379.439086359,
+    "huggel_volume_m3": 9005407.747212123,
+    "huggel_s2_area_volume_m3": 61906304.25044264
   },
   "provenance": {
     "pre_dem": "20221018.tif",
     "post_dem": "20231029.tif",
     "lake_box_utm45n": [
-      620500.0,
-      3084200.0,
-      622200.0,
-      3087000.0
+      615640.0,
+      3086680.0,
+      619550.0,
+      3089488.0
     ],
-    "method": "largest connected flat region (local std < 1.5 over 9x9) within the lake elevation band"
+    "method": "largest connected flat region (local std < 1.5 over 9x9) within the lake elevation band; S2 area from the 2023-09-26 NDWI mask reprojected to the DEM grid"
   },
-  "lake_area_km2": 0.866,
+  "lake_area_km2": 0.385,
+  "lake_area_s2_km2": 1.496,
   "lake_area_within_published_range": false,
-  "surface_drawdown_m": 14.0,
-  "visible_emptied_mcm": 0.13,
-  "huggel_total_volume_mcm": 28.4,
+  "surface_drawdown_m": 41.3,
+  "visible_emptied_mcm": 8.23,
+  "huggel_total_volume_mcm": 9.0,
+  "huggel_s2_area_volume_mcm": 61.9,
   "documented_release_mcm": [
     40.0,
     50.0
   ],
-  "huggel_vs_documented_release_pct": -36.8,
+  "huggel_vs_documented_release_pct": -80.0,
+  "huggel_s2_vs_documented_release_pct": 37.6,
   "huggel_area_sweep_mcm": {
     "areas_km2": [
       0.9,
-      0.866,
+      0.385,
+      1.496,
       1.2
     ],
     "volumes_mcm": [
       30.1,
-      28.4,
+      9.0,
+      61.9,
       45.2
     ]
   },
   "limitations": [
     "DSM differencing only captures drawdown above the post-event waterline; the still-submerged emptied volume is invisible, so visible_emptied_mcm is a strict lower bound.",
-    "Flat-surface detection may under-cover lake fringes (shadowed/icy margins), biasing the area estimate low.",
+    "Flat-surface detection severely under-covers this lake \u2014 photogrammetric DEMs are not flat over water and the post-event surface carried icebergs/debris. The flat-region area is a lower bound; the S2 mask area is the trustworthy measurement.",
     "Post-event 'flat' pixels include exposed lakebed/mudflat, so lake_area_post overstates residual water extent.",
     "Huggel predicts total lake volume; the documented 40-50 MCM is the released fraction of a partially-emptied lake."
   ]

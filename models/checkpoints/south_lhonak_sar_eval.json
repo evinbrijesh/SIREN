@@ -1,0 +1,72 @@
+{
+  "event": "South Lhonak GLOF, 2023-10-03",
+  "sar_pair": [
+    "20230928",
+    "20231010"
+  ],
+  "checkpoint": "water_resunet_6ch_himalayan_adapter_multidate.pt",
+  "labels": {
+    "pre": "south_lhonak_20230926_candidate.tif",
+    "post": "south_lhonak_20231009_candidate.tif",
+    "pre_px_on_sar": 146,
+    "post_px_on_sar": 139
+  },
+  "terrain_gate": {
+    "slope_gate_active": false,
+    "slope_excluded_px": 0,
+    "glacier_excluded_px": 166383,
+    "note": "SRTM tile covers only the Dudh Koshi AOI \u2014 the slope gate is inoperative at South Lhonak; only the RGI glacier gate applies."
+  },
+  "thresholds": {
+    "0.3": {
+      "post": {
+        "iou": 0.0282,
+        "precision": 0.1163,
+        "recall": 0.036,
+        "pred_px": 43,
+        "label_px": 139
+      },
+      "pre": {
+        "iou": 0.0442,
+        "recall": 0.0548
+      },
+      "scene_false_positives": 38481,
+      "scene_total_pred": 38489
+    },
+    "0.4": {
+      "post": {
+        "iou": 0.0234,
+        "precision": 0.1111,
+        "recall": 0.0288,
+        "pred_px": 36,
+        "label_px": 139
+      },
+      "pre": {
+        "iou": 0.0341,
+        "recall": 0.0411
+      },
+      "scene_false_positives": 33008,
+      "scene_total_pred": 33014
+    },
+    "0.5": {
+      "post": {
+        "iou": 0.0237,
+        "precision": 0.1176,
+        "recall": 0.0288,
+        "pred_px": 34,
+        "label_px": 139
+      },
+      "pre": {
+        "iou": 0.0345,
+        "recall": 0.0411
+      },
+      "scene_false_positives": 28539,
+      "scene_total_pred": 28545
+    }
+  },
+  "sar_signature": {
+    "vv_pre_db": -15.42,
+    "vv_post_db": -12.3,
+    "dvv_db": 3.12
+  }
+}
