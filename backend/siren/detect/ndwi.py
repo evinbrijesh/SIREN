@@ -1,4 +1,4 @@
-"""Optical NDWI water detection (OpenCode-owned, Phase 2).
+"""Optical NDWI water detection (Phase 2).
 
 Computes the NDWI water mask from a Sentinel-2 L2A scene, clipped to the AOI.
 NDWI = (Green - NIR) / (Green + NIR), using B03 (green) and B08 (NIR).

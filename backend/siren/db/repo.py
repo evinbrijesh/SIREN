@@ -195,6 +195,7 @@ DEMO_SCORE = {
     "disease_risk": 0.08,
     "confidence": 0.90,
     "severity": "critical",
+    "method": "deterministic_fallback",
     "reasons": [
         "Water area expanded 43.0% vs baseline",
         "60.0 mm rainfall in 24h increases runoff pressure",
@@ -276,6 +277,11 @@ class Repository:
             self._conn.execute("ALTER TABLE audit_log ADD COLUMN prev_hash TEXT NOT NULL DEFAULT ''")
         if "event_hash" not in audit_columns:
             self._conn.execute("ALTER TABLE audit_log ADD COLUMN event_hash TEXT NOT NULL DEFAULT ''")
+        score_columns = {
+            row["name"] for row in self._conn.execute("PRAGMA table_info(scores)").fetchall()
+        }
+        if "method" not in score_columns:
+            self._conn.execute("ALTER TABLE scores ADD COLUMN method TEXT")
 
     def _seed(self) -> None:
         self._conn.execute(
@@ -359,12 +365,13 @@ class Repository:
             self._conn.execute(
                 """INSERT INTO scores
                 (score_id, run_id, hazard_score, exposure_priority, disease_risk,
-                 confidence, severity, reasons_json)
-                VALUES(?,?,?,?,?,?,?,?)""",
+                 confidence, severity, reasons_json, method)
+                VALUES(?,?,?,?,?,?,?,?,?)""",
                 (
                     s["score_id"], s["run_id"], s["hazard_score"], s["exposure_priority"],
                     s["disease_risk"], s["confidence"], s["severity"],
                     json.dumps(s["reasons"]),
+                    s.get("method", "deterministic_fallback"),
                 ),
             )
 
@@ -496,6 +503,7 @@ class Repository:
         confidence: float,
         severity: str,
         reasons: list[str],
+        method: str = "deterministic_fallback",
     ) -> str:
         """Insert a score row for a run. Returns the score_id."""
         count = self._conn.execute("SELECT COUNT(*) FROM scores").fetchone()[0]
@@ -503,15 +511,17 @@ class Repository:
         self._conn.execute(
             """INSERT INTO scores
                (score_id, run_id, hazard_score, exposure_priority,
-                disease_risk, confidence, severity, reasons_json)
-               VALUES(?,?,?,?,?,?,?,?)""",
+                disease_risk, confidence, severity, reasons_json, method)
+               VALUES(?,?,?,?,?,?,?,?,?)""",
             (
                 score_id, run_id, hazard_score, exposure_priority,
                 disease_risk, confidence, severity, json.dumps(reasons),
+                method,
             ),
         )
         self._audit(None, "pipeline", "score", {
             "run_id": run_id, "score_id": score_id, "severity": severity,
+            "method": method,
         })
         self._conn.commit()
         return score_id
@@ -586,6 +596,7 @@ class Repository:
                 "confidence": score_row["confidence"],
                 "severity": score_row["severity"],
                 "reasons": json.loads(score_row["reasons_json"]),
+                "method": score_row["method"] if score_row["method"] is not None else "deterministic_fallback",
             }
         review_row = self._conn.execute(
             """SELECT r.reviewer, r.decision, r.decided_at FROM reviews r
@@ -649,6 +660,7 @@ class Repository:
             "confidence": row["confidence"],
             "severity": row["severity"],
             "reasons": json.loads(row["reasons_json"]),
+            "method": row["method"] if row["method"] is not None else "deterministic_fallback",
         }
 
     def create_review(self, run_id: str, reviewer: str, decision: str, note: str | None) -> dict[str, Any]:

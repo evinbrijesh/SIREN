@@ -66,6 +66,64 @@ def test_pipeline_deterministic(tmp_path) -> None:
     assert run1["score"]["reasons"] == run2["score"]["reasons"]
 
 
+def test_in_scope_observation_not_flagged() -> None:
+    """Monsoon-window observations are annotated in-scope, no scope reason."""
+    repo = Repository(":memory:")
+    run = run_pipeline("obs-001", repo)  # 2026-07-23 — in window
+    scope = run["change_stats_json"]["operational_scope"]
+    assert scope["in_scope"] is True
+    assert not any(
+        "Outside the certified monsoon window" in r
+        for r in run["score"]["reasons"]
+    )
+
+
+def test_out_of_scope_observation_annotated_and_reasoned(tmp_path) -> None:
+    """Outside the monsoon window: scope annotation + review reason.
+
+    The deterministic baseline stays authoritative and the scope note
+    surfaces as a review reason — never silently dropped.
+    """
+    import numpy as np
+    import rasterio
+
+    from siren.detect.scenario import scenario_expansion_mask
+
+    mask_dir = tmp_path / "processed"
+    mask_dir.mkdir()
+    mask_path = mask_dir / "oos-001_expansion_mask.tif"
+    mask, meta = scenario_expansion_mask(0.15, seed=7)
+    with rasterio.open(
+        str(mask_path), "w", driver="GTiff",
+        height=mask.shape[0], width=mask.shape[1],
+        count=1, dtype="uint8", crs="EPSG:4326",
+        transform=meta["transform"],
+    ) as dst:
+        dst.write(mask.astype(np.uint8), 1)
+
+    repo = Repository(":memory:")
+    repo.register_observation(
+        observation_id="oos-001",
+        basin_id="dudh-koshi-demo-01",
+        acquired_at="2026-11-15T12:00:00Z",  # outside the Jun-Sep window
+        source="sentinel-1-grd-nrt",
+        raster_uri=str(mask_path),
+        water_area_km2=3.0,
+        water_area_change_percent=10.0,
+        rainfall_24h_mm=0.0,
+        rainfall_7d_mm=0.0,
+    )
+    run = run_pipeline("oos-001", repo)
+
+    scope = run["change_stats_json"]["operational_scope"]
+    assert scope["in_scope"] is False
+    assert scope["month"] == 11
+    assert any(
+        "Outside the certified monsoon window" in r
+        for r in run["score"]["reasons"]
+    )
+
+
 def test_pipeline_then_review_then_dispatch(tmp_path) -> None:
     """Full DoD chain: pipeline → review → dispatch → audit."""
     repo = Repository(":memory:")

@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS scores (
     confidence      DOUBLE PRECISION NOT NULL,  -- 0..1
     severity        TEXT NOT NULL,             -- informational|watch|elevated|critical
     reasons         JSONB NOT NULL,            -- array, >=3 entries on elevated+
+    method          TEXT,                      -- deterministic_fallback | neural_primary | neural_advisory | mixed
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

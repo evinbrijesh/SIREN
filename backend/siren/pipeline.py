@@ -1,7 +1,8 @@
 """Pipeline orchestrator — wires detect→geo→risk→DB.
 
-This is the integration layer that connects the OpenCode-owned modules
-(detect, geo, risk) to the Devin-owned infrastructure (db, audit, quality).
+This is the integration layer that connects the analysis modules
+(detect, geo, risk) to the persistence and audit infrastructure
+(db, audit, quality).
 
 For each observation:
   1. Load quality verdict (preprocess/quality.py)
@@ -1023,6 +1024,24 @@ def run_pipeline(
             "ice, not water; drainage stats are not hydrological."
         )
 
+    # 6a-bis. Operational scope (vulnerable-season window). The neural
+    # water/change evidence is certified for the monsoon window only
+    # (Jun-Sep: 82.6% of dated GLOF events, ~80% of annual rainfall —
+    # see siren/scope.py). Outside the window the deterministic baseline
+    # stays authoritative and the neural evidence is annotated as
+    # out-of-scope; the reason surfaces on the review card.
+    try:
+        from siren.scope import scope_for_date
+        change_stats["operational_scope"] = scope_for_date(
+            obs_config["acquired_at"][:10]
+        )
+    except Exception as exc:  # noqa: BLE001 — scope annotation must never break the run
+        logger.warning(f"Operational-scope annotation failed: {exc}")
+        change_stats["operational_scope"] = {
+            "in_scope": None,
+            "reason": "scope annotation unavailable",
+        }
+
     change_polygon = _change_polygon_from_mask(str(mask_path))
 
     # Try the full corridor pipeline; fall back to a simple corridor if
@@ -1167,6 +1186,13 @@ def run_pipeline(
     ):
         score["reasons"].append(_cc["reason"])
 
+    # 7a-bis. Out-of-scope observations carry the scope note as a review
+    # reason so the analyst sees why the neural evidence is advisory here
+    # (deterministic baseline stays authoritative — never silently dropped).
+    _scope = change_stats.get("operational_scope", {})
+    if isinstance(_scope, dict) and _scope.get("in_scope") is False:
+        score["reasons"].append(_scope["reason"])
+
     # 7b. Attach shadow evidence (V3 §3.6, §6 — ADR-010 §3: not load-bearing)
     # The deterministic 5-factor hazard score remains authoritative. Shadow
     # evidence (susceptibility, HAND, FNO) is attached to change_stats for
@@ -1247,6 +1273,7 @@ def run_pipeline(
         confidence=score["confidence"],
         severity=score["severity"],
         reasons=score["reasons"],
+        method=score.get("method", "deterministic_fallback"),
     )
 
     repo.add_exposures(run_id, exposures)

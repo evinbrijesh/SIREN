@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS scores (
     confidence      REAL NOT NULL,             -- 0..1
     severity        TEXT NOT NULL,             -- informational|watch|elevated|critical
     reasons_json    TEXT NOT NULL,             -- array, >=3 entries on elevated+
+    method          TEXT,                      -- deterministic_fallback | neural_primary | neural_advisory | mixed
     created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
 );
 

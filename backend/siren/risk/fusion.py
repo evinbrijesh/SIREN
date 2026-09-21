@@ -1,4 +1,4 @@
-"""Risk fusion: hazard H, exposure E, disease D_risk (OpenCode-owned, Phase 3).
+"""Risk fusion: hazard H, exposure E, disease D_risk (Phase 3).
 
 Implements the PRD §9.5 formulas. Every score carries a deterministic
 `reasons` array (>= 3 entries on elevated+) — never a bare number
@@ -200,6 +200,7 @@ def fuse(
         "severity": severity,
         "confidence": confidence,
         "reasons": reasons,
+        "method": "deterministic_fallback",
         "chlorine_tablets_required": chlorine_tablets_required,
         "boil_water_advisory": boil_water_advisory,
     }

@@ -49,6 +49,7 @@ class Score(BaseModel):
     confidence: float
     severity: str  # informational | watch | elevated | critical
     reasons: list[str]  # >= 3 entries on elevated+ (PRD §9.5)
+    method: str = "deterministic_fallback"  # deterministic_fallback | neural_primary | neural_advisory | mixed
 
 
 class Alert(BaseModel):
@@ -192,3 +193,32 @@ class SarPriorityList(BaseModel):
 class ErrorResponse(BaseModel):
     error: str
     detail: str
+
+
+class MlComponentStatus(BaseModel):
+    status: str  # shadow | advisory_primary | operational_primary
+    display: str
+    gate: str | None = None
+    gate_passed: bool | None = None
+    current_metric: dict[str, Any] | None = None
+    checkpoint: str | None = None
+    promoted_at: str | None = None
+    caveat: str | None = None
+    blocker: str | None = None
+    evidence_files: list[str] | None = None
+
+
+class MlReadinessSummary(BaseModel):
+    dl_primary_ready: bool
+    operational_primary_components: int
+    advisory_primary_components: int
+    shadow_components: int
+    total_components: int
+    next_recommended_level: int
+    operational_scope: dict[str, Any] | None = None
+    note: str
+
+
+class MlReadinessResponse(BaseModel):
+    components: dict[str, MlComponentStatus]
+    summary: MlReadinessSummary

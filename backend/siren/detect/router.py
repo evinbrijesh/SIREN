@@ -1,4 +1,4 @@
-"""Weather-adaptive change-detection router (OpenCode-owned, Phase 2).
+"""Weather-adaptive change-detection router (Phase 2).
 
 Routes each observation to the optical (NDWI) or SAR (backscatter) path
 based on the quality gate's cloud-fraction verdict (PRD §9.1, ADR-003).

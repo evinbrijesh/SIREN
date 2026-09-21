@@ -1,4 +1,4 @@
-"""Hydrological corridor + exposure generation (OpenCode-owned, Phase 3).
+"""Hydrological corridor + exposure generation (Phase 3).
 
 Combined D8 + OSM river buffering approach (ADR-005):
 

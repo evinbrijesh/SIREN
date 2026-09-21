@@ -10,6 +10,8 @@ Covers:
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -128,19 +130,58 @@ def test_detect_architecture_rejects_unknown() -> None:
 # Engine: checkpoint resolution
 # --------------------------------------------------------------------------- #
 
-def test_engine_prefers_gate_passed_kuro_siwo_checkpoint() -> None:
-    """The default engine must load the gate-passed 6-channel checkpoint."""
-    from siren.ml.engine import KURO_SIWO_WEIGHTS_PATH, ChangeDetectionEngine
+def test_engine_prefers_promoted_sar_segmentation_checkpoint() -> None:
+    """The default engine loads the promoted sar_segmentation_expansion checkpoint.
 
-    if not KURO_SIWO_WEIGHTS_PATH.exists():
-        pytest.skip("Kuro Siwo checkpoint not present")
+    PRD v5.1 / AGENTS.md: the promotion record describes what actually runs.
+    When ``sar_segmentation_expansion`` is promoted, ``ChangeDetectionEngine``
+    resolves that checkpoint first and falls back to the gate-passed Kuro Siwo
+    base checkpoint only when the promoted record is absent.
+    """
+    from siren.ml.engine import ChangeDetectionEngine
+    from siren.ml.promotion import promotion_record
+
+    promoted = promotion_record("sar_segmentation_expansion")
+    assert promoted is not None
+    promoted_path = (
+        Path(__file__).resolve().parents[2]  # repo root
+        / "models"
+        / "checkpoints"
+        / promoted["checkpoint"]
+    )
+    if not promoted_path.exists():
+        pytest.skip("Promoted sar_segmentation_expansion checkpoint not present")
 
     engine = ChangeDetectionEngine()
     assert engine.is_ready is True
     assert engine.architecture == "WaterResUNet"
     assert engine.in_channels == 6
     assert engine.is_multitemporal is True
-    assert engine.weights_path == KURO_SIWO_WEIGHTS_PATH
+    assert engine.weights_path == promoted_path
+
+
+def test_engine_falls_back_to_kuro_siwo_when_no_promotion(
+    monkeypatch,
+) -> None:
+    """Without a promoted segmentation record, the engine loads the Kuro Siwo checkpoint."""
+    from siren.ml.engine import KURO_SIWO_WEIGHTS_PATH, ChangeDetectionEngine
+    from siren.ml import promotion as promotion_module
+
+    if not KURO_SIWO_WEIGHTS_PATH.exists():
+        pytest.skip("Kuro Siwo checkpoint not present")
+
+    # Temporarily demote sar_segmentation_expansion so the fallback ordering is tested.
+    original = promotion_module.PROMOTED_COMPONENTS.copy()
+    try:
+        promotion_module.PROMOTED_COMPONENTS.pop("sar_segmentation_expansion", None)
+        engine = ChangeDetectionEngine()
+        assert engine.is_ready is True
+        assert engine.architecture == "WaterResUNet"
+        assert engine.in_channels == 6
+        assert engine.weights_path == KURO_SIWO_WEIGHTS_PATH
+    finally:
+        promotion_module.PROMOTED_COMPONENTS.clear()
+        promotion_module.PROMOTED_COMPONENTS.update(original)
 
 
 def test_engine_explicit_path_overrides_default(tmp_path) -> None:

@@ -204,21 +204,24 @@ class PostgresRepository:
         confidence: float,
         severity: str,
         reasons: list[str],
+        method: str = "deterministic_fallback",
     ) -> str:
         count = self._conn.execute("SELECT COUNT(*) AS c FROM scores").fetchone()["c"]
         score_id = f"score-{count + 1:04d}"
         self._conn.execute(
             """INSERT INTO scores
                (score_id, run_id, hazard_score, exposure_priority,
-                disease_risk, confidence, severity, reasons)
-               VALUES(%s,%s,%s,%s,%s,%s,%s,%s)""",
+                disease_risk, confidence, severity, reasons, method)
+               VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
             (
                 score_id, run_id, hazard_score, exposure_priority,
                 disease_risk, confidence, severity, json.dumps(reasons),
+                method,
             ),
         )
         self._audit(None, "pipeline", "score", {
             "run_id": run_id, "score_id": score_id, "severity": severity,
+            "method": method,
         })
         self._conn.commit()
         return score_id
@@ -289,6 +292,7 @@ class PostgresRepository:
                 "confidence": score_row["confidence"],
                 "severity": score_row["severity"],
                 "reasons": reasons,
+                "method": score_row.get("method") or "deterministic_fallback",
             }
         review_row = self._conn.execute(
             """SELECT r.reviewer, r.decision, r.decided_at FROM reviews r
@@ -364,6 +368,7 @@ class PostgresRepository:
             "confidence": row["confidence"],
             "severity": row["severity"],
             "reasons": reasons,
+            "method": row.get("method") or "deterministic_fallback",
         }
 
     def create_review(self, run_id: str, reviewer: str, decision: str, note: str | None) -> dict[str, Any]:

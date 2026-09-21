@@ -115,6 +115,15 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
             media_type="image/png",
         )
 
+    # GET /system/ml-status — DL-primary readiness dashboard (PRD §9.8, §15)
+    @app.get("/system/ml-status", response_model=models.MlReadinessResponse)
+    def get_ml_status() -> Any:
+        from siren.ml.promotion import get_ml_readiness_report
+
+        report = get_ml_readiness_report()
+        summary = report.pop("_summary")
+        return {"components": report, "summary": summary}
+
     # GET /observations
     @app.get("/observations", response_model=models.ObservationList)
     def list_observations() -> Any:

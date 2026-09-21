@@ -1,4 +1,4 @@
-"""SAR backscatter change detection (OpenCode-owned, Phase 2).
+"""SAR backscatter change detection (Phase 2).
 
 Detects water expansion between two Sentinel-1 GRD scenes via log-ratio of
 backscatter (DN²). This is the SAR path — primary during monsoon cloud cover
