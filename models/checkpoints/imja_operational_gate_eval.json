@@ -1,0 +1,794 @@
+{
+  "status": "evaluated",
+  "checkpoint": "/home/e0kt/Documents/01_projects/2026/hackathons/hack_26/project/models/checkpoints/water_resunet_6ch_himalayan_adapter_multidate.pt",
+  "checkpoint_architecture": "WaterResUNet",
+  "checkpoint_in_channels": 6,
+  "gate": {
+    "iou": 0.6,
+    "precision": 0.84,
+    "glacier_fp_frac": 0.05
+  },
+  "operational_scope": {
+    "window": "Jun-Sep (monsoon)",
+    "months": [
+      6,
+      7,
+      8,
+      9
+    ],
+    "derivation": {
+      "gloF_events": {
+        "source": "data/datasets/dynamic_escalation_train.parquet",
+        "total": 230,
+        "in_window": 190,
+        "share": 0.826
+      },
+      "rainfall": {
+        "source": "data/assets/imja_power_series.json",
+        "mm_per_month": {
+          "1": 4,
+          "2": 6,
+          "3": 13,
+          "4": 18,
+          "5": 37,
+          "6": 72,
+          "7": 144,
+          "8": 133,
+          "9": 70,
+          "10": 19,
+          "11": 2,
+          "12": 3
+        },
+        "window_share_of_annual": 0.8
+      },
+      "surface_state": "liquid (Jun-Sep mean +3 to +6 \u00b0C at lake altitude)"
+    },
+    "other_axes": {
+      "orbit": "descending (promoted component scope)",
+      "region": "Imja-area monitorable lakes (certified checkpoint scope)"
+    },
+    "out_of_scope_policy": "Outside the certified monsoon window (Jun-Sep): the neural water/change evidence is advisory-only and the deterministic baseline remains authoritative. The lake is typically frozen or refreezing and <18% of historical GLOF events occur here."
+  },
+  "gold_complete_pairs": [
+    "monsoon_2025_desc",
+    "monsoon_2025_desc2",
+    "unfrozen_desc",
+    "shoulder",
+    "monsoon_asc",
+    "winter"
+  ],
+  "pairs": [
+    {
+      "pair": "monsoon_2025_desc",
+      "t0": "20250829",
+      "t1": "20250910",
+      "season": "unfrozen",
+      "thresholds": {
+        "0.3": {
+          "extent": {
+            "iou": 0.6828,
+            "precision": 0.9706,
+            "recall": 0.7676,
+            "pred_px_in_roi": 102,
+            "label_px_in_roi": 142
+          },
+          "change": {
+            "expansion_px": 7,
+            "tp_vs_label_change": 0,
+            "fp_vs_label_t1": 0,
+            "expansion_dp_px": 7,
+            "tp_dp_vs_label_change": 0,
+            "fp_dp_vs_label_t1": 0,
+            "label_change_px": 0
+          },
+          "glacier_fp": {
+            "glacier_pred_px": 0,
+            "total_pred_px": 328,
+            "glacier_fp_frac": 0.0,
+            "glacier_fp_frac_of_roi_pred": 0.0,
+            "roi_pred_water_frac": 0.4198
+          },
+          "gate_passed": true
+        },
+        "0.4": {
+          "extent": {
+            "iou": 0.6552,
+            "precision": 0.9694,
+            "recall": 0.7394,
+            "pred_px_in_roi": 98,
+            "label_px_in_roi": 142
+          },
+          "change": {
+            "expansion_px": 5,
+            "tp_vs_label_change": 0,
+            "fp_vs_label_t1": 0,
+            "expansion_dp_px": 7,
+            "tp_dp_vs_label_change": 0,
+            "fp_dp_vs_label_t1": 0,
+            "label_change_px": 0
+          },
+          "glacier_fp": {
+            "glacier_pred_px": 0,
+            "total_pred_px": 302,
+            "glacier_fp_frac": 0.0,
+            "glacier_fp_frac_of_roi_pred": 0.0,
+            "roi_pred_water_frac": 0.4033
+          },
+          "gate_passed": true
+        },
+        "0.5": {
+          "extent": {
+            "iou": 0.6414,
+            "precision": 0.9688,
+            "recall": 0.7254,
+            "pred_px_in_roi": 96,
+            "label_px_in_roi": 142
+          },
+          "change": {
+            "expansion_px": 8,
+            "tp_vs_label_change": 0,
+            "fp_vs_label_t1": 0,
+            "expansion_dp_px": 7,
+            "tp_dp_vs_label_change": 0,
+            "fp_dp_vs_label_t1": 0,
+            "label_change_px": 0
+          },
+          "glacier_fp": {
+            "glacier_pred_px": 0,
+            "total_pred_px": 288,
+            "glacier_fp_frac": 0.0,
+            "glacier_fp_frac_of_roi_pred": 0.0,
+            "roi_pred_water_frac": 0.3951
+          },
+          "gate_passed": true
+        },
+        "0.55": {
+          "extent": {
+            "iou": 0.6276,
+            "precision": 0.9681,
+            "recall": 0.7113,
+            "pred_px_in_roi": 94,
+            "label_px_in_roi": 142
+          },
+          "change": {
+            "expansion_px": 7,
+            "tp_vs_label_change": 0,
+            "fp_vs_label_t1": 0,
+            "expansion_dp_px": 7,
+            "tp_dp_vs_label_change": 0,
+            "fp_dp_vs_label_t1": 0,
+            "label_change_px": 0
+          },
+          "glacier_fp": {
+            "glacier_pred_px": 0,
+            "total_pred_px": 281,
+            "glacier_fp_frac": 0.0,
+            "glacier_fp_frac_of_roi_pred": 0.0,
+            "roi_pred_water_frac": 0.3868
+          },
+          "gate_passed": true
+        }
+      },
+      "label_provenance": {
+        "t0": "/home/e0kt/Documents/01_projects/2026/hackathons/hack_26/project/data/processed/imja_gold_label_20250903.tif",
+        "t1": "/home/e0kt/Documents/01_projects/2026/hackathons/hack_26/project/data/processed/imja_gold_label_20250905.tif"
+      },
+      "in_operational_scope": true,
+      "scope_note": "in scope"
+    },
+    {
+      "pair": "monsoon_2025_desc2",
+      "t0": "20250829",
+      "t1": "20250922",
+      "season": "unfrozen",
+      "thresholds": {
+        "0.3": {
+          "extent": {
+            "iou": 0.6241,
+            "precision": 0.9462,
+            "recall": 0.6985,
+            "pred_px_in_roi": 93,
+            "label_px_in_roi": 136
+          },
+          "change": {
+            "expansion_px": 1,
+            "tp_vs_label_change": 0,
+            "fp_vs_label_t1": 0,
+            "expansion_dp_px": 1,
+            "tp_dp_vs_label_change": 0,
+            "fp_dp_vs_label_t1": 0,
+            "label_change_px": 0
+          },
+          "glacier_fp": {
+            "glacier_pred_px": 0,
+            "total_pred_px": 289,
+            "glacier_fp_frac": 0.0,
+            "glacier_fp_frac_of_roi_pred": 0.0,
+            "roi_pred_water_frac": 0.417
+          },
+          "gate_passed": true
+        },
+        "0.4": {
+          "extent": {
+            "iou": 0.5887,
+            "precision": 0.9432,
+            "recall": 0.6618,
+            "pred_px_in_roi": 88,
+            "label_px_in_roi": 136
+          },
+          "change": {
+            "expansion_px": 0,
+            "tp_vs_label_change": 0,
+            "fp_vs_label_t1": 0,
+            "expansion_dp_px": 1,
+            "tp_dp_vs_label_change": 0,
+            "fp_dp_vs_label_t1": 0,
+            "label_change_px": 0
+          },
+          "glacier_fp": {
+            "glacier_pred_px": 0,
+            "total_pred_px": 273,
+            "glacier_fp_frac": 0.0,
+            "glacier_fp_frac_of_roi_pred": 0.0,
+            "roi_pred_water_frac": 0.3946
+          },
+          "gate_passed": false
+        },
+        "0.5": {
+          "extent": {
+            "iou": 0.5674,
+            "precision": 0.9412,
+            "recall": 0.6397,
+            "pred_px_in_roi": 85,
+            "label_px_in_roi": 136
+          },
+          "change": {
+            "expansion_px": 0,
+            "tp_vs_label_change": 0,
+            "fp_vs_label_t1": 0,
+            "expansion_dp_px": 1,
+            "tp_dp_vs_label_change": 0,
+            "fp_dp_vs_label_t1": 0,
+            "label_change_px": 0
+          },
+          "glacier_fp": {
+            "glacier_pred_px": 0,
+            "total_pred_px": 258,
+            "glacier_fp_frac": 0.0,
+            "glacier_fp_frac_of_roi_pred": 0.0,
+            "roi_pred_water_frac": 0.3812
+          },
+          "gate_passed": false
+        },
+        "0.55": {
+          "extent": {
+            "iou": 0.5603,
+            "precision": 0.9405,
+            "recall": 0.625,
+            "pred_px_in_roi": 84,
+            "label_px_in_roi": 136
+          },
+          "change": {
+            "expansion_px": 0,
+            "tp_vs_label_change": 0,
+            "fp_vs_label_t1": 0,
+            "expansion_dp_px": 1,
+            "tp_dp_vs_label_change": 0,
+            "fp_dp_vs_label_t1": 0,
+            "label_change_px": 0
+          },
+          "glacier_fp": {
+            "glacier_pred_px": 0,
+            "total_pred_px": 252,
+            "glacier_fp_frac": 0.0,
+            "glacier_fp_frac_of_roi_pred": 0.0,
+            "roi_pred_water_frac": 0.3767
+          },
+          "gate_passed": false
+        }
+      },
+      "label_provenance": {
+        "t0": "/home/e0kt/Documents/01_projects/2026/hackathons/hack_26/project/data/processed/imja_gold_label_20250903.tif",
+        "t1": "/home/e0kt/Documents/01_projects/2026/hackathons/hack_26/project/data/processed/imja_gold_label_20250925.tif"
+      },
+      "in_operational_scope": true,
+      "scope_note": "in scope"
+    },
+    {
+      "pair": "unfrozen_desc",
+      "t0": "20260819",
+      "t1": "20260912",
+      "season": "unfrozen",
+      "thresholds": {
+        "0.3": {
+          "extent": {
+            "iou": 0.5,
+            "precision": 0.7387,
+            "recall": 0.637,
+            "pred_px_in_roi": 111,
+            "label_px_in_roi": 135
+          },
+          "change": {
+            "expansion_px": 21,
+            "tp_vs_label_change": 7,
+            "fp_vs_label_t1": 6,
+            "expansion_dp_px": 39,
+            "tp_dp_vs_label_change": 16,
+            "fp_dp_vs_label_t1": 9,
+            "label_change_px": 32
+          },
+          "glacier_fp": {
+            "glacier_pred_px": 0,
+            "total_pred_px": 436,
+            "glacier_fp_frac": 0.0,
+            "glacier_fp_frac_of_roi_pred": 0.0,
+            "roi_pred_water_frac": 0.1679
+          },
+          "gate_passed": false
+        },
+        "0.4": {
+          "extent": {
+            "iou": 0.454,
+            "precision": 0.7255,
+            "recall": 0.5704,
+            "pred_px_in_roi": 102,
+            "label_px_in_roi": 135
+          },
+          "change": {
+            "expansion_px": 23,
+            "tp_vs_label_change": 7,
+            "fp_vs_label_t1": 7,
+            "expansion_dp_px": 39,
+            "tp_dp_vs_label_change": 16,
+            "fp_dp_vs_label_t1": 9,
+            "label_change_px": 32
+          },
+          "glacier_fp": {
+            "glacier_pred_px": 0,
+            "total_pred_px": 405,
+            "glacier_fp_frac": 0.0,
+            "glacier_fp_frac_of_roi_pred": 0.0,
+            "roi_pred_water_frac": 0.1543
+          },
+          "gate_passed": false
+        },
+        "0.5": {
+          "extent": {
+            "iou": 0.4277,
+            "precision": 0.7391,
+            "recall": 0.5259,
+            "pred_px_in_roi": 92,
+            "label_px_in_roi": 135
+          },
+          "change": {
+            "expansion_px": 29,
+            "tp_vs_label_change": 12,
+            "fp_vs_label_t1": 6,
+            "expansion_dp_px": 39,
+            "tp_dp_vs_label_change": 16,
+            "fp_dp_vs_label_t1": 9,
+            "label_change_px": 32
+          },
+          "glacier_fp": {
+            "glacier_pred_px": 0,
+            "total_pred_px": 367,
+            "glacier_fp_frac": 0.0,
+            "glacier_fp_frac_of_roi_pred": 0.0,
+            "roi_pred_water_frac": 0.1392
+          },
+          "gate_passed": false
+        },
+        "0.55": {
+          "extent": {
+            "iou": 0.4114,
+            "precision": 0.7386,
+            "recall": 0.4963,
+            "pred_px_in_roi": 88,
+            "label_px_in_roi": 135
+          },
+          "change": {
+            "expansion_px": 30,
+            "tp_vs_label_change": 12,
+            "fp_vs_label_t1": 7,
+            "expansion_dp_px": 39,
+            "tp_dp_vs_label_change": 16,
+            "fp_dp_vs_label_t1": 9,
+            "label_change_px": 32
+          },
+          "glacier_fp": {
+            "glacier_pred_px": 0,
+            "total_pred_px": 350,
+            "glacier_fp_frac": 0.0,
+            "glacier_fp_frac_of_roi_pred": 0.0,
+            "roi_pred_water_frac": 0.1331
+          },
+          "gate_passed": false
+        }
+      },
+      "label_provenance": {
+        "t0": "/home/e0kt/Documents/01_projects/2026/hackathons/hack_26/project/data/processed/imja_gold_label_20260824.tif",
+        "t1": "/home/e0kt/Documents/01_projects/2026/hackathons/hack_26/project/data/processed/imja_gold_label_20260908.tif"
+      },
+      "in_operational_scope": true,
+      "scope_note": "in scope"
+    },
+    {
+      "pair": "shoulder",
+      "t0": "20251109",
+      "t1": "20251121",
+      "season": "frozen_shoulder",
+      "thresholds": {
+        "0.3": {
+          "extent": {
+            "iou": 0.1862,
+            "precision": 1.0,
+            "recall": 0.1862,
+            "pred_px_in_roi": 27,
+            "label_px_in_roi": 145
+          },
+          "change": {
+            "expansion_px": 9,
+            "tp_vs_label_change": 0,
+            "fp_vs_label_t1": 0,
+            "expansion_dp_px": 10,
+            "tp_dp_vs_label_change": 0,
+            "fp_dp_vs_label_t1": 0,
+            "label_change_px": 31
+          },
+          "glacier_fp": {
+            "glacier_pred_px": 0,
+            "total_pred_px": 144,
+            "glacier_fp_frac": 0.0,
+            "glacier_fp_frac_of_roi_pred": 0.0,
+            "roi_pred_water_frac": 0.1125
+          },
+          "gate_passed": false
+        },
+        "0.4": {
+          "extent": {
+            "iou": 0.1655,
+            "precision": 1.0,
+            "recall": 0.1655,
+            "pred_px_in_roi": 24,
+            "label_px_in_roi": 145
+          },
+          "change": {
+            "expansion_px": 8,
+            "tp_vs_label_change": 0,
+            "fp_vs_label_t1": 0,
+            "expansion_dp_px": 10,
+            "tp_dp_vs_label_change": 0,
+            "fp_dp_vs_label_t1": 0,
+            "label_change_px": 31
+          },
+          "glacier_fp": {
+            "glacier_pred_px": 0,
+            "total_pred_px": 129,
+            "glacier_fp_frac": 0.0,
+            "glacier_fp_frac_of_roi_pred": 0.0,
+            "roi_pred_water_frac": 0.1
+          },
+          "gate_passed": true
+        },
+        "0.5": {
+          "extent": {
+            "iou": 0.1517,
+            "precision": 1.0,
+            "recall": 0.1517,
+            "pred_px_in_roi": 22,
+            "label_px_in_roi": 145
+          },
+          "change": {
+            "expansion_px": 8,
+            "tp_vs_label_change": 0,
+            "fp_vs_label_t1": 0,
+            "expansion_dp_px": 10,
+            "tp_dp_vs_label_change": 0,
+            "fp_dp_vs_label_t1": 0,
+            "label_change_px": 31
+          },
+          "glacier_fp": {
+            "glacier_pred_px": 0,
+            "total_pred_px": 112,
+            "glacier_fp_frac": 0.0,
+            "glacier_fp_frac_of_roi_pred": 0.0,
+            "roi_pred_water_frac": 0.0917
+          },
+          "gate_passed": true
+        },
+        "0.55": {
+          "extent": {
+            "iou": 0.1448,
+            "precision": 1.0,
+            "recall": 0.1448,
+            "pred_px_in_roi": 21,
+            "label_px_in_roi": 145
+          },
+          "change": {
+            "expansion_px": 7,
+            "tp_vs_label_change": 0,
+            "fp_vs_label_t1": 0,
+            "expansion_dp_px": 10,
+            "tp_dp_vs_label_change": 0,
+            "fp_dp_vs_label_t1": 0,
+            "label_change_px": 31
+          },
+          "glacier_fp": {
+            "glacier_pred_px": 0,
+            "total_pred_px": 102,
+            "glacier_fp_frac": 0.0,
+            "glacier_fp_frac_of_roi_pred": 0.0,
+            "roi_pred_water_frac": 0.0875
+          },
+          "gate_passed": true
+        }
+      },
+      "label_provenance": {
+        "t0": "/home/e0kt/Documents/01_projects/2026/hackathons/hack_26/project/data/processed/imja_gold_label_20251112.tif",
+        "t1": "/home/e0kt/Documents/01_projects/2026/hackathons/hack_26/project/data/processed/imja_gold_label_20251122.tif"
+      },
+      "in_operational_scope": false,
+      "scope_note": "outside monsoon window (Jun-Sep); season=frozen_shoulder"
+    },
+    {
+      "pair": "monsoon_asc",
+      "t0": "20260811",
+      "t1": "20260916",
+      "season": "unfrozen",
+      "thresholds": {
+        "0.3": {
+          "extent": {
+            "iou": 0.0286,
+            "precision": 1.0,
+            "recall": 0.0643,
+            "pred_px_in_roi": 4,
+            "label_px_in_roi": 140
+          },
+          "change": {
+            "expansion_px": 1,
+            "tp_vs_label_change": 0,
+            "fp_vs_label_t1": 0,
+            "expansion_dp_px": 2,
+            "tp_dp_vs_label_change": 1,
+            "fp_dp_vs_label_t1": 0,
+            "label_change_px": 42
+          },
+          "glacier_fp": {
+            "glacier_pred_px": 0,
+            "total_pred_px": 128,
+            "glacier_fp_frac": 0.0,
+            "glacier_fp_frac_of_roi_pred": 0.0,
+            "roi_pred_water_frac": 0.018
+          },
+          "gate_passed": false
+        },
+        "0.4": {
+          "extent": {
+            "iou": 0.0214,
+            "precision": 1.0,
+            "recall": 0.05,
+            "pred_px_in_roi": 3,
+            "label_px_in_roi": 140
+          },
+          "change": {
+            "expansion_px": 1,
+            "tp_vs_label_change": 0,
+            "fp_vs_label_t1": 0,
+            "expansion_dp_px": 2,
+            "tp_dp_vs_label_change": 1,
+            "fp_dp_vs_label_t1": 0,
+            "label_change_px": 42
+          },
+          "glacier_fp": {
+            "glacier_pred_px": 0,
+            "total_pred_px": 103,
+            "glacier_fp_frac": 0.0,
+            "glacier_fp_frac_of_roi_pred": 0.0,
+            "roi_pred_water_frac": 0.0135
+          },
+          "gate_passed": false
+        },
+        "0.5": {
+          "extent": {
+            "iou": 0.0143,
+            "precision": 1.0,
+            "recall": 0.0214,
+            "pred_px_in_roi": 2,
+            "label_px_in_roi": 140
+          },
+          "change": {
+            "expansion_px": 1,
+            "tp_vs_label_change": 0,
+            "fp_vs_label_t1": 0,
+            "expansion_dp_px": 2,
+            "tp_dp_vs_label_change": 1,
+            "fp_dp_vs_label_t1": 0,
+            "label_change_px": 42
+          },
+          "glacier_fp": {
+            "glacier_pred_px": 0,
+            "total_pred_px": 86,
+            "glacier_fp_frac": 0.0,
+            "glacier_fp_frac_of_roi_pred": 0.0,
+            "roi_pred_water_frac": 0.009
+          },
+          "gate_passed": false
+        },
+        "0.55": {
+          "extent": {
+            "iou": 0.0143,
+            "precision": 1.0,
+            "recall": 0.0214,
+            "pred_px_in_roi": 2,
+            "label_px_in_roi": 140
+          },
+          "change": {
+            "expansion_px": 1,
+            "tp_vs_label_change": 0,
+            "fp_vs_label_t1": 0,
+            "expansion_dp_px": 2,
+            "tp_dp_vs_label_change": 1,
+            "fp_dp_vs_label_t1": 0,
+            "label_change_px": 42
+          },
+          "glacier_fp": {
+            "glacier_pred_px": 0,
+            "total_pred_px": 84,
+            "glacier_fp_frac": 0.0,
+            "glacier_fp_frac_of_roi_pred": 0.0,
+            "roi_pred_water_frac": 0.009
+          },
+          "gate_passed": false
+        }
+      },
+      "label_provenance": {
+        "t0": "/home/e0kt/Documents/01_projects/2026/hackathons/hack_26/project/data/processed/imja_gold_label_20260811.tif",
+        "t1": "/home/e0kt/Documents/01_projects/2026/hackathons/hack_26/project/data/processed/imja_gold_label_20260918.tif"
+      },
+      "in_operational_scope": false,
+      "scope_note": "ascending orbit (component scope: descending)"
+    },
+    {
+      "pair": "winter",
+      "t0": "20260108",
+      "t1": "20260120",
+      "season": "frozen",
+      "thresholds": {
+        "0.3": {
+          "extent": {
+            "iou": null,
+            "precision": null,
+            "recall": null,
+            "pred_px_in_roi": 0,
+            "label_px_in_roi": 0
+          },
+          "change": {
+            "expansion_px": 0,
+            "tp_vs_label_change": 0,
+            "fp_vs_label_t1": 0,
+            "expansion_dp_px": 0,
+            "tp_dp_vs_label_change": 0,
+            "fp_dp_vs_label_t1": 0,
+            "label_change_px": 0
+          },
+          "glacier_fp": {
+            "glacier_pred_px": 0,
+            "total_pred_px": 44,
+            "glacier_fp_frac": 0.0,
+            "glacier_fp_frac_of_roi_pred": null,
+            "roi_pred_water_frac": 0.0
+          },
+          "gate_passed": true
+        },
+        "0.4": {
+          "extent": {
+            "iou": null,
+            "precision": null,
+            "recall": null,
+            "pred_px_in_roi": 0,
+            "label_px_in_roi": 0
+          },
+          "change": {
+            "expansion_px": 0,
+            "tp_vs_label_change": 0,
+            "fp_vs_label_t1": 0,
+            "expansion_dp_px": 0,
+            "tp_dp_vs_label_change": 0,
+            "fp_dp_vs_label_t1": 0,
+            "label_change_px": 0
+          },
+          "glacier_fp": {
+            "glacier_pred_px": 0,
+            "total_pred_px": 38,
+            "glacier_fp_frac": 0.0,
+            "glacier_fp_frac_of_roi_pred": null,
+            "roi_pred_water_frac": 0.0
+          },
+          "gate_passed": true
+        },
+        "0.5": {
+          "extent": {
+            "iou": null,
+            "precision": null,
+            "recall": null,
+            "pred_px_in_roi": 0,
+            "label_px_in_roi": 0
+          },
+          "change": {
+            "expansion_px": 0,
+            "tp_vs_label_change": 0,
+            "fp_vs_label_t1": 0,
+            "expansion_dp_px": 0,
+            "tp_dp_vs_label_change": 0,
+            "fp_dp_vs_label_t1": 0,
+            "label_change_px": 0
+          },
+          "glacier_fp": {
+            "glacier_pred_px": 0,
+            "total_pred_px": 31,
+            "glacier_fp_frac": 0.0,
+            "glacier_fp_frac_of_roi_pred": null,
+            "roi_pred_water_frac": 0.0
+          },
+          "gate_passed": true
+        },
+        "0.55": {
+          "extent": {
+            "iou": null,
+            "precision": null,
+            "recall": null,
+            "pred_px_in_roi": 0,
+            "label_px_in_roi": 0
+          },
+          "change": {
+            "expansion_px": 0,
+            "tp_vs_label_change": 0,
+            "fp_vs_label_t1": 0,
+            "expansion_dp_px": 0,
+            "tp_dp_vs_label_change": 0,
+            "fp_dp_vs_label_t1": 0,
+            "label_change_px": 0
+          },
+          "glacier_fp": {
+            "glacier_pred_px": 0,
+            "total_pred_px": 28,
+            "glacier_fp_frac": 0.0,
+            "glacier_fp_frac_of_roi_pred": null,
+            "roi_pred_water_frac": 0.0
+          },
+          "gate_passed": true
+        }
+      },
+      "label_provenance": {
+        "t0": "/home/e0kt/Documents/01_projects/2026/hackathons/hack_26/project/data/processed/imja_gold_label_20260101.tif",
+        "t1": "/home/e0kt/Documents/01_projects/2026/hackathons/hack_26/project/data/processed/imja_gold_label_20260121.tif"
+      },
+      "in_operational_scope": false,
+      "scope_note": "outside monsoon window (Jun-Sep); season=frozen"
+    }
+  ],
+  "verdict": {
+    "threshold": "0.3",
+    "pairs_evaluated": 6,
+    "in_scope_pairs_evaluated": 3,
+    "in_scope_pairs_passed": 2,
+    "out_of_scope_pairs": [
+      {
+        "pair": "shoulder",
+        "note": "outside monsoon window (Jun-Sep); season=frozen_shoulder",
+        "gate_passed": false
+      },
+      {
+        "pair": "monsoon_asc",
+        "note": "ascending orbit (component scope: descending)",
+        "gate_passed": false
+      },
+      {
+        "pair": "winter",
+        "note": "outside monsoon window (Jun-Sep); season=frozen",
+        "gate_passed": true
+      }
+    ],
+    "operational_primary_eligible": true
+  }
+}

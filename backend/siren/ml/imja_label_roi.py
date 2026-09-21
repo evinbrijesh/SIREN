@@ -136,6 +136,22 @@ def extract_roi(
                 resampling=Resampling.nearest,
             )
 
+        # 20 m SWIR band for ice discrimination (NDSI)
+        b11_p = next(
+            n for n in z.namelist()
+            if "IMG_DATA" in n and n.endswith("_B11_20m.jp2")
+        )
+        with z.open(b11_p) as f:
+            ds = rasterio.open(f)
+            b11 = np.zeros(bands["B03"].shape, dtype=np.float32)
+            reproject(
+                source=rasterio.band(ds, 1),
+                destination=b11,
+                dst_transform=ref_transform,
+                dst_crs=ref_crs,
+                resampling=Resampling.bilinear,
+            )
+
     b02, b03, b04, b08 = bands["B02"], bands["B03"], bands["B04"], bands["B08"]
     ndwi = (b03 - b08) / (b03 + b08 + 1e-6)
 
@@ -144,24 +160,37 @@ def extract_roi(
         return np.clip((x - lo) / max(hi - lo, 1) * 255, 0, 255).astype(np.uint8)
 
     rgb = np.stack([_norm(b04), _norm(b03), _norm(b02)])
+    ndsi = (b03 - b11) / (b03 + b11 + 1e-6)
     return {
         "rgb": rgb,
         "ndwi": ndwi.astype(np.float32),
+        "ndsi": ndsi.astype(np.float32),
         "scl": scl,
-        "b11": None,
+        "b11": b11,
         "transform": ref_transform,
         "crs": ref_crs,
     }
 
 
 def candidate_label(
-    roi: dict, ndwi_threshold: float = 0.15, clear_scl: set | None = None
+    roi: dict,
+    ndwi_threshold: float = 0.15,
+    clear_scl: set | None = None,
+    max_ndsi: float | None = None,
 ) -> np.ndarray:
-    """uint8 label: 1=water, 0=land, 255=unlabelled (cloud/shadow)."""
+    """uint8 label: 1=water, 0=land, 255=unlabelled (cloud/shadow).
+
+    ``max_ndsi`` optionally excludes ice/snow-covered pixels that pass the
+    NDWI test — useful for frozen-season labels where only liquid water
+    should count as water.
+    """
     clear = clear_scl or {4, 5, 6, 7, 11}
     valid = np.isin(roi["scl"], list(clear))
+    water = roi["ndwi"] > ndwi_threshold
+    if max_ndsi is not None and "ndsi" in roi:
+        water = water & (roi["ndsi"] < max_ndsi)
     out = np.where(valid, 0, 255).astype(np.uint8)
-    out[valid & (roi["ndwi"] > ndwi_threshold)] = 1
+    out[valid & water] = 1
     return out
 
 

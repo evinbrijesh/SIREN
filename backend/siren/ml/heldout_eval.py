@@ -117,9 +117,21 @@ IMJA_LON, IMJA_LAT = 86.9282, 27.8983
 # SCL_CLEAR classes are valid non-water; everything else (cloud/shadow/
 # nodata) is masked out of the IoU.
 S2_LABEL_SCENES = {
+    # shoulder t0: nearest clear scene (AOI clear frac ~0.99)
+    "20251109": [RAW_DIR
+    / "S2C_MSIL2A_20251112T045051_N0511_R076_T45RVL_20251112T083114.zip"],
     # shoulder t1: same-day+1 clear scene (AOI clear frac ~0.84)
     "20251121": [RAW_DIR
     / "S2C_MSIL2A_20251122T045131_N0511_R076_T45RVL_20251122T083010.SAFE.zip"],
+    # winter t0: nearest clear scene (AOI clear frac ~0.98)
+    "20260108": [RAW_DIR
+    / "S2C_MSIL2A_20260101T045221_N0511_R076_T45RVL_20260101T082811.zip"],
+    # winter t1: nearest clear scene (AOI clear frac ~0.99)
+    "20260120": [RAW_DIR
+    / "S2C_MSIL2A_20260121T045121_N0511_R076_T45RVL_20260121T083909.zip"],
+    # monsoon_asc t1: 2-day-offset scene (t1=09-16, S2=09-18, 34.8% cloud)
+    "20260916": [RAW_DIR
+    / "S2C_MSIL2A_20260918T044701_N0512_R076_T45RVL_20260918T074909.zip"],
     # unfrozen_desc2 t0: 1-day-offset scenes (t0=07-26, S2=07-25)
     "20260726": [RAW_DIR
     / "S2B_MSIL2A_20260725T044659_N0512_R076_T45RVL_20260725T083358.zip",
@@ -156,8 +168,11 @@ LABEL_NODATA = 255
 
 def _find_safe(date_str: str) -> Path:
     # Any acquisition time — descending scenes are ~T00:10 UTC, the
-    # orbit-12 ascending scenes ~T12:13 UTC.
-    hits = sorted(RAW_DIR.glob(f"S1*_IW_GRDH_*_{date_str}T*.SAFE.zip"))
+    # orbit-12 ascending scenes ~T12:13 UTC. Matches both .SAFE.zip
+    # and _COG.zip archives.
+    hits = sorted(
+        RAW_DIR.glob(f"S1*_IW_GRDH_*_{date_str}T*.zip")
+    )
     if not hits:
         raise FileNotFoundError(
             f"no S1 SAFE archive for {date_str} in {RAW_DIR}"

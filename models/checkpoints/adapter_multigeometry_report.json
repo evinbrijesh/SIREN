@@ -1,0 +1,966 @@
+{
+ "experiment": "multi-geometry + multi-season adapter fine-tune",
+ "labels": {
+  "positives": "gold liquid-water labels (unfrozen) + all-zero (frozen)",
+  "negatives": "all non-water pixels incl. glacier/moraine/slope + frozen lake",
+  "chips": 102,
+  "pos_pixel_frac": 0.00123
+ },
+ "training": {
+  "epochs": 20,
+  "lr": 0.0001,
+  "frozen_tensors": 28,
+  "trainable_params": 6720897,
+  "total_params": 7938177,
+  "pos_weight": 15.0,
+  "loss_history": [
+   1.5035,
+   1.337,
+   1.2473,
+   1.1459,
+   1.0818,
+   1.108,
+   1.0099,
+   1.0248,
+   0.9825,
+   1.0029,
+   0.99,
+   0.9691,
+   0.9811,
+   0.9787,
+   0.9636,
+   0.9618,
+   0.9613,
+   0.9647,
+   0.9669,
+   0.9475
+  ]
+ },
+ "pairs": [
+  {
+   "pair": "early_desc",
+   "t0": "20260702",
+   "t1": "20260714",
+   "season": "unfrozen",
+   "chip_id": "early_desc_000",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "early_desc",
+   "t0": "20260702",
+   "t1": "20260714",
+   "season": "unfrozen",
+   "chip_id": "early_desc_001",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "early_desc",
+   "t0": "20260702",
+   "t1": "20260714",
+   "season": "unfrozen",
+   "chip_id": "early_desc_002",
+   "pos_px": 185,
+   "kind": "lake"
+  },
+  {
+   "pair": "early_desc",
+   "t0": "20260702",
+   "t1": "20260714",
+   "season": "unfrozen",
+   "chip_id": "early_desc_003",
+   "pos_px": 101,
+   "kind": "lake"
+  },
+  {
+   "pair": "early_desc",
+   "t0": "20260702",
+   "t1": "20260714",
+   "season": "unfrozen",
+   "chip_id": "early_desc_004",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "early_desc",
+   "t0": "20260702",
+   "t1": "20260714",
+   "season": "unfrozen",
+   "chip_id": "early_desc_005",
+   "pos_px": 66,
+   "kind": "lake"
+  },
+  {
+   "pair": "early_desc",
+   "t0": "20260702",
+   "t1": "20260714",
+   "season": "unfrozen",
+   "chip_id": "early_desc_006",
+   "pos_px": 341,
+   "kind": "lake"
+  },
+  {
+   "pair": "early_desc",
+   "t0": "20260702",
+   "t1": "20260714",
+   "season": "unfrozen",
+   "chip_id": "early_desc_007",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "early_desc",
+   "t0": "20260702",
+   "t1": "20260714",
+   "season": "unfrozen",
+   "chip_id": "early_desc_008",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "early_desc",
+   "t0": "20260702",
+   "t1": "20260714",
+   "season": "unfrozen",
+   "chip_id": "early_desc_009",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "early_desc",
+   "t0": "20260702",
+   "t1": "20260714",
+   "season": "unfrozen",
+   "chip_id": "early_desc_010",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "early_desc",
+   "t0": "20260702",
+   "t1": "20260714",
+   "season": "unfrozen",
+   "chip_id": "early_desc_011",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "early_desc",
+   "t0": "20260702",
+   "t1": "20260714",
+   "season": "unfrozen",
+   "chip_id": "early_desc_012",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "early_desc",
+   "t0": "20260702",
+   "t1": "20260714",
+   "season": "unfrozen",
+   "chip_id": "early_desc_013",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "unfrozen_desc2_a",
+   "t0": "20260702",
+   "t1": "20260726",
+   "season": "unfrozen",
+   "chip_id": "unfrozen_desc2_a_000",
+   "pos_px": 14,
+   "kind": "lake"
+  },
+  {
+   "pair": "unfrozen_desc2_a",
+   "t0": "20260702",
+   "t1": "20260726",
+   "season": "unfrozen",
+   "chip_id": "unfrozen_desc2_a_001",
+   "pos_px": 34,
+   "kind": "lake"
+  },
+  {
+   "pair": "unfrozen_desc2_a",
+   "t0": "20260702",
+   "t1": "20260726",
+   "season": "unfrozen",
+   "chip_id": "unfrozen_desc2_a_002",
+   "pos_px": 20,
+   "kind": "lake"
+  },
+  {
+   "pair": "unfrozen_desc2_a",
+   "t0": "20260702",
+   "t1": "20260726",
+   "season": "unfrozen",
+   "chip_id": "unfrozen_desc2_a_003",
+   "pos_px": 15,
+   "kind": "lake"
+  },
+  {
+   "pair": "unfrozen_desc2_a",
+   "t0": "20260702",
+   "t1": "20260726",
+   "season": "unfrozen",
+   "chip_id": "unfrozen_desc2_a_004",
+   "pos_px": 63,
+   "kind": "lake"
+  },
+  {
+   "pair": "unfrozen_desc2_a",
+   "t0": "20260702",
+   "t1": "20260726",
+   "season": "unfrozen",
+   "chip_id": "unfrozen_desc2_a_005",
+   "pos_px": 48,
+   "kind": "lake"
+  },
+  {
+   "pair": "unfrozen_desc2_a",
+   "t0": "20260702",
+   "t1": "20260726",
+   "season": "unfrozen",
+   "chip_id": "unfrozen_desc2_a_006",
+   "pos_px": 1,
+   "kind": "lake"
+  },
+  {
+   "pair": "unfrozen_desc2_a",
+   "t0": "20260702",
+   "t1": "20260726",
+   "season": "unfrozen",
+   "chip_id": "unfrozen_desc2_a_007",
+   "pos_px": 29,
+   "kind": "lake"
+  },
+  {
+   "pair": "unfrozen_desc2_a",
+   "t0": "20260702",
+   "t1": "20260726",
+   "season": "unfrozen",
+   "chip_id": "unfrozen_desc2_a_008",
+   "pos_px": 28,
+   "kind": "lake"
+  },
+  {
+   "pair": "unfrozen_desc2_a",
+   "t0": "20260702",
+   "t1": "20260726",
+   "season": "unfrozen",
+   "chip_id": "unfrozen_desc2_a_009",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "unfrozen_desc2_a",
+   "t0": "20260702",
+   "t1": "20260726",
+   "season": "unfrozen",
+   "chip_id": "unfrozen_desc2_a_010",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "unfrozen_desc2_a",
+   "t0": "20260702",
+   "t1": "20260726",
+   "season": "unfrozen",
+   "chip_id": "unfrozen_desc2_a_011",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "unfrozen_desc2_a",
+   "t0": "20260702",
+   "t1": "20260726",
+   "season": "unfrozen",
+   "chip_id": "unfrozen_desc2_a_012",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "unfrozen_desc2_a",
+   "t0": "20260702",
+   "t1": "20260726",
+   "season": "unfrozen",
+   "chip_id": "unfrozen_desc2_a_013",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "unfrozen_desc2_b",
+   "t0": "20260714",
+   "t1": "20260807",
+   "season": "unfrozen",
+   "chip_id": "unfrozen_desc2_b_000",
+   "pos_px": 18,
+   "kind": "lake"
+  },
+  {
+   "pair": "unfrozen_desc2_b",
+   "t0": "20260714",
+   "t1": "20260807",
+   "season": "unfrozen",
+   "chip_id": "unfrozen_desc2_b_001",
+   "pos_px": 26,
+   "kind": "lake"
+  },
+  {
+   "pair": "unfrozen_desc2_b",
+   "t0": "20260714",
+   "t1": "20260807",
+   "season": "unfrozen",
+   "chip_id": "unfrozen_desc2_b_002",
+   "pos_px": 8,
+   "kind": "lake"
+  },
+  {
+   "pair": "unfrozen_desc2_b",
+   "t0": "20260714",
+   "t1": "20260807",
+   "season": "unfrozen",
+   "chip_id": "unfrozen_desc2_b_003",
+   "pos_px": 25,
+   "kind": "lake"
+  },
+  {
+   "pair": "unfrozen_desc2_b",
+   "t0": "20260714",
+   "t1": "20260807",
+   "season": "unfrozen",
+   "chip_id": "unfrozen_desc2_b_004",
+   "pos_px": 53,
+   "kind": "lake"
+  },
+  {
+   "pair": "unfrozen_desc2_b",
+   "t0": "20260714",
+   "t1": "20260807",
+   "season": "unfrozen",
+   "chip_id": "unfrozen_desc2_b_005",
+   "pos_px": 28,
+   "kind": "lake"
+  },
+  {
+   "pair": "unfrozen_desc2_b",
+   "t0": "20260714",
+   "t1": "20260807",
+   "season": "unfrozen",
+   "chip_id": "unfrozen_desc2_b_006",
+   "pos_px": 7,
+   "kind": "lake"
+  },
+  {
+   "pair": "unfrozen_desc2_b",
+   "t0": "20260714",
+   "t1": "20260807",
+   "season": "unfrozen",
+   "chip_id": "unfrozen_desc2_b_007",
+   "pos_px": 27,
+   "kind": "lake"
+  },
+  {
+   "pair": "unfrozen_desc2_b",
+   "t0": "20260714",
+   "t1": "20260807",
+   "season": "unfrozen",
+   "chip_id": "unfrozen_desc2_b_008",
+   "pos_px": 20,
+   "kind": "lake"
+  },
+  {
+   "pair": "unfrozen_desc2_b",
+   "t0": "20260714",
+   "t1": "20260807",
+   "season": "unfrozen",
+   "chip_id": "unfrozen_desc2_b_009",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "unfrozen_desc2_b",
+   "t0": "20260714",
+   "t1": "20260807",
+   "season": "unfrozen",
+   "chip_id": "unfrozen_desc2_b_010",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "unfrozen_desc2_b",
+   "t0": "20260714",
+   "t1": "20260807",
+   "season": "unfrozen",
+   "chip_id": "unfrozen_desc2_b_011",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "unfrozen_desc2_b",
+   "t0": "20260714",
+   "t1": "20260807",
+   "season": "unfrozen",
+   "chip_id": "unfrozen_desc2_b_012",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "unfrozen_desc2_b",
+   "t0": "20260714",
+   "t1": "20260807",
+   "season": "unfrozen",
+   "chip_id": "unfrozen_desc2_b_013",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "shoulder",
+   "t0": "20251109",
+   "t1": "20251121",
+   "season": "frozen",
+   "chip_id": "shoulder_000",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "shoulder",
+   "t0": "20251109",
+   "t1": "20251121",
+   "season": "frozen",
+   "chip_id": "shoulder_001",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "shoulder",
+   "t0": "20251109",
+   "t1": "20251121",
+   "season": "frozen",
+   "chip_id": "shoulder_002",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "shoulder",
+   "t0": "20251109",
+   "t1": "20251121",
+   "season": "frozen",
+   "chip_id": "shoulder_003",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "shoulder",
+   "t0": "20251109",
+   "t1": "20251121",
+   "season": "frozen",
+   "chip_id": "shoulder_004",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "shoulder",
+   "t0": "20251109",
+   "t1": "20251121",
+   "season": "frozen",
+   "chip_id": "shoulder_005",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "shoulder",
+   "t0": "20251109",
+   "t1": "20251121",
+   "season": "frozen",
+   "chip_id": "shoulder_006",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "shoulder",
+   "t0": "20251109",
+   "t1": "20251121",
+   "season": "frozen",
+   "chip_id": "shoulder_007",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "shoulder",
+   "t0": "20251109",
+   "t1": "20251121",
+   "season": "frozen",
+   "chip_id": "shoulder_008",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "shoulder",
+   "t0": "20251109",
+   "t1": "20251121",
+   "season": "frozen",
+   "chip_id": "shoulder_009",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "shoulder",
+   "t0": "20251109",
+   "t1": "20251121",
+   "season": "frozen",
+   "chip_id": "shoulder_010",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "shoulder",
+   "t0": "20251109",
+   "t1": "20251121",
+   "season": "frozen",
+   "chip_id": "shoulder_011",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "shoulder",
+   "t0": "20251109",
+   "t1": "20251121",
+   "season": "frozen",
+   "chip_id": "shoulder_012",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "shoulder",
+   "t0": "20251109",
+   "t1": "20251121",
+   "season": "frozen",
+   "chip_id": "shoulder_013",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "shoulder",
+   "t0": "20251109",
+   "t1": "20251121",
+   "season": "frozen",
+   "chip_id": "shoulder_014",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "shoulder",
+   "t0": "20251109",
+   "t1": "20251121",
+   "season": "frozen",
+   "chip_id": "shoulder_015",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "shoulder",
+   "t0": "20251109",
+   "t1": "20251121",
+   "season": "frozen",
+   "chip_id": "shoulder_016",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "shoulder",
+   "t0": "20251109",
+   "t1": "20251121",
+   "season": "frozen",
+   "chip_id": "shoulder_017",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "shoulder",
+   "t0": "20251109",
+   "t1": "20251121",
+   "season": "frozen",
+   "chip_id": "shoulder_018",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "shoulder",
+   "t0": "20251109",
+   "t1": "20251121",
+   "season": "frozen",
+   "chip_id": "shoulder_019",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "shoulder",
+   "t0": "20251109",
+   "t1": "20251121",
+   "season": "frozen",
+   "chip_id": "shoulder_020",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "shoulder",
+   "t0": "20251109",
+   "t1": "20251121",
+   "season": "frozen",
+   "chip_id": "shoulder_021",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "shoulder",
+   "t0": "20251109",
+   "t1": "20251121",
+   "season": "frozen",
+   "chip_id": "shoulder_022",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "shoulder",
+   "t0": "20251109",
+   "t1": "20251121",
+   "season": "frozen",
+   "chip_id": "shoulder_023",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "shoulder",
+   "t0": "20251109",
+   "t1": "20251121",
+   "season": "frozen",
+   "chip_id": "shoulder_024",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "shoulder",
+   "t0": "20251109",
+   "t1": "20251121",
+   "season": "frozen",
+   "chip_id": "shoulder_025",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "shoulder",
+   "t0": "20251109",
+   "t1": "20251121",
+   "season": "frozen",
+   "chip_id": "shoulder_026",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "shoulder",
+   "t0": "20251109",
+   "t1": "20251121",
+   "season": "frozen",
+   "chip_id": "shoulder_027",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "shoulder",
+   "t0": "20251109",
+   "t1": "20251121",
+   "season": "frozen",
+   "chip_id": "shoulder_028",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "shoulder",
+   "t0": "20251109",
+   "t1": "20251121",
+   "season": "frozen",
+   "chip_id": "shoulder_029",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "winter",
+   "t0": "20260108",
+   "t1": "20260120",
+   "season": "frozen",
+   "chip_id": "winter_000",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "winter",
+   "t0": "20260108",
+   "t1": "20260120",
+   "season": "frozen",
+   "chip_id": "winter_001",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "winter",
+   "t0": "20260108",
+   "t1": "20260120",
+   "season": "frozen",
+   "chip_id": "winter_002",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "winter",
+   "t0": "20260108",
+   "t1": "20260120",
+   "season": "frozen",
+   "chip_id": "winter_003",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "winter",
+   "t0": "20260108",
+   "t1": "20260120",
+   "season": "frozen",
+   "chip_id": "winter_004",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "winter",
+   "t0": "20260108",
+   "t1": "20260120",
+   "season": "frozen",
+   "chip_id": "winter_005",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "winter",
+   "t0": "20260108",
+   "t1": "20260120",
+   "season": "frozen",
+   "chip_id": "winter_006",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "winter",
+   "t0": "20260108",
+   "t1": "20260120",
+   "season": "frozen",
+   "chip_id": "winter_007",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "winter",
+   "t0": "20260108",
+   "t1": "20260120",
+   "season": "frozen",
+   "chip_id": "winter_008",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "winter",
+   "t0": "20260108",
+   "t1": "20260120",
+   "season": "frozen",
+   "chip_id": "winter_009",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "winter",
+   "t0": "20260108",
+   "t1": "20260120",
+   "season": "frozen",
+   "chip_id": "winter_010",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "winter",
+   "t0": "20260108",
+   "t1": "20260120",
+   "season": "frozen",
+   "chip_id": "winter_011",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "winter",
+   "t0": "20260108",
+   "t1": "20260120",
+   "season": "frozen",
+   "chip_id": "winter_012",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "winter",
+   "t0": "20260108",
+   "t1": "20260120",
+   "season": "frozen",
+   "chip_id": "winter_013",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "winter",
+   "t0": "20260108",
+   "t1": "20260120",
+   "season": "frozen",
+   "chip_id": "winter_014",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "winter",
+   "t0": "20260108",
+   "t1": "20260120",
+   "season": "frozen",
+   "chip_id": "winter_015",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "winter",
+   "t0": "20260108",
+   "t1": "20260120",
+   "season": "frozen",
+   "chip_id": "winter_016",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "winter",
+   "t0": "20260108",
+   "t1": "20260120",
+   "season": "frozen",
+   "chip_id": "winter_017",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "winter",
+   "t0": "20260108",
+   "t1": "20260120",
+   "season": "frozen",
+   "chip_id": "winter_018",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "winter",
+   "t0": "20260108",
+   "t1": "20260120",
+   "season": "frozen",
+   "chip_id": "winter_019",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "winter",
+   "t0": "20260108",
+   "t1": "20260120",
+   "season": "frozen",
+   "chip_id": "winter_020",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "winter",
+   "t0": "20260108",
+   "t1": "20260120",
+   "season": "frozen",
+   "chip_id": "winter_021",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "winter",
+   "t0": "20260108",
+   "t1": "20260120",
+   "season": "frozen",
+   "chip_id": "winter_022",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "winter",
+   "t0": "20260108",
+   "t1": "20260120",
+   "season": "frozen",
+   "chip_id": "winter_023",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "winter",
+   "t0": "20260108",
+   "t1": "20260120",
+   "season": "frozen",
+   "chip_id": "winter_024",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "winter",
+   "t0": "20260108",
+   "t1": "20260120",
+   "season": "frozen",
+   "chip_id": "winter_025",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "winter",
+   "t0": "20260108",
+   "t1": "20260120",
+   "season": "frozen",
+   "chip_id": "winter_026",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "winter",
+   "t0": "20260108",
+   "t1": "20260120",
+   "season": "frozen",
+   "chip_id": "winter_027",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "winter",
+   "t0": "20260108",
+   "t1": "20260120",
+   "season": "frozen",
+   "chip_id": "winter_028",
+   "pos_px": 0,
+   "kind": "background"
+  },
+  {
+   "pair": "winter",
+   "t0": "20260108",
+   "t1": "20260120",
+   "season": "frozen",
+   "chip_id": "winter_029",
+   "pos_px": 0,
+   "kind": "background"
+  }
+ ],
+ "checkpoint_out": "/home/e0kt/Documents/01_projects/2026/hackathons/hack_26/project/models/checkpoints/water_resunet_6ch_himalayan_adapter_multigeometry.pt",
+ "limitations": [
+  "Gold labels are AI-assisted preliminary \u2014 human QA required.",
+  "Frozen pairs contribute negatives only (ice \u2260 water).",
+  "Ascending pair is a single geometry \u2014 pass invariance is partial.",
+  "Shadow-only \u2014 not wired into runtime pending gate on held-out data."
+ ]
+}
