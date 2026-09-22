@@ -217,7 +217,12 @@ PROMOTED_COMPONENTS: dict[str, dict[str, Any]] = {
     # Tier-2 alone (AUC 0.835 vs 0.838) — the stacked prior and season
     # flag add no measurable accuracy; the component's value is the
     # unified fusion contract and the first honest head-to-head against
-    # the deterministic formula.
+    # the deterministic formula. Severity-mapping evaluated 2026-09-22
+    # (eval_severity_mapping.py): tiers are ordinally coherent and beat
+    # the deterministic policy at the elevated+ boundary, but pooled
+    # recall at a 10% FAR budget is 0.261 — below the declared 0.50
+    # decision-usefulness bar, so the learned score stays advisory and
+    # never drives severity.
     "learned_risk_fusion": {
         "checkpoint": "xgboost_risk_fusion.json",
         "calibration": "platt_crossfit_oof",
@@ -232,6 +237,7 @@ PROMOTED_COMPONENTS: dict[str, dict[str, Any]] = {
         ),
         "gate_evidence": [
             "models/checkpoints/risk_fusion_eval_report.json",
+            "models/checkpoints/severity_mapping_eval_report.json",
         ],
         "scope": {
             "signal": (
@@ -253,15 +259,20 @@ PROMOTED_COMPONENTS: dict[str, dict[str, Any]] = {
         "union_policy": (
             "advisory reason on the review card only — deterministic "
             "severity, expansion override, and the human gate are "
-            "unchanged; promotion to operational severity fusion "
-            "requires a separate severity-mapping evaluation"
+            "unchanged. Severity-mapping evaluated 2026-09-22 "
+            "(eval_severity_mapping.py): ordinally coherent and "
+            "dominant at the elevated+ boundary, but pooled recall at "
+            "a 10% false-alarm budget is only 0.26 (<0.50 declared "
+            "bar) — severity promotion is NOT justified"
         ),
         "caveat": (
             "no measured gain over Tier-2 alone (AUC 0.835 vs 0.838); "
             "historical windows lack SAR inputs, so the deterministic "
             "baseline leg is evaluated on its measurable subset only "
-            "(rain + fixed slope/drainage proxies); promotion to "
-            "severity-primary is a separate decision"
+            "(rain + fixed slope/drainage proxies); the severity-"
+            "mapping eval cannot reach the critical tier (needs "
+            "expansion/exposure inputs) — any future severity "
+            "promotion also needs a runtime shadow-agreement study"
         ),
         "promoted_at": "2026-09-22",
         "reversible": True,
@@ -584,8 +595,10 @@ def get_ml_readiness_report() -> dict[str, Any]:
             "caveat": fus_rec.get("caveat"),
             "blocker": (
                 "Advisory reason only; deterministic classify_severity "
-                "stays authoritative. Operational promotion requires a "
-                "separate severity-mapping evaluation."
+                "stays authoritative. Severity-mapping eval failed the "
+                "declared decision-usefulness bar (pooled recall 0.26 "
+                "at 10% FAR, needed >= 0.50) — see "
+                "severity_mapping_eval_report.json."
             ),
             "evidence_files": [str(p) for p in fus_rec.get("gate_evidence", [])],
         }

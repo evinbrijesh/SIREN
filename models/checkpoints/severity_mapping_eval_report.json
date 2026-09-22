@@ -1,0 +1,341 @@
+{
+  "status": "severity_mapping_evaluated",
+  "evaluation_valid": true,
+  "dataset": "/home/e0kt/Documents/01_projects/2026/hackathons/hack_26/project/data/datasets/dynamic_escalation_train.parquet",
+  "n_samples": 887,
+  "component": "learned_risk_fusion",
+  "evaluation": "severity_mapping",
+  "protocol": "identical spatio-temporal folds to train_risk_fusion: per block, train on all other blocks, test on rows >= 2015-01-01; p_fused calibrated by Platt on inner-block OOF predictions of the fold's training rows; thresholds (fixed-FAR arm) selected on the same OOF rows",
+  "arms": {
+    "deterministic": "classify_severity(h_five_factor, pop=0, assets=0, expansion=0) \u2014 honestly-measurable input subset only",
+    "learned_dropin": "classify_severity(p_fused_calibrated, pop=0, assets=0, expansion=0) \u2014 unchanged policy thresholds 0.30/0.50/0.70"
+  },
+  "unreachable_in_eval": "critical tier: needs expansion_pct >= 40 (SAR) or h >= 0.70 AND real exposure (OSM) \u2014 neither exists for historical windows; the exposure leg and expansion override stay deterministic under any promotion",
+  "n_test_windows": 286,
+  "n_test_events": 69,
+  "tier_tables": {
+    "deterministic": {
+      "informational": {
+        "n": 46,
+        "n_events": 16,
+        "event_rate": 0.34782608695652173
+      },
+      "watch": {
+        "n": 240,
+        "n_events": 53,
+        "event_rate": 0.22083333333333333
+      }
+    },
+    "learned_calibrated": {
+      "informational": {
+        "n": 203,
+        "n_events": 32,
+        "event_rate": 0.15763546798029557
+      },
+      "watch": {
+        "n": 54,
+        "n_events": 23,
+        "event_rate": 0.42592592592592593
+      },
+      "elevated": {
+        "n": 29,
+        "n_events": 14,
+        "event_rate": 0.4827586206896552
+      }
+    },
+    "learned_raw": {
+      "informational": {
+        "n": 183,
+        "n_events": 27,
+        "event_rate": 0.14754098360655737
+      },
+      "watch": {
+        "n": 41,
+        "n_events": 14,
+        "event_rate": 0.34146341463414637
+      },
+      "elevated": {
+        "n": 62,
+        "n_events": 28,
+        "event_rate": 0.45161290322580644
+      }
+    }
+  },
+  "ordinal_monotonic": {
+    "deterministic": false,
+    "learned_calibrated": true,
+    "learned_raw": true
+  },
+  "boundary_metrics": {
+    "watch": {
+      "deterministic": {
+        "boundary": "watch",
+        "n_flagged": 240,
+        "n_events": 69,
+        "n_non_events": 217,
+        "recall": 0.7681159420289855,
+        "false_alarm_rate": 0.8617511520737328,
+        "precision": 0.22083333333333333,
+        "f1": 0.343042071197411,
+        "missed_events": 16
+      },
+      "learned": {
+        "boundary": "watch",
+        "n_flagged": 83,
+        "n_events": 69,
+        "n_non_events": 217,
+        "recall": 0.5362318840579711,
+        "false_alarm_rate": 0.2119815668202765,
+        "precision": 0.4457831325301205,
+        "f1": 0.4868421052631579,
+        "missed_events": 32
+      },
+      "learned_raw": {
+        "boundary": "watch",
+        "n_flagged": 103,
+        "n_events": 69,
+        "n_non_events": 217,
+        "recall": 0.6086956521739131,
+        "false_alarm_rate": 0.28110599078341014,
+        "precision": 0.4077669902912621,
+        "f1": 0.4883720930232558,
+        "missed_events": 27
+      }
+    },
+    "elevated": {
+      "deterministic": {
+        "boundary": "elevated",
+        "n_flagged": 0,
+        "n_events": 69,
+        "n_non_events": 217,
+        "recall": 0.0,
+        "false_alarm_rate": 0.0,
+        "precision": NaN,
+        "f1": 0.0,
+        "missed_events": 69
+      },
+      "learned": {
+        "boundary": "elevated",
+        "n_flagged": 29,
+        "n_events": 69,
+        "n_non_events": 217,
+        "recall": 0.2028985507246377,
+        "false_alarm_rate": 0.06912442396313365,
+        "precision": 0.4827586206896552,
+        "f1": 0.2857142857142857,
+        "missed_events": 55
+      },
+      "learned_raw": {
+        "boundary": "elevated",
+        "n_flagged": 62,
+        "n_events": 69,
+        "n_non_events": 217,
+        "recall": 0.4057971014492754,
+        "false_alarm_rate": 0.15668202764976957,
+        "precision": 0.45161290322580644,
+        "f1": 0.42748091603053434,
+        "missed_events": 41
+      }
+    }
+  },
+  "recall_at_fixed_far": {
+    "recall_at_far_1": {
+      "far_target": 0.01,
+      "mean_test_recall": 0.06666666666666667,
+      "mean_test_far": 0.0,
+      "pooled_test_recall": 0.014492753623188406,
+      "pooled_test_far": 0.0,
+      "n_folds": 5
+    },
+    "recall_at_far_5": {
+      "far_target": 0.05,
+      "mean_test_recall": 0.21333333333333332,
+      "mean_test_far": 0.030573392762710584,
+      "pooled_test_recall": 0.14492753623188406,
+      "pooled_test_far": 0.041474654377880185,
+      "n_folds": 5
+    },
+    "recall_at_far_10": {
+      "far_target": 0.1,
+      "mean_test_recall": 0.39055555555555554,
+      "mean_test_far": 0.06418561607615018,
+      "pooled_test_recall": 0.2608695652173913,
+      "pooled_test_far": 0.08755760368663594,
+      "n_folds": 5
+    }
+  },
+  "fold_metrics": [
+    {
+      "heldout_block": 0,
+      "n_test": 69,
+      "n_breached_test": 8,
+      "calibration_fallback": false,
+      "recall_at_far_1": {
+        "threshold": 0.6205619773462862,
+        "recall": 0.0,
+        "false_alarm_rate": 0.0,
+        "tp": 0,
+        "fp": 0,
+        "n_events": 8,
+        "n_non_events": 61
+      },
+      "recall_at_far_5": {
+        "threshold": 0.5677602394489443,
+        "recall": 0.0,
+        "false_alarm_rate": 0.04918032786885246,
+        "tp": 0,
+        "fp": 3,
+        "n_events": 8,
+        "n_non_events": 61
+      },
+      "recall_at_far_10": {
+        "threshold": 0.44296626241558923,
+        "recall": 0.375,
+        "false_alarm_rate": 0.14754098360655737,
+        "tp": 3,
+        "fp": 9,
+        "n_events": 8,
+        "n_non_events": 61
+      }
+    },
+    {
+      "heldout_block": 1,
+      "n_test": 80,
+      "n_breached_test": 18,
+      "calibration_fallback": false,
+      "recall_at_far_1": {
+        "threshold": 0.6628748872856273,
+        "recall": 0.0,
+        "false_alarm_rate": 0.0,
+        "tp": 0,
+        "fp": 0,
+        "n_events": 18,
+        "n_non_events": 62
+      },
+      "recall_at_far_5": {
+        "threshold": 0.5492229550465576,
+        "recall": 0.3333333333333333,
+        "false_alarm_rate": 0.03225806451612903,
+        "tp": 6,
+        "fp": 2,
+        "n_events": 18,
+        "n_non_events": 62
+      },
+      "recall_at_far_10": {
+        "threshold": 0.4697254625666632,
+        "recall": 0.4444444444444444,
+        "false_alarm_rate": 0.04838709677419355,
+        "tp": 8,
+        "fp": 3,
+        "n_events": 18,
+        "n_non_events": 62
+      }
+    },
+    {
+      "heldout_block": 2,
+      "n_test": 86,
+      "n_breached_test": 30,
+      "calibration_fallback": false,
+      "recall_at_far_1": {
+        "threshold": 0.7489746377675229,
+        "recall": 0.0,
+        "false_alarm_rate": 0.0,
+        "tp": 0,
+        "fp": 0,
+        "n_events": 30,
+        "n_non_events": 56
+      },
+      "recall_at_far_5": {
+        "threshold": 0.5568254221692525,
+        "recall": 0.06666666666666667,
+        "false_alarm_rate": 0.07142857142857142,
+        "tp": 2,
+        "fp": 4,
+        "n_events": 30,
+        "n_non_events": 56
+      },
+      "recall_at_far_10": {
+        "threshold": 0.4355402129921061,
+        "recall": 0.13333333333333333,
+        "false_alarm_rate": 0.125,
+        "tp": 4,
+        "fp": 7,
+        "n_events": 30,
+        "n_non_events": 56
+      }
+    },
+    {
+      "heldout_block": 3,
+      "n_test": 34,
+      "n_breached_test": 10,
+      "calibration_fallback": false,
+      "recall_at_far_1": {
+        "threshold": 0.6226742677027473,
+        "recall": 0.0,
+        "false_alarm_rate": 0.0,
+        "tp": 0,
+        "fp": 0,
+        "n_events": 10,
+        "n_non_events": 24
+      },
+      "recall_at_far_5": {
+        "threshold": 0.5552526851350534,
+        "recall": 0.0,
+        "false_alarm_rate": 0.0,
+        "tp": 0,
+        "fp": 0,
+        "n_events": 10,
+        "n_non_events": 24
+      },
+      "recall_at_far_10": {
+        "threshold": 0.4433155530989232,
+        "recall": 0.0,
+        "false_alarm_rate": 0.0,
+        "tp": 0,
+        "fp": 0,
+        "n_events": 10,
+        "n_non_events": 24
+      }
+    },
+    {
+      "heldout_block": 4,
+      "n_test": 17,
+      "n_breached_test": 3,
+      "calibration_fallback": false,
+      "recall_at_far_1": {
+        "threshold": 0.6963950576247088,
+        "recall": 0.3333333333333333,
+        "false_alarm_rate": 0.0,
+        "tp": 1,
+        "fp": 0,
+        "n_events": 3,
+        "n_non_events": 14
+      },
+      "recall_at_far_5": {
+        "threshold": 0.6032861520886615,
+        "recall": 0.6666666666666666,
+        "false_alarm_rate": 0.0,
+        "tp": 2,
+        "fp": 0,
+        "n_events": 3,
+        "n_non_events": 14
+      },
+      "recall_at_far_10": {
+        "threshold": 0.4738013270486104,
+        "recall": 1.0,
+        "false_alarm_rate": 0.0,
+        "tp": 3,
+        "fp": 0,
+        "n_events": 3,
+        "n_non_events": 14
+      }
+    }
+  ],
+  "gate": {
+    "G1_ordinal_coherence": true,
+    "G2_elevated_boundary_superiority": true,
+    "G3_recall_at_10pct_far_ge_0.5": false,
+    "gate_passed": false,
+    "note": "gate declared by this evaluation (no PRD numeric target exists for severity mapping). Passing is necessary but NOT sufficient for severity promotion \u2014 the critical tier and exposure interaction require a runtime shadow-agreement study on real SAR/OSM inputs."
+  }
+}
