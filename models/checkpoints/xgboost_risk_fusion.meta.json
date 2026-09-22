@@ -1,0 +1,26 @@
+{
+  "status": "gate_evaluated",
+  "evaluation_valid": true,
+  "inference_allowed": true,
+  "component": "learned_risk_fusion",
+  "features": [
+    "precip_30d_mm",
+    "precip_7d_mm",
+    "max_daily_precip_mm",
+    "heavy_rain_days",
+    "api_30",
+    "rain_anom_30d_mm",
+    "mdd_30",
+    "mdd_anom_30",
+    "ft_cycles_14",
+    "lake_elev_m",
+    "log_lake_area_km2",
+    "log_dist_glacier_m",
+    "log_glacier_area_10km",
+    "p_susceptibility",
+    "in_monsoon_window"
+  ],
+  "gate_report": "risk_fusion_eval_report.json",
+  "gate_passed": true,
+  "note": "p_susceptibility feature was trained on block-OOF priors; runtime substitutes the deployed calibrated SusceptibilityScorer score (documented shift)."
+}

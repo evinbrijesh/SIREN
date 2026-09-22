@@ -207,6 +207,65 @@ PROMOTED_COMPONENTS: dict[str, dict[str, Any]] = {
         "promoted_at": "2026-09-19",
         "reversible": True,
     },
+    # Gate-evaluated 2026-09-22 (DL_PRIMARY_ROADMAP Level 6): fused
+    # event-probability scorer — Tier-2's 13 features + a fold-honest
+    # stacked susceptibility prior + the Jun–Sep monsoon flag — on the
+    # same 887-window corpus and identical spatio-temporal holdout.
+    # Mean ROC-AUC 0.835 vs the deterministic five-factor baseline's
+    # 0.504 on identical folds; mean raw Brier 0.142 < 0.15 — both gate
+    # legs pass. Caveat: the fused model is statistically identical to
+    # Tier-2 alone (AUC 0.835 vs 0.838) — the stacked prior and season
+    # flag add no measurable accuracy; the component's value is the
+    # unified fusion contract and the first honest head-to-head against
+    # the deterministic formula.
+    "learned_risk_fusion": {
+        "checkpoint": "xgboost_risk_fusion.json",
+        "calibration": "platt_crossfit_oof",
+        "evidence_method": (
+            "calibrated p_fused >= 0.65 advisory flag; TreeSHAP top-3 "
+            "drivers surface as review reasons"
+        ),
+        "gate": (
+            "Brier < 0.15 AND mean ROC-AUC > deterministic five-factor "
+            "baseline on identical spatio-temporal folds "
+            "(DL_PRIMARY_ROADMAP §9.2)"
+        ),
+        "gate_evidence": [
+            "models/checkpoints/risk_fusion_eval_report.json",
+        ],
+        "scope": {
+            "signal": (
+                "fused P(event) — static morphometrics + trailing-30d "
+                "weather + susceptibility prior + season flag"
+            ),
+            "features": (
+                "measured only; the susceptibility prior is fold-honest "
+                "at eval time (inner-block OOF stack); at runtime the "
+                "deployed calibrated prior is used (documented shift)"
+            ),
+            "out_of_scope": (
+                "severity classification itself — deterministic "
+                "classify_severity stays authoritative; the learned "
+                "score does not gate dispatch"
+            ),
+        },
+        "level": "advisory_primary",
+        "union_policy": (
+            "advisory reason on the review card only — deterministic "
+            "severity, expansion override, and the human gate are "
+            "unchanged; promotion to operational severity fusion "
+            "requires a separate severity-mapping evaluation"
+        ),
+        "caveat": (
+            "no measured gain over Tier-2 alone (AUC 0.835 vs 0.838); "
+            "historical windows lack SAR inputs, so the deterministic "
+            "baseline leg is evaluated on its measurable subset only "
+            "(rain + fixed slope/drainage proxies); promotion to "
+            "severity-primary is a separate decision"
+        ),
+        "promoted_at": "2026-09-22",
+        "reversible": True,
+    },
 }
 
 
@@ -495,16 +554,50 @@ def get_ml_readiness_report() -> dict[str, Any]:
         }
 
     # ------------------------------------------------------------------
-    # 8. Learned risk fusion
+    # 8. Learned risk fusion (advisory-primary)
     # ------------------------------------------------------------------
-    report["learned_risk_fusion"] = {
-        "status": "shadow",
-        "display": "Learned severity / risk-fusion classifier",
-        "gate": "Brier < 0.15 on held-out real events; beats deterministic baseline",
-        "gate_passed": False,
-        "current_metric": None,
-        "blocker": "Not started. Depends on upstream neural outputs being trustworthy.",
-    }
+    fus_rec = promotion_record("learned_risk_fusion")
+    fus_report = _load_json(
+        _CHECKPOINTS_DIR / "risk_fusion_eval_report.json"
+    )
+    if fus_rec is not None:
+        report["learned_risk_fusion"] = {
+            "status": fus_rec.get("level", "advisory_primary"),
+            "demoted": is_demoted("learned_risk_fusion"),
+            "display": "Learned severity / risk-fusion classifier",
+            "gate": fus_rec.get("gate"),
+            "gate_passed": bool(
+                fus_report and fus_report.get("gate_passed")
+            ),
+            "current_metric": {
+                "mean_roc_auc": fus_report.get("mean_roc_auc")
+                if fus_report else None,
+                "mean_roc_auc_baseline": (
+                    fus_report.get("mean_roc_auc_baseline")
+                    if fus_report else None
+                ),
+                "mean_brier": fus_report.get("mean_brier")
+                if fus_report else None,
+            },
+            "checkpoint": fus_rec.get("checkpoint"),
+            "promoted_at": fus_rec.get("promoted_at"),
+            "caveat": fus_rec.get("caveat"),
+            "blocker": (
+                "Advisory reason only; deterministic classify_severity "
+                "stays authoritative. Operational promotion requires a "
+                "separate severity-mapping evaluation."
+            ),
+            "evidence_files": [str(p) for p in fus_rec.get("gate_evidence", [])],
+        }
+    else:
+        report["learned_risk_fusion"] = {
+            "status": "shadow",
+            "display": "Learned severity / risk-fusion classifier",
+            "gate": "Brier < 0.15 on held-out real events; beats deterministic baseline",
+            "gate_passed": False,
+            "current_metric": None,
+            "blocker": "Not started. Depends on upstream neural outputs being trustworthy.",
+        }
 
     # ------------------------------------------------------------------
     # Overall readiness

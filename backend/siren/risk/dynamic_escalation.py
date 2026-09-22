@@ -291,6 +291,8 @@ def _imja_window_features(obs_date: str, obs_config: dict) -> dict:
     }
 
     try:
+        if end is None:
+            return feats
         series = json.loads(Path(SERIES_PATH).read_text())
         days = series.get("days", {})
         station_elev = series.get("station_elev_m")

@@ -1382,6 +1382,26 @@ def run_pipeline(
             f"pre-breach warning"
         )
 
+    # 7b.2 Learned risk fusion advisory (Level 6): when the fused scorer
+    # is promoted and its calibrated event probability clears the
+    # advisory threshold, the probability surfaces as a review reason —
+    # advisory only; the deterministic severity and human gate are
+    # unchanged.
+    _fus = shadow.get("learned_risk_fusion", {}) if isinstance(
+        shadow, dict) else {}
+    if (
+        isinstance(_fus, dict)
+        and _fus.get("promoted")
+        and _fus.get("elevated_event_probability")
+    ):
+        score["reasons"].append(
+            f"ML risk-fusion advisory (promoted): P_event_fused="
+            f"{_fus.get('p_fused', 0):.2f} >= "
+            f"{_fus.get('advisory_threshold', 0.65)} — learned "
+            f"severity evidence concurs with elevated risk; "
+            f"deterministic severity stays authoritative"
+        )
+
     # 7c. Wire FNO arrival horizons to the corridor (Sprint 3, shadow-only).
     # If the FNO surrogate was triggered (P_breach ≥ 0.70) and produced
     # sector arrival times, attach them to the corridor exposures. This

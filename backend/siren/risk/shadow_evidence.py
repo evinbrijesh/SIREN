@@ -141,6 +141,24 @@ def attach_shadow_evidence(
         logger.warning("Dynamic escalation failed: %s", exc)
         shadow["dynamic_escalation"] = {"is_available": False, "error": str(exc)}
 
+    # 5. Learned risk fusion (Level 6): P(event | statics + weather window +
+    # susceptibility prior + monsoon flag). Fails closed; advisory-only —
+    # the deterministic five-factor severity stays authoritative.
+    try:
+        from siren.risk.learned_fusion import (
+            score_imja_observation as fuse_imja_observation,
+        )
+
+        p_static_fused = p_breach if isinstance(p_breach, (int, float)) else None
+        shadow["learned_risk_fusion"] = fuse_imja_observation(
+            obs_config, change_stats, p_static=p_static_fused,
+        )
+    except Exception as exc:
+        logger.warning("Learned risk fusion failed: %s", exc)
+        shadow["learned_risk_fusion"] = {
+            "is_available": False, "error": str(exc),
+        }
+
     # Mark as shadow evidence (ADR-010 §3: not load-bearing). Components
     # promoted via PROMOTED_COMPONENTS carry promoted=True and are
     # advisory-primary evidence; the rest remain labeled shadow.

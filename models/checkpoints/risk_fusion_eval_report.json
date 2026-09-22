@@ -1,0 +1,167 @@
+{
+  "status": "gate_evaluated",
+  "evaluation_valid": true,
+  "inference_allowed": false,
+  "component": "learned_risk_fusion",
+  "brier_gate": 0.15,
+  "gate_metric": "mean_brier (uncalibrated) < 0.15 AND mean_roc_auc > the deterministic five-factor baseline on identical folds",
+  "n_samples": 887,
+  "n_breached": 230,
+  "n_stable": 657,
+  "dataset": "/home/e0kt/Documents/01_projects/2026/hackathons/hack_26/project/data/datasets/dynamic_escalation_train.parquet",
+  "protocol": "spatio-temporal holdout: per block, train on all other blocks, test on rows >= 2015-01-01; p_susceptibility is a fold-honest inner-block OOF stack (train) / fold-trained prior (test)",
+  "temporal_cutoff": "2015-01-01",
+  "features": [
+    "precip_30d_mm",
+    "precip_7d_mm",
+    "max_daily_precip_mm",
+    "heavy_rain_days",
+    "api_30",
+    "rain_anom_30d_mm",
+    "mdd_30",
+    "mdd_anom_30",
+    "ft_cycles_14",
+    "lake_elev_m",
+    "log_lake_area_km2",
+    "log_dist_glacier_m",
+    "log_glacier_area_10km",
+    "p_susceptibility",
+    "in_monsoon_window"
+  ],
+  "baseline": {
+    "name": "deterministic five-factor hazard_score (PRD \u00a79.5)",
+    "proxies": {
+      "trend_class": "uncertain",
+      "expansion_pct": 0.0,
+      "rainfall_24h_mm": "max_daily_precip_mm",
+      "rainfall_7d_mm": "precip_7d_mm",
+      "mean_slope_deg": 31.0,
+      "change_in_drainage": true
+    },
+    "mean_roc_auc": 0.5042467767117423,
+    "mean_brier": 0.18670987251234167,
+    "note": "H is a policy score, not a calibrated probability \u2014 the ROC-AUC leg is the meaningful comparison; the Brier leg is reported for completeness. trend, expansion and drainage are unmeasurable for historical windows and held at neutral constants."
+  },
+  "mean_roc_auc": 0.83512305574442,
+  "std_roc_auc": 0.09390661183172534,
+  "mean_roc_auc_tier2": 0.8380283590608816,
+  "mean_roc_auc_baseline": 0.5042467767117423,
+  "mean_brier": 0.14201878011226654,
+  "std_brier": 0.06987941836969706,
+  "mean_brier_calibrated": 0.1479944907128811,
+  "mean_brier_platt": 0.14410132318735122,
+  "mean_brier_baseline": 0.18670987251234167,
+  "mean_pr_auc": 0.6179591251720371,
+  "fold_metrics": [
+    {
+      "heldout_block": 0,
+      "n_train": 612,
+      "n_test": 69,
+      "n_breached_test": 8,
+      "test_date_range": [
+        "2015-04-25",
+        "2026-07-10"
+      ],
+      "roc_auc": 0.776639344262295,
+      "roc_auc_tier2": 0.8094262295081968,
+      "roc_auc_baseline": 0.5010245901639344,
+      "pr_auc": 0.2522345559030342,
+      "brier_score": 0.16686348617076874,
+      "brier_score_baseline": 0.14007904347826086,
+      "brier_score_calibrated": 0.11705445498228073,
+      "brier_score_platt": 0.10077550262212753
+    },
+    {
+      "heldout_block": 1,
+      "n_train": 669,
+      "n_test": 80,
+      "n_breached_test": 18,
+      "test_date_range": [
+        "2015-04-25",
+        "2026-09-04"
+      ],
+      "roc_auc": 0.796594982078853,
+      "roc_auc_tier2": 0.7670250896057347,
+      "roc_auc_baseline": 0.36693548387096775,
+      "pr_auc": 0.5892161006915126,
+      "brier_score": 0.13936391472816467,
+      "brier_score_baseline": 0.19039325,
+      "brier_score_calibrated": 0.12831708788871765,
+      "brier_score_platt": 0.13280445337295532
+    },
+    {
+      "heldout_block": 2,
+      "n_train": 691,
+      "n_test": 86,
+      "n_breached_test": 30,
+      "test_date_range": [
+        "2015-04-25",
+        "2026-07-26"
+      ],
+      "roc_auc": 0.731547619047619,
+      "roc_auc_tier2": 0.7386904761904761,
+      "roc_auc_baseline": 0.33958333333333335,
+      "pr_auc": 0.5330333446157787,
+      "brier_score": 0.23811861872673035,
+      "brier_score_baseline": 0.23318662790697675,
+      "brier_score_calibrated": 0.2610827088356018,
+      "brier_score_platt": 0.24931171536445618
+    },
+    {
+      "heldout_block": 3,
+      "n_train": 780,
+      "n_test": 34,
+      "n_breached_test": 10,
+      "test_date_range": [
+        "2015-05-25",
+        "2026-07-26"
+      ],
+      "roc_auc": 0.8708333333333332,
+      "roc_auc_tier2": 0.875,
+      "roc_auc_baseline": 0.5041666666666667,
+      "pr_auc": 0.7153116246498599,
+      "brier_score": 0.14435546100139618,
+      "brier_score_baseline": 0.20896555882352943,
+      "brier_score_calibrated": 0.19391272962093353,
+      "brier_score_platt": 0.1870022863149643
+    },
+    {
+      "heldout_block": 4,
+      "n_train": 796,
+      "n_test": 17,
+      "n_breached_test": 3,
+      "test_date_range": [
+        "2015-07-03",
+        "2025-07-08"
+      ],
+      "roc_auc": 1.0,
+      "roc_auc_tier2": 1.0,
+      "roc_auc_baseline": 0.8095238095238095,
+      "pr_auc": 1.0,
+      "brier_score": 0.021392419934272766,
+      "brier_score_baseline": 0.1609248823529412,
+      "brier_score_calibrated": 0.03960547223687172,
+      "brier_score_platt": 0.05061265826225281
+    }
+  ],
+  "feature_importances": {
+    "precip_30d_mm": 0.046653300523757935,
+    "precip_7d_mm": 0.03845656290650368,
+    "max_daily_precip_mm": 0.03749701380729675,
+    "heavy_rain_days": 0.01762879267334938,
+    "api_30": 0.040734998881816864,
+    "rain_anom_30d_mm": 0.044368624687194824,
+    "mdd_30": 0.07919833809137344,
+    "mdd_anom_30": 0.04252089187502861,
+    "ft_cycles_14": 0.055922526866197586,
+    "lake_elev_m": 0.05547906085848808,
+    "log_lake_area_km2": 0.13393594324588776,
+    "log_dist_glacier_m": 0.10159500688314438,
+    "log_glacier_area_10km": 0.07110993564128876,
+    "p_susceptibility": 0.08692342787981033,
+    "in_monsoon_window": 0.1479756087064743
+  },
+  "passes_brier_gate": true,
+  "beats_deterministic_baseline": true,
+  "gate_passed": true
+}
