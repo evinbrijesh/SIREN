@@ -236,19 +236,21 @@ Fusion becomes primary when it reaches **event-held-out IoU > 0.75 and Precision
 
 **Goal:** replace the deterministic five-factor severity classifier with a learned, calibrated model that consumes upstream neural outputs.
 
+**Status (2026-09-22): GATE PASSED → advisory-primary.** `ml/train_risk_fusion.py` evaluated the fused scorer on the 887-window corpus (230 dated events + stable/within-lake negatives) under the same spatio-temporal holdout as Tier-2: **mean ROC-AUC 0.835, mean Brier 0.142** vs the deterministic five-factor baseline's **0.504 / 0.187** on identical folds — both gate legs pass. Caveat: the fused model is statistically identical to Tier-2 alone (AUC 0.838) — the stacked fold-honest susceptibility prior and monsoon flag add no measurable accuracy. Wired advisory-first (`risk/learned_fusion.py` → `shadow_evidence["learned_risk_fusion"]` + review reason at p_fused ≥ 0.65); `classify_severity` stays deterministic-authoritative. Operational promotion (learned score driving severity) requires a separate severity-mapping evaluation — the §9.2 gate as measured covers event probability, not the four-class severity policy.
+
 ### 9.1 Tasks
 
 | # | Task | Success criterion |
 |---|------|-------------------|
-| 6.1 | Build an honest event/non-event dataset | ≥500 windows from HMAGLOFDB + stable-lake + within-lake controls; spatial/temporal split; no label-contaminated features |
-| 6.2 | Train a calibrated classifier | Small MLP or XGBoost with isotonic/Platt calibration |
-| 6.3 | Beat the deterministic baseline | **Brier < 0.15** on held-out real events; ROC-AUC > five-factor baseline |
-| 6.4 | Wire into `risk/fusion.py` | `classify_severity` uses learned score when promoted; deterministic stays fallback |
-| 6.5 | Expose feature attributions | Review card shows top 3 drivers via SHAP or permutation importance |
+| 6.1 | Build an honest event/non-event dataset | ≥500 windows from HMAGLOFDB + stable-lake + within-lake controls; spatial/temporal split; no label-contaminated features — **DONE: 887 windows reused from the dynamic-escalation corpus** |
+| 6.2 | Train a calibrated classifier | Small MLP or XGBoost with isotonic/Platt calibration — **DONE: XGBoost + Platt OOF sidecar (`xgboost_risk_fusion.json`)** |
+| 6.3 | Beat the deterministic baseline | **Brier < 0.15** on held-out real events; ROC-AUC > five-factor baseline — **PASS: 0.142 < 0.15; AUC 0.835 > 0.504** |
+| 6.4 | Wire into `risk/fusion.py` | `classify_severity` uses learned score when promoted; deterministic stays fallback — **PARTIAL: advisory-first wiring (`risk/learned_fusion.py` + shadow evidence + review reason); severity stays deterministic pending a severity-mapping eval** |
+| 6.5 | Expose feature attributions | Review card shows top 3 drivers via SHAP or permutation importance — **DONE: TreeSHAP top-3 log-odds contributions in `reasons`** |
 
 ### 9.2 Gate
 
-Learned risk fusion becomes primary when it achieves **Brier < 0.15 on spatio-temporally held-out real events** and beats the deterministic five-factor baseline on the same split.
+Learned risk fusion becomes primary when it achieves **Brier < 0.15 on spatio-temporally held-out real events** and beats the deterministic five-factor baseline on the same split — **met for the advisory event-probability contract**. The baseline leg was evaluated on the formula's honestly-measurable inputs only (measured rain; neutral trend/expansion/drainage proxies — no SAR history exists for historical windows), documented in `risk_fusion_eval_report.json`.
 
 ---
 
