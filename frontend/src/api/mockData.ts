@@ -140,6 +140,13 @@ const mlEvidence: MlEvidence = {
   ml_drainage_km2: 0.008,
   model_available: true,
   change_polygon: { type: "Polygon", coordinates: [[[86.8945, 27.8681], [86.9555, 27.8681], [86.9555, 27.9219], [86.8945, 27.9219], [86.8945, 27.8681]]] },
+  uncertainty_map_uri: "/data/processed/obs-002_ml_uncertainty.png",
+  uncertainty_map_bounds: [[86.8945, 27.9219], [86.9555, 27.9219], [86.9555, 27.8681], [86.8945, 27.8681]],
+  uncertainty_max_std: 0.31,
+  uncertainty_conformal_quantile: 0.639,
+  uncertainty_conformal_gate_passed: false,
+  expansion_pct_ci90: [-2.4, 8.1],
+  expansion_trend_uncertain: true,
   dynamic_escalation: {
     is_available: true,
     promoted: true,

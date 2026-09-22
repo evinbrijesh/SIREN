@@ -126,6 +126,7 @@ def run_finetune(
     loss_weight: str | None = None,
     boundary_alpha: float = 0.0,
     boundary_band: int = 2,
+    dropout: float = 0.0,
     out_ckpt: Path | str = OUT_CKPT,
     report_out: Path | str = REPORT_OUT,
 ) -> dict:
@@ -159,7 +160,11 @@ def run_finetune(
 
     state = torch.load(str(CKPT), map_location="cpu", weights_only=True)
     arch, in_ch, base = _detect_architecture(state)
-    model = WaterResUNet(in_channels=in_ch, base_channels=base)
+    # Dropout2d is parameter-free, so the Kuro Siwo state_dict loads
+    # identically into a dropout>0 model — training with dropout active
+    # produces a natively MC-Dropout-compatible checkpoint (E1 gate
+    # requires dropout during training; post-hoc dropout is disqualified).
+    model = WaterResUNet(in_channels=in_ch, base_channels=base, dropout=dropout)
     model.load_state_dict(state)
 
     # ---- before (full-scene terrain-gate metrics) ----
@@ -336,6 +341,7 @@ def run_finetune(
             "loss_weight": loss_weight,
             "boundary_alpha": boundary_alpha,
             "boundary_band_px": boundary_band,
+            "dropout": dropout,
             "area_bins_km2": list(AREA_BINS_KM2),
         },
         "val_weaklabel_metrics": val_metrics,
@@ -398,6 +404,10 @@ def main() -> None:
                          "label edge (0 disables boundary emphasis)")
     ap.add_argument("--boundary-band", type=int, default=2,
                     help="half-width of the shoreline emphasis band (px)")
+    ap.add_argument("--dropout", type=float, default=0.0,
+                    help="Dropout2d rate during training — >0 produces a "
+                         "natively MC-Dropout-compatible checkpoint (E1 "
+                         "gate requires dropout active in training)")
     ap.add_argument("--out-ckpt", default=str(OUT_CKPT))
     ap.add_argument("--report-out", default=str(REPORT_OUT))
     ap.add_argument("--no-eval", action="store_true", help="skip full-scene eval")
@@ -409,6 +419,7 @@ def main() -> None:
         evaluate=not args.no_eval,
         stratified=args.stratified, loss_weight=args.loss_weight,
         boundary_alpha=args.boundary_alpha, boundary_band=args.boundary_band,
+        dropout=args.dropout,
         out_ckpt=args.out_ckpt, report_out=args.report_out,
     )
     print(json.dumps(report, indent=1))

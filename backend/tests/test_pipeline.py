@@ -36,8 +36,10 @@ def test_run_pipeline_produces_score_and_exposures(tmp_path) -> None:
 def test_run_pipeline_elevated_has_three_reasons(tmp_path) -> None:
     """Hard Rule 5: elevated+ scores must have >= 3 reasons."""
     repo = Repository(":memory:")
-    # obs-002 (+28%) should be critical or elevated
-    run = run_pipeline("obs-002", repo)
+    # obs-003 is elevated+ under either expansion source: scripted +43%
+    # (deterministic) or the neural Δp measurement (operational-primary,
+    # in-scope) with rain/slope/trend keeping H in the elevated band.
+    run = run_pipeline("obs-003", repo)
     severity = run["score"]["severity"]
     assert severity in ("elevated", "critical"), f"expected elevated+, got {severity}"
     assert len(run["score"]["reasons"]) >= 3
@@ -127,7 +129,7 @@ def test_out_of_scope_observation_annotated_and_reasoned(tmp_path) -> None:
 def test_pipeline_then_review_then_dispatch(tmp_path) -> None:
     """Full DoD chain: pipeline → review → dispatch → audit."""
     repo = Repository(":memory:")
-    run = run_pipeline("obs-002", repo)  # +28% → critical
+    run = run_pipeline("obs-003", repo)
     run_id = run["run_id"]
 
     # Dispatch without review must fail (human gate)
@@ -149,3 +151,62 @@ def test_pipeline_then_review_then_dispatch(tmp_path) -> None:
     # Audit lineage exists
     entries = repo.list_audit(dispatch["alert_id"])
     assert len(entries) >= 1
+
+
+def test_neural_expansion_primary_when_in_scope() -> None:
+    """ADR-014-am1 operational-primary: in-scope runs with promoted neural
+    evidence use the gated Δp expansion for water_area_change_percent and
+    record the deterministic registry value as the labeled cross-check."""
+    import pytest
+
+    pytest.importorskip("torch")
+    repo = Repository(":memory:")
+    run = run_pipeline("obs-002", repo)
+    cs = run["change_stats_json"]
+    if cs.get("ml_expansion_km2") is None:
+        pytest.skip("ML evidence unavailable (no checkpoint/SAR data)")
+    assert cs["expansion_pct_source"] == "neural_primary"
+    assert "expansion_pct_neural" in cs
+    assert cs["expansion_pct_deterministic"] == 28.0
+    assert run["score"]["method"] == "mixed"
+    assert any("neural-primary" in r for r in run["score"]["reasons"])
+
+
+def test_neural_expansion_carries_conformal_interval() -> None:
+    """Level 2.4: when the promoted checkpoint ships a calibrated
+    conformal sidecar, the neural expansion measurement records a 90%
+    interval in change_stats; an interval reaching zero sets the
+    scene-level "uncertain expansion" flag + review reason."""
+    import pytest
+
+    pytest.importorskip("torch")
+    repo = Repository(":memory:")
+    run = run_pipeline("obs-002", repo)
+    cs = run["change_stats_json"]
+    if cs.get("expansion_pct_source") != "neural_primary":
+        pytest.skip("neural expansion not primary (no checkpoint/SAR data)")
+    if cs.get("uncertainty_conformal_quantile") is None:
+        pytest.skip("no conformal sidecar for the promoted checkpoint")
+    lo, hi = cs["expansion_pct_ci90"]
+    assert lo <= cs["expansion_pct_neural"] <= hi
+    assert cs["expansion_trend_uncertain"] is (lo <= 0.0)
+    if lo <= 0.0:
+        assert any("trend uncertain" in r for r in run["score"]["reasons"])
+
+
+def test_demotion_forces_deterministic_expansion(monkeypatch) -> None:
+    """SIREN_ML_DEMOTE reverses the promotion at runtime — the registry
+    value is load-bearing again and the demotion is not silent."""
+    import pytest
+
+    pytest.importorskip("torch")
+    monkeypatch.setenv("SIREN_ML_DEMOTE", "sar_segmentation_expansion")
+    repo = Repository(":memory:")
+    run = run_pipeline("obs-002", repo)
+    cs = run["change_stats_json"]
+    if cs.get("ml_source") is None:
+        pytest.skip("ML evidence unavailable (no checkpoint/SAR data)")
+    assert cs["expansion_pct_source"] == "deterministic_fallback"
+    assert cs["expansion_pct_demoted"] is True
+    assert run["score"]["method"] == "deterministic_fallback"
+    assert any("runtime-demoted" in r for r in run["score"]["reasons"])

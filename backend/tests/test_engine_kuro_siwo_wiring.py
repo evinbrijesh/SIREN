@@ -303,3 +303,93 @@ def test_explicit_threshold_overrides_default(kuro_engine) -> None:
     strict = kuro_engine.predict_water_mask(sar, threshold=0.99)
     lenient = kuro_engine.predict_water_mask(sar, threshold=0.01)
     assert lenient.sum() >= strict.sum()
+
+
+# --------------------------------------------------------------------------- #
+# Engine: dropout-native checkpoint + per-checkpoint conformal sidecar (E1/L2)
+# --------------------------------------------------------------------------- #
+
+def test_dropout_native_checkpoint_loads_state_dict_identically(tmp_path) -> None:
+    """Dropout2d is parameter-free: a dropout=0-trained state_dict loads
+    verbatim into a dropout>0 model, so the Level 2.1 retrain is a pure
+    architecture flag — no weight remapping."""
+    from siren.ml.model import WaterResUNet
+
+    m0 = WaterResUNet(in_channels=6, base_channels=8, dropout=0.0)
+    m1 = WaterResUNet(in_channels=6, base_channels=8, dropout=0.1)
+    m1.load_state_dict(m0.state_dict())  # must not raise
+    import torch.nn as nn
+    assert any(
+        isinstance(m, nn.Dropout2d) for m in m1.modules()
+    )
+    assert not any(
+        isinstance(m, nn.Dropout2d) for m in m0.modules()
+    )
+
+
+def test_engine_loads_per_checkpoint_conformal_sidecar(tmp_path) -> None:
+    """``<stem>.conformal.json`` is the per-checkpoint sidecar — it must
+    win over the directory-level conformal_calibration.json so a
+    quantile calibrated for one checkpoint never attaches to another."""
+    import json
+
+    from siren.ml.engine import ChangeDetectionEngine
+    from siren.ml.model import WaterResUNet
+
+    wpath = tmp_path / "mc_model.pt"
+    model = WaterResUNet(in_channels=6, base_channels=8, dropout=0.1)
+    torch.save(model.state_dict(), str(wpath))
+    (tmp_path / "mc_model.conformal.json").write_text(json.dumps({
+        "conformal_quantile": 0.42, "gate_passed": True,
+    }))
+    (tmp_path / "conformal_calibration.json").write_text(json.dumps({
+        "conformal_quantile": 0.99, "gate_passed": False,
+    }))
+
+    engine = ChangeDetectionEngine(weights_path=wpath, dropout=0.1)
+    assert engine.is_ready is True
+    assert engine.conformal_quantile == 0.42
+    assert engine.conformal_gate_passed is True
+    assert engine.has_dropout_layers() is True
+
+
+def test_engine_dir_level_conformal_fallback(tmp_path) -> None:
+    """Without a per-checkpoint sidecar the legacy directory-level
+    conformal_calibration.json still loads (Kuro Siwo layout)."""
+    import json
+
+    from siren.ml.engine import ChangeDetectionEngine
+    from siren.ml.model import WaterResUNet
+
+    wpath = tmp_path / "plain.pt"
+    model = WaterResUNet(in_channels=6, base_channels=8, dropout=0.0)
+    torch.save(model.state_dict(), str(wpath))
+    (tmp_path / "conformal_calibration.json").write_text(json.dumps({
+        "conformal_quantile": 0.31, "gate_passed": False,
+    }))
+
+    engine = ChangeDetectionEngine(weights_path=wpath)
+    assert engine.conformal_quantile == 0.31
+    assert engine.conformal_gate_passed is False
+
+
+def test_engine_dropout_native_mc_produces_real_variance(tmp_path) -> None:
+    """A dropout-native checkpoint yields non-degenerate MC variance —
+    the Level 2 prerequisite (post-hoc dropout on a dropout=0-trained
+    checkpoint is disqualified for certification, but the variance path
+    itself must still be exercised)."""
+    from siren.ml.engine import ChangeDetectionEngine
+    from siren.ml.model import WaterResUNet
+
+    wpath = tmp_path / "mc.pt"
+    torch.save(
+        WaterResUNet(in_channels=6, base_channels=8, dropout=0.1)
+        .state_dict(),
+        str(wpath),
+    )
+    engine = ChangeDetectionEngine(weights_path=wpath, dropout=0.1)
+    rng = np.random.RandomState(0)
+    sar = rng.uniform(-22, -6, (2, 64, 64)).astype(np.float32)
+    unc = engine.predict_change_uncertainty(sar, sar, n_samples=8, seed=1)
+    assert unc["has_dropout"] is True
+    assert float(unc["variance_t1"].max()) > 0.0

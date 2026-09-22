@@ -2,7 +2,7 @@
 
 **Version:** 1.0 (2026-09-21)  
 **Companion to:** `docs/spec/PRD.md` v5.1, `docs/spec/BUILD_ROADMAP.md`, `AGENTS.md`, `CLAUDE.md`  
-**Status:** Level 0 in progress
+**Status:** Level 1 operational-primary (in certified scope); Level 2 next
 
 ---
 
@@ -55,7 +55,7 @@ Each level must be completed before the next is meaningful. The ranking follows 
 
 ## 4. Level 1 — SAR segmentation operational-primary
 
-**Status (2026-09-21): GATE PASSED** — the model achieves `operational_primary_eligible: true` on 2 unfrozen descending pairs from 2025.
+**Status (2026-09-22): GATE PASSED → PROMOTED to operational-primary.** The model achieved `operational_primary_eligible: true` on 2 unfrozen descending pairs from 2025, and the pipeline now consumes the neural Δp measurement as the load-bearing `water_area_change_percent` when the run is in certified scope (promoted + descending orbit covering Imja + monsoon window + liquid surface + registered baseline). The deterministic registry value stays recorded as `expansion_pct_deterministic`, disagreement surfaces via the `cross_check` reason, and `SIREN_ML_DEMOTE` reverses the promotion at runtime. Score `method` reads `mixed` when the expansion factor is neural-sourced.
 
 ### 4.0 Operational scope — monsoon window (declared 2026-09-21)
 
@@ -126,10 +126,11 @@ The model misses the lake entirely and floods the scene with false positives —
 
 ### 4.5 Next steps
 
-- Wire the pipeline to use the neural mask for `water_area_change_percent` (task 1.3).
-- Add a runtime demotion flag to force deterministic fallback (task 1.5).
+- ~~Wire the pipeline to use the neural mask for `water_area_change_percent` (task 1.3).~~ **DONE 2026-09-22** — `pipeline.py` resolves `expansion_pct_source` per run (`neural_primary` | `deterministic_fallback`); the gated Δp expansion inside monitorable-lake vicinity (`ml_expansion_lake_vicinity_km2`) divided by the registered baseline area drives the hazard score when in scope.
+- ~~Add a runtime demotion flag to force deterministic fallback (task 1.5).~~ **DONE 2026-09-22** — `SIREN_ML_DEMOTE=<component|all>` in `ml/promotion.py`; demotion is read at call time, surfaces a review reason, and is reported on `/system/ml-status`.
 - For multi-lake coverage: acquire multi-lake training labels (the inventory has 12,667 lakes mapped; ~10-20 gold labels across 5-10 lakes would be a start) + region-wide DEM coverage.
 - For year-round coverage: acquire ascending training data or add a season-aware routing layer.
+- Known consequence: on the verified Jul-02→14 runtime pair the model measures ~0 km² lake-vicinity expansion (persistent lake already at extent — correct change-detector behaviour), so demo-observation severities now reflect the neural measurement (obs-002 watch, obs-003 elevated) with scripted values kept as labeled cross-checks.
 
 ---
 
@@ -139,10 +140,10 @@ The model misses the lake entirely and floods the scene with false positives —
 
 | # | Task | Success criterion |
 |---|------|-------------------|
-| 2.1 | Re-train WaterResUNet with dropout active during training (`dropout=0.1` in encoder + bottleneck) | New checkpoint that supports MC Dropout natively |
-| 2.2 | Run split-conformal calibration on **whole Imja-area scenes**, not Kuro Siwo chips | Empirical coverage 0.85–0.95 of nominal 90% on ≥3 held-out scenes |
-| 2.3 | Add uncertainty overlay to the review UI | Per-pixel std map + scene-level "uncertain expansion" flag |
-| 2.4 | Gate auto-escalation on uncertainty | If the 90% conformal interval for expansion % includes zero, downgrade severity or add "trend uncertain" reason |
+| 2.1 | ~~Re-train WaterResUNet with dropout active during training (`dropout=0.1` in encoder + bottleneck)~~ **DONE 2026-09-22** — `lake_adapter_finetune.py --dropout 0.1` → `water_resunet_6ch_himalayan_adapter_multidate_mc.pt`; deterministic gate metrics improved (IoU 0.82/0.80/0.64 vs 0.68/0.62/0.50), glacier FP still 0% | New checkpoint that supports MC Dropout natively |
+| 2.2 | ~~Run split-conformal calibration on **whole Imja-area scenes**~~ **EVALUATED 2026-09-22 — GATE FAILED.** `calibrate_uncertainty_scenes.py` runs leave-one-scene-out conformal on the 3 in-scope gold scenes: coverage 0.881 / 0.816 / 0.931 (nominal 0.90, tol ±0.05); pooled q*=0.639. One scene (09-22, n=223 labelled px) dips below. Interval stays advisory | Empirical coverage 0.85–0.95 of nominal 90% on ≥3 held-out scenes |
+| 2.3 | ~~Add uncertainty overlay to the review UI~~ **DONE** — `uncertainty_map_uri` flows to `/runs/{id}/ml-evidence`; ReviewView gains an "Uncertainty σ" mask layer + "Expansion: uncertain" badge | Per-pixel std map + scene-level "uncertain expansion" flag |
+| 2.4 | ~~Gate auto-escalation on uncertainty~~ **DONE (reason-path)** — when the promoted checkpoint ships a conformal sidecar, the pipeline records `expansion_pct_ci90` + `expansion_trend_uncertain` and appends a "trend uncertain" review reason when the interval includes zero; severity is not silently downgraded (human gate authoritative) | If the 90% conformal interval for expansion % includes zero, downgrade severity or add "trend uncertain" reason |
 
 ### 5.1 Gate
 
@@ -150,6 +151,8 @@ Uncertainty becomes a calibrated safety bound when:
 
 - Coverage is within **±5% of the nominal 90% level** on Imja-area held-out scenes.
 - The model was trained with dropout (post-hoc dropout on a `dropout=0.0` model is explicitly disqualified).
+
+**Status (2026-09-22): GATE NOT MET.** The dropout-native checkpoint exists and is promoted for segmentation (it improved the operational-gate metrics), and its whole-scene conformal sidecar is wired per-checkpoint (`<stem>.conformal.json` — directory-level sidecars no longer leak across checkpoints). But leave-one-scene-out coverage on the 3 in-scope gold scenes is 0.816–0.931 — the 09-22 scene misses the band. The conformal interval therefore stays *advisory*: the runtime computes `expansion_pct_ci90` and the "trend uncertain" flag with `uncertainty_conformal_gate_passed: false` recorded alongside. To pass, either more calibration scenes (more gold-labelled monsoon pairs) or a stronger uncertainty source (deep ensembles, heteroscedastic head) is needed — not a wider dropout rate tuned to pass.
 
 ---
 
@@ -165,9 +168,9 @@ Training a U-Net on 20 lakes produced **676% MAPE** (random init) and **329% MAP
 
 | # | Task | Success criterion |
 |---|------|-------------------|
-| 3.1 | Expand to the full global bathymetry/metadata compilation | ≥60 unique lakes with measured bathymetry/volume in grouped-LOO |
-| 3.2 | Build a strong **terrain-feature regression baseline** | Inputs: lake area, elevation, glacier distance, glacier area, slope, aspect, dam type; beats Huggel MAPE on grouped-LOO |
-| 3.3 | Add a small neural head only if regression is close | 2–3 layer MLP or tiny CNN with heavy regularization; grouped-LOO MAPE <15% |
+| 3.1 | Expand to the full global bathymetry/metadata compilation | ≥60 unique lakes with measured bathymetry/volume in grouped-LOO — **DONE earlier: 323 entries / 267 unique lakes** |
+| 3.2 | ~~Build a strong **terrain-feature regression baseline**~~ **DONE 2026-09-22 — NEGATIVE RESULT.** `bathymetry_terrain.py` extracts 11 deployable terrain/morphology features per dense lake (log area, perimeter, compactness, elongation, rim slope mean/p90, window relief + mean slope, z_surface, glacier distance + window fraction from RGI v7) and runs grouped-LOO ridge+GPR residual over Huggel on the 20 surveyed lakes. Ridge MAPE 74.5% vs Huggel 75.6% (median 55.6% vs 50.2% — a wash at n=20); GPR 86.8% with calibrated 0.90 interval coverage. Terrain features do not beat the area-only formula → 3.3 (neural head) is not justified. Report: `models/checkpoints/bathymetry_terrain_loo.json`, feature table `bathymetry_terrain_features.json` | Inputs: lake area, elevation, glacier distance, glacier area, slope, aspect, dam type; beats Huggel MAPE on grouped-LOO |
+| 3.3 | Add a small neural head only if regression is close | 2–3 layer MLP or tiny CNN with heavy regularization; grouped-LOO MAPE <15% — **NOT PURSUED: regression is ~75% MAPE, 5× the gate** |
 | 3.4 | Re-qualify with **Copernicus DEM GLO30** where available | Document coverage, nodata, and co-registration vs SRTM |
 | 3.5 | Wire into `breach_volume.py` | Neural → Huggel → hypsometric cascade; fallback is loud |
 
@@ -263,10 +266,11 @@ Learned risk fusion becomes primary when it achieves **Brier < 0.15 on spatio-te
 
 ## 11. What to do right now
 
-1. **Finish Level 0** (this session): fix the failing engine test and add `/system/ml-status`.
-2. **Next cycle:** Imja-area segmentation labels (Level 1). This is the highest-leverage blocker.
-3. **In parallel:** curate the global bathymetry compilation for Level 3; it is independent of Level 1.
-4. **Do not start:** FNO retraining (Level 4) until bathymetry is credible; fusion (Level 5) until clean optical-SAR pairs exist; learned risk fusion (Level 6) until upstream neural outputs are trustworthy.
+1. ~~**Finish Level 0**~~ — `/system/ml-status` live, fallback provenance locked (`method` field), suite green.
+2. ~~**Level 1**~~ — **DONE 2026-09-22**: segmentation is operational-primary in certified scope; neural Δp expansion drives `water_area_change_percent`, deterministic stays labeled cross-check, `SIREN_ML_DEMOTE` reverses. Promoted checkpoint is now the **dropout-native** `multidate_mc` (better gate metrics + native MC Dropout).
+3. ~~**Level 2**~~ — **EVALUATED 2026-09-22, GATE NOT MET**: dropout-native retrain done, whole-scene LOSO conformal ran on the 3 in-scope gold scenes (coverage 0.816–0.931), conformal interval + "trend uncertain" flag + σ overlay are wired but advisory. Next: more gold calibration scenes or a stronger uncertainty source.
+4. ~~**Level 3.1/3.2**~~ — **DONE 2026-09-22, NEGATIVE**: terrain-feature regression does not beat Huggel (74.5% vs 75.6% MAPE at n=20); the small neural head is not justified at this sample size. Huggel stays operational.
+5. **Do not start:** FNO retraining (Level 4) until bathymetry is credible; fusion (Level 5) until clean optical-SAR pairs exist; learned risk fusion (Level 6) until upstream neural outputs are trustworthy.
 
 ---
 

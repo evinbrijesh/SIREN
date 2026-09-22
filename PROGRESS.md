@@ -22,6 +22,30 @@ This file tracks the portfolio-grade improvement roadmap agreed 2026-03-15.
 | 8 | **Deterministic thermal-state gate** — `LakeThermalState` enum + ERA5-Land lapse-rate estimator (`detect/thermal_state.py`, committed `data/assets/lake_thermal_series.json` via `ingest/lake_thermal_series.py`); pipeline flags frozen SAR layers unreliable, marks drainage non-hydrological, suppresses breach-volume/hydro trigger; FROZEN badge in ReviewView | Held-out eval proved 0% winter recall for ALL models — a sensor limitation to gate deterministically, not a training problem | DONE — estimator verified on real dates (Nov −8°C frozen, Jan −15°C frozen, Jul +3°C liquid); 9 tests incl. hydro-trigger suppression; full backend suite + frontend vitest clean; obs-002 pipeline run shows `liquid` +3.1°C with no flags (DoD intact) |
 | 9 | **Stratified area rebalancing** — `--stratified` flag in `lake_adapter_finetune.py` (equal per-epoch sampling across micro/medium/large bins) + optional `--loss-weight invsqrt`; per-bin recall added to `heldout_eval.py` | Held-out inventory recall regressed 27.8%→16.3% under v1 adapter — test whether gradient imbalance vs resolution floor | DONE — v2 stratified: aggregate recall recovered (24.7%) + glacier suppression improved (−87%) BUT Imja recall collapsed 41.3%→4.2%; micro-tarns unrecoverable at ~90m pitch (2–6 px = resolution floor). v1 remains the deployment candidate; stratification trades target recall for breadth |
 
+## Current position (2026-09-22)
+
+Plain-language summary of where the DL-primary push stands after the Level 1–3 cycle:
+
+**What works**
+
+- The neural SAR segmentation model is now the *primary* way the system measures lake expansion — within its certified scope (monsoon Jun–Sep, descending-orbit passes, Imja-area lakes, liquid surface). Everything outside that scope still uses the deterministic baseline, and `SIREN_ML_DEMOTE` reverses the promotion instantly.
+- A dropout-native retrain (`water_resunet_6ch_himalayan_adapter_multidate_mc.pt`) *improved* accuracy over its predecessor — IoU 0.82/0.80/0.64 on the three held-out gate scenes vs 0.68/0.62/0.50 — and is natively MC-Dropout-capable, so every run also produces a per-pixel uncertainty map.
+- The review UI now shows that uncertainty (σ overlay layer) and the pipeline flags "trend uncertain" whenever the 90% confidence interval on the expansion measurement includes zero.
+
+**What didn't pass — and what that means**
+
+- *Uncertainty calibration:* the conformal interval was right 88% / 82% / 93% of the time across the three test scenes where the gate requires 90%±5 on each. One scene missed, so the gate **failed**. The uncertainty numbers are shown to human reviewers but cannot drive automatic decisions — which is exactly what the gate is for.
+- *Neural bathymetry:* a terrain-feature regression (slope, shape, glacier distance, elevation — 11 features, 20 surveyed lakes) scored 74.5% error vs the old Huggel formula's 75.6% — statistically a wash, nowhere near the 15% target. Terrain features at this data size simply don't carry more signal than lake area alone. No neural volume head is justified; Huggel stays operational.
+
+**Net:** the first genuinely DL-primary stage is live and it errs on the honest side (it measures ~0 expansion on a full lake rather than echoing scripted alerts). The safety architecture — deterministic fallback + mandatory human review — caught the uncertainty layer before it could automate anything.
+
+**Next procedures, in priority order**
+
+1. **Acquire more labeled monsoon scenes.** The conformal gate needs ≥3 held-out scenes and we have exactly 3 — more gold labels either pass the gate or pinpoint where calibration breaks. Pure data work, no modeling.
+2. **Level 6 — learned risk fusion.** The only major neural component not blocked on data: `susceptibility` and `dynamic_escalation` already pass their own gates. Remaining work is proving a fused learned scorer beats the deterministic 5-factor formula on held-out historical events, then wiring it advisory-first.
+3. **Deep ensembles as an alternative uncertainty source.** Train 3–5 seeds of the adapter; model disagreement is a stronger uncertainty signal than dropout sampling and needs no new labels.
+4. **Parked until data exists:** neural bathymetry (needs ~50+ surveyed lakes or ICESat-2 bathymetric LiDAR), the latent-FNO dynamics surrogate (needs 500+ real-terrain GeoClaw breach simulations), optical-SAR fusion (no optical discriminator separates lake from glacier at Imja — AUC <0.3), multi-lake coverage (South Lhonak probe failed: IoU 0.028).
+
 ## Rules carried forward
 
 - Neural promotion is gate-gated and component-wise (PRD §9.8): deterministic masks/scores stay authoritative until a component passes its held-out real-data gate, then it becomes primary with the deterministic module demoted to labeled cross-check — never silently, always reversible.

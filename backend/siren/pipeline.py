@@ -41,6 +41,7 @@ from siren.detect.scenario import (
     SCENARIO_EXPANSIONS,
 )
 from siren.risk.fusion import fuse as risk_fuse
+from siren.ml.promotion import DEMOTE_ENV_VAR, is_demoted, is_promoted, promotion_record
 
 logger = logging.getLogger(__name__)
 
@@ -402,8 +403,6 @@ def _try_ml_evidence_layer(
         # promoted, the primary evidence mask is the Δp expansion —
         # the gate-evaluated contract. The binary extent-difference
         # mask stays recorded alongside for the audit trail.
-        from siren.ml.promotion import is_promoted, promotion_record
-
         _exp_promoted = is_promoted("sar_segmentation_expansion")
         ml_mask = (
             ml_state["expansion_dp"] if _exp_promoted
@@ -424,6 +423,11 @@ def _try_ml_evidence_layer(
         # erase the very feature being monitored. The rule-based mask and
         # the hazard score are never touched (Hard Rule 1).
         gate_stats: dict[str, Any] = {}
+        # Hoisted for the MC-Dropout conformal block below — both are
+        # populated inside the gating try and stay None when the SAR grid
+        # has no geolocation.
+        lake_vic: np.ndarray | None = None
+        px_area_m2: float | None = None
         try:
             from siren.detect.sar import (
                 sar_grid_dem_slope,
@@ -512,6 +516,17 @@ def _try_ml_evidence_layer(
                 gate_stats["ml_expansion_km2"] = round(
                     ml_mask.sum() * px_area_m2 / 1e6, 3
                 )
+                # Promotion-scoped expansion: the ADR-014-am1 contract is
+                # Δp expansion inside monitorable-lake vicinity, so the
+                # load-bearing measurement restricts the gated mask to
+                # lake_vic — expansion at other lakes must not inflate
+                # the monitored lake's water_area_change_percent.
+                if lake_vic is not None and lake_vic.any():
+                    vic_exp_px = int((ml_mask & lake_vic).sum())
+                    gate_stats["ml_expansion_lake_vicinity_px"] = vic_exp_px
+                    gate_stats["ml_expansion_lake_vicinity_km2"] = round(
+                        vic_exp_px * px_area_m2 / 1e6, 3
+                    )
                 gate_stats["ml_drainage_px"] = int(ml_drainage.sum())
                 gate_stats["ml_drainage_km2"] = round(
                     ml_drainage.sum() * px_area_m2 / 1e6, 3
@@ -607,6 +622,45 @@ def _try_ml_evidence_layer(
                         "conformal_gate_passed", False
                     ),
                 }
+                # Level 2.4 — conformal interval on the neural expansion
+                # measurement. With a calibrated q* the per-pixel water
+                # interval is [p̂ − q*, p̂ + q*]; the lower-bound expansion
+                # counts pixels that are water at t1 even at the lower
+                # bound and non-water at t0 even at the upper bound, and
+                # the upper bound counts pixels that could be expansion.
+                # Restricted to the monitorable-lake vicinity like the
+                # load-bearing measurement it bounds.
+                q_star = unc.get("conformal_quantile")
+                if (
+                    q_star is not None
+                    and lake_vic is not None and lake_vic.any()
+                    and px_area_m2 is not None
+                ):
+                    tau_u = engine.default_threshold
+                    p1, p0 = unc["water_prob_t1"], unc["water_prob_t0"]
+                    lo_px = int(
+                        (
+                            ((p1 - q_star) >= tau_u)
+                            & ((p0 + q_star) < tau_u)
+                            & lake_vic
+                        ).sum()
+                    )
+                    hi_px = int(
+                        (
+                            ((p1 + q_star) >= tau_u)
+                            & ((p0 - q_star) < tau_u)
+                            & lake_vic
+                        ).sum()
+                    )
+                    uncertainty_stats["ml_expansion_vicinity_ci90_px"] = [
+                        lo_px, hi_px,
+                    ]
+                    uncertainty_stats["ml_expansion_vicinity_lo_km2"] = round(
+                        lo_px * px_area_m2 / 1e6, 3
+                    )
+                    uncertainty_stats["ml_expansion_vicinity_hi_km2"] = round(
+                        hi_px * px_area_m2 / 1e6, 3
+                    )
             except Exception as exc:
                 logger.warning(f"MC Dropout uncertainty failed: {exc}")
 
@@ -874,11 +928,13 @@ def run_pipeline(
     change_stats["routing"] = routing
     change_stats["change_polygon"] = _change_polygon_from_mask(str(mask_path))
 
-    # 5b. ML evidence layer — SHADOW MODE (ADR-010)
-    # WaterUNet runs as supplementary evidence only. It does NOT replace
-    # the rule-based mask, does NOT filter rule-detected pixels, and does
-    # NOT enter the hazard score. Falls back to deterministic when torch
-    # is unavailable or no trained weights exist.
+    # 5b. ML evidence layer (ADR-010 shadow + ADR-014-am1 promotion).
+    # WaterUNet evidence does NOT replace the rule-based mask, does NOT
+    # filter rule-detected pixels, and does NOT feed the corridor or
+    # exposure layers. Exception: the promoted sar_segmentation_expansion
+    # component supplies the load-bearing water_area_change_percent for
+    # the hazard score within its certified scope (see 7a). Falls back
+    # to deterministic when torch is unavailable or no weights exist.
     ml_evidence = _try_ml_evidence_layer(observation_id, str(mask_path))
     if ml_evidence is not None:
         change_stats["ml_confidence_mean"] = ml_evidence["confidence_mean"]
@@ -905,6 +961,9 @@ def run_pipeline(
             "ml_rule_overlap_px", "ml_rule_overlap_pct", "cross_check",
             "ml_water_extent_px", "ml_water_extent_km2",
             "ml_expansion_km2", "ml_drainage_px", "ml_drainage_km2",
+            "ml_expansion_lake_vicinity_px", "ml_expansion_lake_vicinity_km2",
+            "ml_expansion_vicinity_ci90_px",
+            "ml_expansion_vicinity_lo_km2", "ml_expansion_vicinity_hi_km2",
             "ml_sar_grid_bounds",
             "expansion_union_px", "expansion_union_km2",
             "expansion_neural_only_px", "expansion_rule_only_px",
@@ -1109,8 +1168,11 @@ def run_pipeline(
     inundated_wells = sum(1 for e in exposures if e.get("asset_type") == "well" and e.get("inundated"))
 
     # ADR-010: ML confidence is NOT passed to the hazard score. The 5-factor
-    # formula (PRD §9.5) uses only physical/deterministic inputs. ML evidence
-    # remains in change_stats as shadow metadata for the UI.
+    # formula (PRD §9.5) uses physical/deterministic inputs; the sole
+    # promoted exception is the expansion factor, which is neural-sourced
+    # only within the certified scope (see 7a) and otherwise stays on the
+    # deterministic registry value. ML evidence remains in change_stats
+    # as metadata for the UI.
 
     # Trend classification: deterministic area-history (ADR-010).
     # The ConvLSTM trend model was archived/disqualified in the 2026-09-07 DL
@@ -1153,9 +1215,60 @@ def run_pipeline(
     change_stats["trend_source"] = trend_source
     change_stats["trend_confidence"] = trend_confidence
 
+    # 7a. Expansion-source resolution (ADR-014-am1, operational-primary).
+    # When the promoted sar_segmentation_expansion component produced
+    # in-scope neural evidence this run, the gated Δp expansion measured
+    # inside the monitorable-lake vicinity is the load-bearing
+    # water_area_change_percent for the hazard score. The registry value
+    # stays recorded as the labeled deterministic cross-check; any scope
+    # violation (out-of-window, frozen surface, non-descending orbit, no
+    # Imja coverage, runtime demotion) keeps it authoritative.
+    expansion_pct = obs_config["expansion_pct"]
+    expansion_source = "deterministic_fallback"
+    _sar_pair = (
+        ml_evidence.get("sar_pair") if isinstance(ml_evidence, dict) else None
+    ) or {}
+    _scope_in = (
+        isinstance(change_stats.get("operational_scope"), dict)
+        and change_stats["operational_scope"].get("in_scope") is True
+    )
+    _exp_km2: float | None = None
+    _exp_metric: str | None = None
+    if isinstance(ml_evidence, dict):
+        _exp_km2 = ml_evidence.get("ml_expansion_lake_vicinity_km2")
+        _exp_metric = "lake_vicinity" if _exp_km2 is not None else None
+        if _exp_km2 is None:
+            _exp_km2 = ml_evidence.get("ml_expansion_km2")
+            _exp_metric = "gated_grid" if _exp_km2 is not None else None
+    _baseline_km2 = float(obs_config.get("water_area_km2") or 0.0)
+    if (
+        is_promoted("sar_segmentation_expansion")
+        and _exp_km2 is not None
+        and _sar_pair.get("orbit") == "descending"
+        and bool(_sar_pair.get("covers_imja"))
+        and _scope_in
+        and not frozen
+        and _baseline_km2 > 0.0
+    ):
+        expansion_pct = round(float(_exp_km2) / _baseline_km2 * 100.0, 2)
+        expansion_source = "neural_primary"
+    change_stats["expansion_pct_source"] = expansion_source
+    if _exp_metric is not None:
+        change_stats["expansion_pct_neural_metric"] = _exp_metric
+    change_stats["expansion_pct_deterministic"] = obs_config["expansion_pct"]
+    if expansion_source == "neural_primary":
+        change_stats["expansion_pct_neural"] = expansion_pct
+        # The effective expansion is what the score consumed — keep the
+        # scalar honest for downstream consumers (dynamic_escalation
+        # reads change_stats["expansion_percent"]) while the registry
+        # value stays recorded above as the labeled cross-check.
+        change_stats["expansion_percent"] = expansion_pct
+    elif is_demoted("sar_segmentation_expansion"):
+        change_stats["expansion_pct_demoted"] = True
+
     score = risk_fuse(
         trend_class=trend_class,
-        expansion_pct=obs_config["expansion_pct"],
+        expansion_pct=expansion_pct,
         rainfall_24h_mm=rainfall_24h,
         rainfall_7d_mm=rainfall_7d,
         mean_slope_deg=obs_config.get("mean_slope_degrees") or MEAN_SLOPE_DEG,
@@ -1192,6 +1305,44 @@ def run_pipeline(
     _scope = change_stats.get("operational_scope", {})
     if isinstance(_scope, dict) and _scope.get("in_scope") is False:
         score["reasons"].append(_scope["reason"])
+
+    # 7a-ter. Expansion provenance — the review card must show which
+    # source drove the expansion factor. A neural-primary measurement
+    # makes the score "mixed" (the other four factors stay
+    # deterministic); a runtime demotion is never silent.
+    if expansion_source == "neural_primary":
+        score["method"] = "mixed"
+        score["reasons"].append(
+            f"expansion evidence is neural-primary (promoted Δp mask, "
+            f"{expansion_pct:+.1f}% of registered baseline "
+            f"{_baseline_km2:.2f} km²); deterministic registry value "
+            f"{obs_config['expansion_pct']:+.1f}% kept as labeled "
+            f"cross-check"
+        )
+        # Level 2.4 — conformal interval on the expansion measurement.
+        # When the calibrated 90% interval reaches zero the measured
+        # expansion may be noise: flag it on the review card rather than
+        # silently downgrading (the human gate stays authoritative).
+        _lo_km2 = ml_evidence.get("ml_expansion_vicinity_lo_km2")
+        _hi_km2 = ml_evidence.get("ml_expansion_vicinity_hi_km2")
+        if _lo_km2 is not None and _hi_km2 is not None and _baseline_km2 > 0:
+            _lo_pct = round(float(_lo_km2) / _baseline_km2 * 100.0, 2)
+            _hi_pct = round(float(_hi_km2) / _baseline_km2 * 100.0, 2)
+            change_stats["expansion_pct_ci90"] = [_lo_pct, _hi_pct]
+            _uncertain = _lo_pct <= 0.0
+            change_stats["expansion_trend_uncertain"] = _uncertain
+            if _uncertain:
+                score["reasons"].append(
+                    f"trend uncertain: 90% conformal interval for neural "
+                    f"expansion is [{_lo_pct:+.1f}%, {_hi_pct:+.1f}%] — "
+                    f"includes zero"
+                )
+    elif change_stats.get("expansion_pct_demoted"):
+        score["reasons"].append(
+            f"sar_segmentation_expansion runtime-demoted via "
+            f"{DEMOTE_ENV_VAR} — deterministic registry expansion "
+            f"is load-bearing"
+        )
 
     # 7b. Attach shadow evidence (V3 §3.6, §6 — ADR-010 §3: not load-bearing)
     # The deterministic 5-factor hazard score remains authoritative. Shadow

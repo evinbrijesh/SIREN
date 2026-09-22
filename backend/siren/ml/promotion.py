@@ -13,6 +13,7 @@ evidence source per component; the registry reports it for audit.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -55,8 +56,15 @@ PROMOTED_COMPONENTS: dict[str, dict[str, Any]] = {
     # conservative choice but a hard requirement. Multi-lake
     # monitoring needs multi-lake training data.
     "sar_segmentation_expansion": {
+        # Dropout-native retrain of the multidate adapter (E1/L2.1 —
+        # dropout=0.1 active during training, the only construction the
+        # uncertainty gate accepts). Deterministic (eval-mode) metrics on
+        # the operational gate IMPROVED vs the dropout=0 parent: IoU
+        # 0.82/0.80 on the 2025 pairs (was 0.68/0.62), 0.64 on the 2026
+        # pair (was 0.50); glacier FP stays 0%. Δp change detection is
+        # comparable (14/32 tp at 6 fp vs 16/32 at 9 fp on the gold pair).
         "checkpoint": (
-            "water_resunet_6ch_himalayan_adapter_multidate.pt"
+            "water_resunet_6ch_himalayan_adapter_multidate_mc.pt"
         ),
         "evidence_method": "expansion_dp",  # (p1>=0.5)&(p1-p0>=0.2)
         "gate": "ADR-014-am1",
@@ -64,6 +72,8 @@ PROMOTED_COMPONENTS: dict[str, dict[str, Any]] = {
             "models/checkpoints/imja_operational_gate_eval.json",
             "models/checkpoints/imja_gold_eval_report.json",
             "models/checkpoints/heldout_eval_report.json",
+            "models/checkpoints/lake_adapter_multidate_mc_report.json",
+            "models/checkpoints/imja_scene_conformal_eval.json",
         ],
         "scope": {
             "orbit": "s1 relative-orbit-121 descending",
@@ -77,6 +87,7 @@ PROMOTED_COMPONENTS: dict[str, dict[str, Any]] = {
                       "invisible lakes are outside the detection "
                       "contract entirely",
         },
+        "level": "operational_primary",
         "union_policy": (
             "deterministic change evidence stays live as labeled "
             "cross-check; material disagreement in either direction "
@@ -84,9 +95,10 @@ PROMOTED_COMPONENTS: dict[str, dict[str, Any]] = {
         ),
         "caveat": (
             "Operational gate passes on 2 unfrozen descending pairs "
-            "(2025-08-29→09-10 and 08-29→09-22, shared t0). The 2026 "
-            "eval pair under-performs (IoU 0.50) and the ascending "
-            "pair fails (IoU 0.03) — the model is scoped to "
+            "(2025-08-29→09-10 IoU 0.82/P 0.98 and 08-29→09-22 IoU "
+            "0.80/P 0.94, shared t0). The 2026 eval pair under-performs "
+            "(IoU 0.64, precision 0.73 < 0.84) and the ascending pair "
+            "fails (IoU 0.03) — the model is scoped to "
             "descending unfrozen scenes with a significant "
             "backscatter-change signal. Frozen-season predictions "
             "are correctly near-zero (winter pair passes frozen "
@@ -95,7 +107,12 @@ PROMOTED_COMPONENTS: dict[str, dict[str, Any]] = {
             "positives — the certified scope is Imja-area only. For "
             "year-round coverage, a separate ascending model or "
             "pass-invariant training is needed; for multi-lake "
-            "coverage, multi-lake training data is needed."
+            "coverage, multi-lake training data is needed. "
+            "Uncertainty: dropout-native (p=0.1) — the per-checkpoint "
+            "conformal sidecar (whole-scene LOSO, 3 in-scope gold "
+            "scenes) gives q*=0.639 but the Level 2.2 gate FAILED "
+            "(per-scene coverage 0.816–0.931 vs nominal 0.90 ±0.05) — "
+            "the interval is advisory, not certified."
         ),
         "promoted_at": "2026-09-19",
         "reversible": True,
@@ -126,6 +143,7 @@ PROMOTED_COMPONENTS: dict[str, dict[str, Any]] = {
             "features": "measured only (ICIMOD + RGI v7); no generated "
                         "or label-contaminated features",
         },
+        "level": "advisory_primary",
         "union_policy": (
             "advisory prior — feeds dynamic_escalation's "
             "combine_with_static and the FNO trigger gate; does not "
@@ -174,6 +192,7 @@ PROMOTED_COMPONENTS: dict[str, dict[str, Any]] = {
                 "landslide-triggered and correctly does not warn)"
             ),
         },
+        "level": "advisory_primary",
         "union_policy": (
             "deterministic severity classification stays live as "
             "labeled cross-check; pre_breach_warning surfaces as an "
@@ -191,9 +210,37 @@ PROMOTED_COMPONENTS: dict[str, dict[str, Any]] = {
 }
 
 
+# Runtime demotion flag (DL_PRIMARY_ROADMAP task 1.5): a comma-separated
+# environment variable forces promoted components back to their
+# deterministic fallback without editing the registry —
+#   SIREN_ML_DEMOTE=sar_segmentation_expansion
+#   SIREN_ML_DEMOTE=all
+# Demotion is read at call time, so it takes effect per-run and is
+# testable via monkeypatch. Promotion is component-wise and reversible
+# (PRD §9.8) — demotion is the operational reversal path.
+DEMOTE_ENV_VAR = "SIREN_ML_DEMOTE"
+
+
+def demoted_components() -> set[str]:
+    """Component names forced to deterministic fallback via the env var."""
+    raw = os.environ.get(DEMOTE_ENV_VAR, "")
+    return {t.strip() for t in raw.split(",") if t.strip()}
+
+
+def is_demoted(component: str) -> bool:
+    """True when ``component`` is runtime-demoted to deterministic fallback."""
+    tokens = demoted_components()
+    return "all" in tokens or component in tokens
+
+
 def is_promoted(component: str) -> bool:
-    """True when ``component`` is promoted to primary evidence."""
-    return component in PROMOTED_COMPONENTS
+    """True when ``component`` is promoted and not runtime-demoted.
+
+    A demoted component behaves exactly as if unpromoted: the
+    deterministic module is load-bearing and the promotion record stays
+    in the registry for audit.
+    """
+    return component in PROMOTED_COMPONENTS and not is_demoted(component)
 
 
 def promotion_record(component: str) -> dict[str, Any] | None:
@@ -224,7 +271,11 @@ def get_ml_readiness_report() -> dict[str, Any]:
         operational authority for severity/dispatch.
       * ``operational_primary`` — the component is the default load-bearing
         path for its stage and the deterministic fallback is a labeled
-        cross-check. No component is currently at this level.
+        cross-check. ``sar_segmentation_expansion`` holds this level for
+        the water-area expansion factor within its certified scope
+        (descending orbit, monsoon Jun-Sep, Imja-area monitorable lakes);
+        out-of-scope runs and runtime demotion (``SIREN_ML_DEMOTE``)
+        revert to the deterministic registry value.
 
     The ``dl_primary_ready`` flag is False until every load-bearing stage
     (segmentation, uncertainty, bathymetry, dynamics, risk fusion) is at
@@ -239,7 +290,8 @@ def get_ml_readiness_report() -> dict[str, Any]:
     seg_rec = promotion_record("sar_segmentation_expansion")
     if seg_rec is not None:
         report["sar_segmentation_expansion"] = {
-            "status": "advisory_primary",
+            "status": seg_rec.get("level", "advisory_primary"),
+            "demoted": is_demoted("sar_segmentation_expansion"),
             "display": "SAR water/change segmentation",
             "gate": seg_rec.get("gate"),
             "gate_passed": True,
@@ -248,8 +300,10 @@ def get_ml_readiness_report() -> dict[str, Any]:
             "scope": seg_rec.get("scope"),
             "caveat": seg_rec.get("caveat"),
             "blocker": (
-                "Needs deployment-domain Imja-area held-out IoU ≥ 0.60 + "
-                "glacier-FP budget before operational_primary."
+                "Operational-primary within certified scope (descending "
+                "orbit, monsoon Jun-Sep, Imja-area monitorable lakes). "
+                "Ascending pass, frozen season, and other lakes remain "
+                "out of scope and need dedicated training data."
             ),
             "evidence_files": [str(p) for p in seg_rec.get("gate_evidence", [])],
         }
@@ -369,7 +423,8 @@ def get_ml_readiness_report() -> dict[str, Any]:
     sus_report = _load_json(_CHECKPOINTS_DIR / "xgboost_spatial_cv_report.json")
     if sus_rec is not None:
         report["susceptibility"] = {
-            "status": "advisory_primary",
+            "status": sus_rec.get("level", "advisory_primary"),
+            "demoted": is_demoted("susceptibility"),
             "display": "Static lake-breach susceptibility prior",
             "gate": sus_rec.get("gate"),
             "gate_passed": bool(
@@ -408,7 +463,8 @@ def get_ml_readiness_report() -> dict[str, Any]:
     )
     if esc_rec is not None:
         report["dynamic_escalation"] = {
-            "status": "advisory_primary",
+            "status": esc_rec.get("level", "advisory_primary"),
+            "demoted": is_demoted("dynamic_escalation"),
             "display": "Tier-2 weather/morphology escalation scorer",
             "gate": esc_rec.get("gate"),
             "gate_passed": bool(
@@ -467,15 +523,21 @@ def get_ml_readiness_report() -> dict[str, Any]:
         "advisory_primary_components": advisory_primary_count,
         "shadow_components": len(report) - operational_primary_count - advisory_primary_count,
         "total_components": len(report),
-        "next_recommended_level": 1,  # See docs/spec/DL_PRIMARY_ROADMAP.md
+        "next_recommended_level": 2,  # See docs/spec/DL_PRIMARY_ROADMAP.md
         "operational_scope": scope_summary(),
+        "demoted_components": sorted(
+            c for c in demoted_components() if c in PROMOTED_COMPONENTS
+        ),
+        "demote_env_var": DEMOTE_ENV_VAR,
         "note": (
-            "DL-primary is the declared target architecture. The system "
-            "currently runs deterministic/Huggel as the operational path "
-            "with neural components providing advisory evidence. "
-            "Operational scope: monsoon window Jun-Sep (see "
-            "siren/scope.py) — out-of-window observations run the "
-            "deterministic baseline only."
+            "DL-primary is the declared target architecture. "
+            "sar_segmentation_expansion is operational-primary within "
+            "its certified scope (descending orbit, monsoon Jun-Sep, "
+            "Imja-area monitorable lakes) and supplies the load-bearing "
+            "water-area expansion measurement; the deterministic "
+            "pipeline remains the labeled cross-check and stays "
+            "authoritative out of scope. Other components are "
+            "advisory-primary or shadow."
         ),
     }
     return report

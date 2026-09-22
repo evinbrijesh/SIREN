@@ -170,6 +170,17 @@ export interface MlEvidence {
   ml_drainage_km2: number | null;
   model_available: boolean;
   change_polygon: GeoJSONFeature | null;
+  /** MC Dropout per-pixel std map (E1) + conformal calibration state. */
+  uncertainty_map_uri: string | null;
+  uncertainty_map_bounds: number[][] | null;
+  uncertainty_max_std: number | null;
+  uncertainty_conformal_quantile: number | null;
+  uncertainty_conformal_gate_passed: boolean;
+  /** 90% conformal interval on the neural expansion % (Level 2.4) and
+   *  the scene-level "uncertain expansion" flag — true when the
+   *  interval includes zero. */
+  expansion_pct_ci90: number[] | null;
+  expansion_trend_uncertain: boolean;
   /** Tier-2 dynamic escalation result — promoted advisory evidence
    *  (is_shadow=false when promoted); null when the scorer is
    *  unavailable for the run. */

@@ -1,0 +1,49 @@
+{
+  "method": "split_conformal_mc_dropout_whole_scene_loso",
+  "checkpoint": "water_resunet_6ch_himalayan_adapter_multidate_mc.pt",
+  "dropout_native": true,
+  "dropout_rate": 0.1,
+  "n_samples": 20,
+  "confidence_level": 0.9,
+  "conformal_quantile_pooled": 0.639319,
+  "pooled_coverage_on_calibration": 0.9009,
+  "per_scene": [
+    {
+      "pair": "monsoon_2025_desc",
+      "t1": "20250910",
+      "n_labelled_px": 243,
+      "q_star_from_other_scenes": 0.626269,
+      "empirical_coverage": 0.8807,
+      "coverage_error": 0.0193
+    },
+    {
+      "pair": "monsoon_2025_desc2",
+      "t1": "20250922",
+      "n_labelled_px": 223,
+      "q_star_from_other_scenes": 0.576932,
+      "empirical_coverage": 0.8161,
+      "coverage_error": 0.0839
+    },
+    {
+      "pair": "unfrozen_desc",
+      "t1": "20260912",
+      "n_labelled_px": 684,
+      "q_star_from_other_scenes": 0.752983,
+      "empirical_coverage": 0.9313,
+      "coverage_error": 0.0313
+    }
+  ],
+  "n_scenes": 3,
+  "min_scene_coverage": 0.8161,
+  "max_scene_coverage": 0.9313,
+  "gate_passed": false,
+  "gate_criterion": "per-scene LOSO coverage within \u00b10.05 of nominal 0.9 on \u22653 held-out Imja-area scenes (DL_PRIMARY_ROADMAP Level 2.2)",
+  "split": "leave-one-scene-out \u2014 no scene contributes pixels to its own conformal quantile",
+  "label_semantics": "gold S2-SCL/analyst water masks sampled to the SAR grid; coverage is vs those labels on labelled pixels only",
+  "caveats": [
+    "Labelled pixels within a scene are spatially correlated \u2014 effective sample size \u226a pixel count; per-scene coverage is the honest unit.",
+    "3 scenes is the minimum the roadmap accepts \u2014 coverage dispersion across a larger scene set is unmeasured."
+  ],
+  "seed": 42,
+  "elapsed_seconds": 808.6
+}

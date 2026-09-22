@@ -288,6 +288,12 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
             "uncertainty_conformal_gate_passed": stats.get(
                 "uncertainty_conformal_gate_passed", False
             ),
+            # Level 2.4 — conformal interval on the neural expansion
+            # measurement + the scene-level "uncertain expansion" flag.
+            "expansion_pct_ci90": stats.get("expansion_pct_ci90"),
+            "expansion_trend_uncertain": stats.get(
+                "expansion_trend_uncertain", False
+            ),
             # Terrain/evidence-quality gate on the shadow mask (ADR-010 —
             # shapes displayed evidence only, never the score)
             "ml_shadow_px_raw": stats.get("ml_shadow_px_raw"),

@@ -1,0 +1,11 @@
+{
+  "method": "split_conformal_mc_dropout_whole_scene_loso",
+  "conformal_quantile": 0.639319,
+  "confidence_level": 0.9,
+  "gate_passed": false,
+  "calibration_domain": "imja_whole_scenes_gold_labels",
+  "n_cal_scenes": 3,
+  "n_samples": 20,
+  "dropout_rate": 0.1,
+  "report": "imja_scene_conformal_eval.json"
+}

@@ -45,6 +45,7 @@ Usage in the pipeline:
 
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 
@@ -280,8 +281,6 @@ class ChangeDetectionEngine:
             meta_path = resolved.with_suffix(".meta.json")
             if meta_path.exists():
                 try:
-                    import json
-
                     self.checkpoint_metadata = {
                         **(self.checkpoint_metadata or {}),
                         **json.loads(meta_path.read_text()),
@@ -290,11 +289,17 @@ class ChangeDetectionEngine:
                     logger.warning(f"Could not read checkpoint sidecar: {exc}")
 
             # Conformal calibration sidecar (E1): when the MC Dropout
-            # quantile has been calibrated on the held-out Kuro Siwo split
-            # (ml/calibrate_uncertainty.py), predict_change_uncertainty
+            # quantile has been calibrated on held-out data
+            # (ml/calibrate_uncertainty*.py), predict_change_uncertainty
             # uses it instead of nominal quantiles. The gate flag records
             # whether coverage met PRD §17.2 (±5% of nominal 90%).
-            cal_path = resolved.parent / "conformal_calibration.json"
+            # Per-checkpoint sidecar (<stem>.conformal.json) wins over the
+            # directory-level conformal_calibration.json — flat checkpoint
+            # dirs host multiple checkpoints and a quantile calibrated for
+            # one must not attach to the others.
+            cal_path = resolved.with_suffix(".conformal.json")
+            if not cal_path.exists():
+                cal_path = resolved.parent / "conformal_calibration.json"
             if cal_path.exists():
                 try:
                     cal = json.loads(cal_path.read_text())

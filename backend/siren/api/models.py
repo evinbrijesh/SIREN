@@ -197,6 +197,7 @@ class ErrorResponse(BaseModel):
 
 class MlComponentStatus(BaseModel):
     status: str  # shadow | advisory_primary | operational_primary
+    demoted: bool = False  # runtime demotion via SIREN_ML_DEMOTE
     display: str
     gate: str | None = None
     gate_passed: bool | None = None
@@ -216,6 +217,8 @@ class MlReadinessSummary(BaseModel):
     total_components: int
     next_recommended_level: int
     operational_scope: dict[str, Any] | None = None
+    demoted_components: list[str] = []
+    demote_env_var: str | None = None
     note: str
 
 

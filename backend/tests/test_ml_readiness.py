@@ -28,10 +28,11 @@ def test_get_ml_readiness_report_shape() -> None:
 
     assert "dl_primary_ready" in summary
     assert summary["dl_primary_ready"] is False
-    assert summary["operational_primary_components"] == 0
-    assert summary["advisory_primary_components"] >= 3
+    assert summary["operational_primary_components"] == 1
+    assert summary["advisory_primary_components"] >= 2
     assert summary["shadow_components"] >= 1
     assert summary["total_components"] == len(report)
+    assert summary["demoted_components"] == []
 
     expected_components = {
         "sar_segmentation_expansion",
@@ -63,11 +64,47 @@ def test_readiness_endpoint_returns_expected_shape(client) -> None:
     assert "summary" in data
     summary = data["summary"]
     assert summary["dl_primary_ready"] is False
-    assert summary["operational_primary_components"] == 0
-    assert summary["advisory_primary_components"] >= 3
+    assert summary["operational_primary_components"] == 1
+    assert summary["advisory_primary_components"] >= 2
 
     components = data["components"]
     assert "sar_segmentation_expansion" in components
-    assert components["sar_segmentation_expansion"]["status"] == "advisory_primary"
+    assert components["sar_segmentation_expansion"]["status"] == "operational_primary"
+    assert components["sar_segmentation_expansion"]["demoted"] is False
     assert components["neural_bathymetry"]["status"] == "shadow"
     assert components["latent_fno"]["status"] == "shadow"
+
+
+def test_runtime_demotion_flag(monkeypatch) -> None:
+    """SIREN_ML_DEMOTE forces a promoted component back to deterministic
+    fallback without editing the registry (PRD §9.8 reversibility)."""
+    from siren.ml.promotion import (
+        get_ml_readiness_report,
+        is_demoted,
+        is_promoted,
+    )
+
+    assert is_promoted("sar_segmentation_expansion")
+    assert not is_demoted("sar_segmentation_expansion")
+
+    monkeypatch.setenv("SIREN_ML_DEMOTE", "sar_segmentation_expansion")
+    assert is_demoted("sar_segmentation_expansion")
+    assert not is_promoted("sar_segmentation_expansion")
+    # The registry record itself is untouched — demotion is runtime-only.
+    from siren.ml.promotion import promotion_record
+
+    assert promotion_record("sar_segmentation_expansion") is not None
+
+    report = get_ml_readiness_report()
+    seg = report["sar_segmentation_expansion"]
+    assert seg["status"] == "operational_primary"  # certified level
+    assert seg["demoted"] is True                  # runtime override visible
+    assert report["_summary"]["demoted_components"] == [
+        "sar_segmentation_expansion"
+    ]
+
+    # "all" demotes every promoted component.
+    monkeypatch.setenv("SIREN_ML_DEMOTE", "all")
+    assert not is_promoted("sar_segmentation_expansion")
+    assert not is_promoted("susceptibility")
+    assert not is_promoted("dynamic_escalation")

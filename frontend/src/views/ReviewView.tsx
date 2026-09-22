@@ -42,7 +42,7 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
   const [selectedSector, setSelectedSector] = useState<string>("sector-b");
   const [selectedChannel, setSelectedChannel] = useState<"sms" | "lora" | "satellite">("sms");
   const [viewMode, setViewMode] = useState<"simple" | "advanced">("simple");
-  const [maskLayer, setMaskLayer] = useState<"deterministic" | "shadow" | "extent" | "drainage">("deterministic");
+  const [maskLayer, setMaskLayer] = useState<"deterministic" | "shadow" | "extent" | "drainage" | "uncertainty">("deterministic");
   const [swipePos, setSwipePos] = useState(50);
 
   const score = run?.score;
@@ -267,6 +267,7 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
   // is ~zero.
   const layerMaskUri = (layer: typeof maskLayer): string => {
     if (!mlEvidence) return "";
+    if (layer === "uncertainty") return mlEvidence.uncertainty_map_uri ?? mlEvidence.mask_uri;
     if (layer === "extent") return mlEvidence.ml_water_extent_uri ?? mlEvidence.ml_shadow_mask_uri ?? mlEvidence.mask_uri;
     if (layer === "drainage") return mlEvidence.ml_drainage_uri ?? mlEvidence.mask_uri;
     if (layer === "shadow") return mlEvidence.ml_shadow_mask_uri ?? mlEvidence.mask_uri;
@@ -274,6 +275,7 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
   };
   const layerAlt = (layer: typeof maskLayer): string => (
     layer === "deterministic" ? "Deterministic change mask (authoritative)"
+      : layer === "uncertainty" ? "MC Dropout per-pixel std map (epistemic uncertainty)"
       : layer === "extent" ? "ML water extent at t1 (shadow)"
       : layer === "drainage" ? "ML drainage / receded water (shadow)"
       : "WaterUNet shadow mask (supplementary)"
@@ -302,6 +304,18 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
           >
             {isFallbackCorridor ? "Corridor: fallback" : "Corridor: D8+OSM"}
           </span>
+          {/* Level 2.4 — "uncertain expansion" flag: the 90% conformal
+              interval for the neural expansion measurement includes zero */}
+          {mlEvidence?.expansion_trend_uncertain && (
+            <span
+              className="text-caption border border-status-warn text-status-warn px-space-4 py-space-1"
+              title={mlEvidence.expansion_pct_ci90
+                ? `90% conformal interval for expansion: [${mlEvidence.expansion_pct_ci90[0].toFixed(1)}%, ${mlEvidence.expansion_pct_ci90[1].toFixed(1)}%] — includes zero`
+                : "90% conformal interval for expansion includes zero"}
+            >
+              Expansion: uncertain
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-space-8">
           {/* Simple / Advanced mode toggle */}
@@ -533,6 +547,19 @@ export default function ReviewView({ run, onToast, onJumpToMap }: Props) {
                       }`}
                     >
                       Drainage (shadow)
+                    </button>
+                  )}
+                  {mlEvidence.uncertainty_map_uri && (
+                    <button
+                      onClick={() => setMaskLayer("uncertainty")}
+                      className={`px-space-8 py-space-2 text-caption font-medium transition-colors ${
+                        maskLayer === "uncertainty"
+                          ? "bg-status-warn text-surface-canvas"
+                          : "text-text-dim hover:text-text-primary"
+                      }`}
+                      title={`MC Dropout per-pixel std (T=20)${mlEvidence.uncertainty_conformal_quantile != null ? ` — conformal q*=${mlEvidence.uncertainty_conformal_quantile.toFixed(3)}${mlEvidence.uncertainty_conformal_gate_passed ? "" : ", gate not passed"}` : ""}`}
+                    >
+                      Uncertainty σ
                     </button>
                   )}
                 </div>
